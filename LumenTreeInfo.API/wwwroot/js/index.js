@@ -385,7 +385,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     batteryStatus: data.data.batteryStatus || 'Idle',
                     deviceTempValue: data.data.temperature || 0,
                     essentialValue: data.data.homeLoad || 0,
-                    loadValue: data.data.homeLoad || 0,
+                    loadValue: data.data.acOutputPower || 0,
                     inverterAcOutPower: data.data.acOutputPower || 0
                 };
                 updateRealTimeDisplay(displayData);
@@ -516,7 +516,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     batteryStatus: realtimeData.data.batteryStatus || 'Idle',
                     deviceTempValue: realtimeData.data.temperature || 0,
                     essentialValue: realtimeData.data.homeLoad || 0,
-                    loadValue: realtimeData.data.homeLoad || 0,
+                    loadValue: realtimeData.data.acOutputPower || 0,
                     inverterAcOutPower: realtimeData.data.acOutputPower || 0
                 };
                 updateRealTimeDisplay(displayData);
