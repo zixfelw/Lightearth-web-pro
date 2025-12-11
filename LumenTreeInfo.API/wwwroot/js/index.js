@@ -70,6 +70,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // Battery cell communication state
     let hasCellData = false; // True only after receiving REAL data from MQTT
     let cellDataReceived = false; // Flag to track if we ever received cell data
+    
+    // Realtime polling interval
+    let realtimePollingInterval = null;
 
     // ========================================
     // EVENT LISTENERS
@@ -309,7 +312,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function subscribeToDevice(deviceId) {
-        if (!deviceId || deviceId === currentDeviceId || !connection || connection.state !== "Connected") {
+        if (!deviceId) return;
+        
+        // Always start realtime polling (works even if SignalR fails)
+        startRealtimePolling(deviceId);
+        
+        if (deviceId === currentDeviceId || !connection || connection.state !== "Connected") {
             return;
         }
 
@@ -324,6 +332,104 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.log(`Subscribed to: ${deviceId}`);
             })
             .catch(err => console.error("Subscribe error:", err));
+    }
+    
+    // ========================================
+    // REALTIME POLLING (2 seconds interval)
+    // ========================================
+    
+    function startRealtimePolling(deviceId) {
+        if (realtimePollingInterval) {
+            clearInterval(realtimePollingInterval);
+        }
+        
+        console.log(`Starting realtime polling for device: ${deviceId}`);
+        
+        // Fetch immediately
+        fetchRealtimeData(deviceId);
+        
+        // Then poll every 2 seconds
+        realtimePollingInterval = setInterval(() => {
+            fetchRealtimeData(deviceId);
+        }, 2000);
+    }
+    
+    function stopRealtimePolling() {
+        if (realtimePollingInterval) {
+            clearInterval(realtimePollingInterval);
+            realtimePollingInterval = null;
+        }
+    }
+    
+    async function fetchRealtimeData(deviceId) {
+        try {
+            const response = await fetch(`/device/${deviceId}/realtime`);
+            if (!response.ok) return;
+            
+            const data = await response.json();
+            if (data.error) return;
+            
+            // Update displays with realtime data
+            if (data.data) {
+                const displayData = {
+                    pvTotalPower: data.data.totalPvPower || 0,
+                    pv1Power: data.data.pv1Power || 0,
+                    pv2Power: data.data.pv2Power || 0,
+                    pv1Voltage: data.data.pv1Voltage || 0,
+                    pv2Voltage: data.data.pv2Voltage || 0,
+                    gridValue: data.data.gridPowerFlow || 0,
+                    gridVoltageValue: data.data.acInputVoltage || 0,
+                    batteryPercent: data.data.batterySoc || 0,
+                    batteryValue: data.data.batteryPower || 0,
+                    batteryVoltage: data.data.batteryVoltage || 0,
+                    batteryStatus: data.data.batteryStatus || 'Idle',
+                    deviceTempValue: data.data.temperature || 0,
+                    essentialValue: data.data.homeLoad || 0,
+                    loadValue: data.data.homeLoad || 0,
+                    inverterAcOutPower: data.data.acOutputPower || 0
+                };
+                updateRealTimeDisplay(displayData);
+                
+                // Update battery cell voltages
+                if (data.data.cellVoltages && data.data.cellVoltages.length > 0) {
+                    const cellData = {
+                        cells: data.data.cellVoltages,
+                        maximumVoltage: data.cells?.maxVoltage || Math.max(...data.data.cellVoltages)
+                    };
+                    updateBatteryCellDisplay(cellData);
+                }
+                
+                // Update SOC
+                if (data.data.batterySoc !== undefined) {
+                    updateSOCFromRealtime(data.data.batterySoc);
+                }
+            }
+            
+            updateConnectionStatus('connected');
+        } catch (error) {
+            // Silent fail for polling
+        }
+    }
+    
+    function updateSOCFromRealtime(soc) {
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        
+        if (socChart && socChart.data) {
+            const labels = socChart.data.labels;
+            if (labels.length === 0 || labels[labels.length - 1] !== timeStr) {
+                socChart.data.labels.push(timeStr);
+                socChart.data.datasets[0].data.push(soc);
+                
+                if (socChart.data.labels.length > 288) {
+                    socChart.data.labels.shift();
+                    socChart.data.datasets[0].data.shift();
+                }
+                
+                socChart.update('none');
+                console.log(`SOC updated: ${soc}% at ${timeStr} (${socChart.data.labels.length} points)`);
+            }
+        }
     }
 
     connection.onclose(async () => {
@@ -359,42 +465,108 @@ document.addEventListener('DOMContentLoaded', function () {
         showLoading(true);
         hideError();
 
-        fetch(`/device/${deviceId}?date=${date}`)
-            .then(async response => {
-                if (!response.ok) {
-                    // Try to parse error response as JSON
-                    try {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error || errorData.suggestion || `Server error: ${response.status}`);
-                    } catch (parseError) {
-                        // If parsing fails, use status code message
-                        if (response.status === 404) {
-                            throw new Error(`Không tìm thấy thiết bị "${deviceId}". Vui lòng kiểm tra lại Device ID.`);
-                        }
-                        throw new Error(`Server error: ${response.status}`);
-                    }
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Check if data contains error field (server returned error as 200)
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                console.log("Data received:", data);
-                processData(data);
-                showCompactSearchBar(deviceId, date);
-                
-                // Fetch SOC timeline data - use batSoc from response or fallback to API
-                fetchSOCData(deviceId, date, data);
-            })
-            .catch(error => {
-                console.error("Fetch error:", error);
-                showError(error.message || 'Lỗi tải dữ liệu. Vui lòng thử lại sau.');
+        // FAST LOAD: Call realtime API first for instant display
+        fetchRealtimeFirst(deviceId, date);
+    }
+    
+    // Fast load: Realtime API first, then fetch historical data in background
+    async function fetchRealtimeFirst(deviceId, date) {
+        try {
+            const realtimeResponse = await fetch(`/device/${deviceId}/realtime`);
+            
+            if (!realtimeResponse.ok) {
+                throw new Error(`Realtime API error: ${realtimeResponse.status}`);
+            }
+            
+            const realtimeData = await realtimeResponse.json();
+            
+            if (realtimeData.error) {
+                throw new Error(realtimeData.error);
+            }
+            
+            console.log("Realtime data loaded (fast):", realtimeData);
+            
+            // Show UI immediately
+            showElement('deviceInfo');
+            showElement('summaryStats');
+            showElement('chart-section');
+            showElement('realTimeFlow');
+            showElement('batteryCellSection');
+            showElement('socChartSection');
+            
+            updateDeviceInfo({
+                deviceId: deviceId,
+                deviceType: 'Lumentree Inverter',
+                onlineStatus: 1,
+                remarkName: ''
+            });
+            
+            if (realtimeData.data) {
+                const displayData = {
+                    pvTotalPower: realtimeData.data.totalPvPower || 0,
+                    pv1Power: realtimeData.data.pv1Power || 0,
+                    pv2Power: realtimeData.data.pv2Power || 0,
+                    pv1Voltage: realtimeData.data.pv1Voltage || 0,
+                    pv2Voltage: realtimeData.data.pv2Voltage || 0,
+                    gridValue: realtimeData.data.gridPowerFlow || 0,
+                    gridVoltageValue: realtimeData.data.acInputVoltage || 0,
+                    batteryPercent: realtimeData.data.batterySoc || 0,
+                    batteryValue: realtimeData.data.batteryPower || 0,
+                    batteryVoltage: realtimeData.data.batteryVoltage || 0,
+                    batteryStatus: realtimeData.data.batteryStatus || 'Idle',
+                    deviceTempValue: realtimeData.data.temperature || 0,
+                    essentialValue: realtimeData.data.homeLoad || 0,
+                    loadValue: realtimeData.data.homeLoad || 0,
+                    inverterAcOutPower: realtimeData.data.acOutputPower || 0
+                };
+                updateRealTimeDisplay(displayData);
+            }
+            
+            showCompactSearchBar(deviceId, date);
+            showLoading(false);
+            
+            initializeBatteryCellsWaiting();
+            
+            // Fetch SOC timeline from proxy
+            fetchSOCFromProxy(deviceId, date, realtimeData.data?.batterySoc || 0);
+            
+        } catch (error) {
+            console.error("Fast load failed:", error);
+            showLoading(false);
+            showError('Không thể tải dữ liệu. Vui lòng kiểm tra Device ID và thử lại.');
             })
             .finally(() => {
                 showLoading(false);
             });
+    }
+    
+    // Fetch SOC timeline from proxy API
+    async function fetchSOCFromProxy(deviceId, date, currentSoc) {
+        const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
+        const proxyUrl = `https://solar-proxy.applike098.workers.dev/api/soc/${deviceId}/${queryDate}`;
+        
+        try {
+            console.log("Fetching SOC from proxy:", proxyUrl);
+            const response = await fetch(proxyUrl);
+            
+            if (!response.ok) {
+                console.warn("SOC proxy API error:", response.status);
+                if (currentSoc > 0) initializeSOCWithCurrentValue(currentSoc);
+                return;
+            }
+            
+            const data = await response.json();
+            console.log("SOC proxy data received:", data);
+            
+            if (data?.timeline && Array.isArray(data.timeline) && data.timeline.length > 0) {
+                loadSOCTimeline(data.timeline);
+            } else if (currentSoc > 0) {
+                initializeSOCWithCurrentValue(currentSoc);
+            }
+        } catch (error) {
+            console.warn("SOC proxy fetch error:", error);
+            if (currentSoc > 0) initializeSOCWithCurrentValue(currentSoc);
+        }
     }
     
     // Fetch SOC timeline data - tries API first, then uses current SOC from main response
@@ -523,12 +695,15 @@ document.addEventListener('DOMContentLoaded', function () {
         updateDeviceInfo(data.deviceInfo);
 
         // Update summary stats (convert from 0.1kWh to kWh)
-        updateValue('pv-total', (data.pv.tableValue / 10).toFixed(1) + ' kWh');
-        updateValue('bat-charge', (data.bat.bats[0].tableValue / 10).toFixed(1) + ' kWh');
-        updateValue('bat-discharge', (data.bat.bats[1].tableValue / 10).toFixed(1) + ' kWh');
-        updateValue('load-total', (data.load.tableValue / 10).toFixed(1) + ' kWh');
-        updateValue('grid-total', (data.grid.tableValue / 10).toFixed(1) + ' kWh');
-        updateValue('essential-total', (data.essentialLoad.tableValue / 10).toFixed(1) + ' kWh');
+        updateValue('pv-total', ((data.pv?.tableValue || 0) / 10).toFixed(1) + ' kWh');
+        // Use chargeKwh/dischargeKwh from proxy API, fallback to bats[] for old API
+        const batCharge = data.bat?.chargeKwh ?? ((data.bat?.bats?.[0]?.tableValue || 0) / 10);
+        const batDischarge = data.bat?.dischargeKwh ?? ((data.bat?.bats?.[1]?.tableValue || 0) / 10);
+        updateValue('bat-charge', batCharge.toFixed(1) + ' kWh');
+        updateValue('bat-discharge', batDischarge.toFixed(1) + ' kWh');
+        updateValue('load-total', ((data.load?.tableValue || 0) / 10).toFixed(1) + ' kWh');
+        updateValue('grid-total', ((data.grid?.tableValue || 0) / 10).toFixed(1) + ' kWh');
+        updateValue('essential-total', ((data.essentialLoad?.tableValue || 0) / 10).toFixed(1) + ' kWh');
 
         // Update charts
         updateCharts(data);
