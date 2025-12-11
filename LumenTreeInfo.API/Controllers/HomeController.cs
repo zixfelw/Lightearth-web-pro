@@ -177,7 +177,31 @@ public class HomeController : Controller
                 Log.Debug("Waiting for MQTT data... attempt {Attempt}/6", attempt);
             }
 
-            // All options failed
+            // All options failed - Check if fallback to demo is enabled
+            var useDemoFallback = Environment.GetEnvironmentVariable("USE_DEMO_FALLBACK") == "true" ||
+                                  Request.Query.ContainsKey("fallback");
+            
+            if (useDemoFallback)
+            {
+                Log.Warning("All data sources failed for device {DeviceId}, returning demo data as fallback", deviceId);
+                var demoData = GenerateDemoData(deviceId, queryDate);
+                // Add warning to demo data
+                return Json(new {
+                    ((dynamic)demoData).DeviceInfo,
+                    ((dynamic)demoData).Pv,
+                    ((dynamic)demoData).Bat,
+                    ((dynamic)demoData).EssentialLoad,
+                    ((dynamic)demoData).Grid,
+                    ((dynamic)demoData).Load,
+                    ((dynamic)demoData).BatSoc,
+                    ((dynamic)demoData).RealtimeData,
+                    DataSource = "demo_fallback",
+                    QueryDate = queryDate.ToString("yyyy-MM-dd"),
+                    Warning = "⚠️ Không thể kết nối đến Lumentree API. Đang hiển thị dữ liệu DEMO. Nguyên nhân có thể do: 1) Server hosting bị chặn kết nối đến Trung Quốc, 2) Thiết bị offline, 3) Device ID không đúng.",
+                    ApiStatus = "unreachable"
+                });
+            }
+
             Log.Warning("All data sources failed for device {DeviceId} after 6 seconds", deviceId);
             return NotFound(new { 
                 error = $"Không tìm thấy thiết bị \"{deviceId}\". Thiết bị có thể offline hoặc Device ID không đúng.",
@@ -188,11 +212,13 @@ public class HomeController : Controller
                     "Đảm bảo thiết bị đang online và kết nối internet",
                     "Thử refresh trang sau vài giây - lần đầu tiên kết nối có thể cần thêm thời gian",
                     "Kiểm tra xem thiết bị có hiển thị trên app Lumentree không",
-                    $"Thử test connectivity tại: /debug/connectivity?deviceId={deviceId}"
+                    $"Thử test connectivity tại: /debug/connectivity?deviceId={deviceId}",
+                    "Thêm ?fallback=true vào URL để xem demo data khi API không khả dụng"
                 },
                 help = "Nếu bạn mới mua thiết bị, vui lòng đợi 5-10 phút để hệ thống đồng bộ dữ liệu. Với thiết bị đã kích hoạt, hãy thử refresh lại trang sau vài giây.",
                 apiVersion = "3.2",
-                mqttStatus = "subscribed_waiting_for_data"
+                mqttStatus = "subscribed_waiting_for_data",
+                fallbackUrl = $"/device/{deviceId}?fallback=true"
             });
         }
         catch (Exception ex)
@@ -860,12 +886,26 @@ public class HomeController : Controller
         {
             results["dns_resolution"] = new { success = false, error = ex.Message };
         }
+
+        // Test 1b: DNS Resolution for LEHT API
+        try
+        {
+            var addresses = await System.Net.Dns.GetHostAddressesAsync("lehtapi.suntcn.com");
+            results["dns_lehtapi"] = new { 
+                success = true, 
+                addresses = addresses.Select(a => a.ToString()).ToArray() 
+            };
+        }
+        catch (Exception ex)
+        {
+            results["dns_lehtapi"] = new { success = false, error = ex.Message };
+        }
         
-        // Test 2: HTTP Connection to Lumentree API
+        // Test 2: HTTP Connection to Lumentree API (legacy)
         try
         {
             using var httpClient = new HttpClient();
-            httpClient.Timeout = TimeSpan.FromSeconds(10);
+            httpClient.Timeout = TimeSpan.FromSeconds(15);
             var response = await httpClient.GetAsync("http://lesvr.suntcn.com/lesvr/getServerTime");
             var content = await response.Content.ReadAsStringAsync();
             results["lumentree_api"] = new { 
@@ -878,8 +918,53 @@ public class HomeController : Controller
         {
             results["lumentree_api"] = new { success = false, error = ex.Message };
         }
+
+        // Test 2b: HTTP Connection to LEHT API (primary)
+        try
+        {
+            var lehtClient = new LehtApiClient();
+            var loginSuccess = await lehtClient.LoginAsync("zixfel", "Minhlong4244@");
+            results["leht_api_login"] = new { 
+                success = loginSuccess,
+                session_id = lehtClient.SessionId?.Substring(0, Math.Min(8, lehtClient.SessionId?.Length ?? 0)) + "..."
+            };
+
+            if (loginSuccess && !string.IsNullOrEmpty(deviceId))
+            {
+                var dayData = await lehtClient.GetAllDayDataAsync(deviceId, DateTime.Now.ToString("yyyy-MM-dd"));
+                results["leht_api_data"] = new {
+                    success = dayData != null,
+                    has_pv_data = dayData?.Pv != null,
+                    has_bat_data = dayData?.Bat != null,
+                    pv_value = dayData?.Pv?.TableValue ?? 0
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            results["leht_api_login"] = new { success = false, error = ex.Message };
+        }
+
+        // Test 3: MQTT Connection test
+        try
+        {
+            using var tcpClient = new System.Net.Sockets.TcpClient();
+            var connectTask = tcpClient.ConnectAsync("lesvr.suntcn.com", 1886);
+            if (await Task.WhenAny(connectTask, Task.Delay(5000)) == connectTask)
+            {
+                results["mqtt_connection"] = new { success = true, host = "lesvr.suntcn.com", port = 1886 };
+            }
+            else
+            {
+                results["mqtt_connection"] = new { success = false, error = "Connection timeout after 5 seconds" };
+            }
+        }
+        catch (Exception ex)
+        {
+            results["mqtt_connection"] = new { success = false, error = ex.Message };
+        }
         
-        // Test 3: Token Generation (only if deviceId is provided)
+        // Test 4: Token Generation (only if deviceId is provided)
         if (!string.IsNullOrEmpty(deviceId))
         {
             try
@@ -903,6 +988,18 @@ public class HomeController : Controller
                 message = "No deviceId provided. Add ?deviceId=YOUR_DEVICE_ID to test token generation" 
             };
         }
+
+        // Summary
+        var apiWorking = results.ContainsKey("leht_api_login") && 
+                         results["leht_api_login"] is { } lehtResult &&
+                         (lehtResult.GetType().GetProperty("success")?.GetValue(lehtResult) as bool? ?? false);
+        
+        results["summary"] = new {
+            recommendation = apiWorking 
+                ? "LEHT API is working! The system should be able to fetch real device data."
+                : "API connections are failing. This is likely due to network restrictions from the hosting provider to Chinese servers. Consider using a VPN or hosting in Asia region.",
+            demo_mode_url = "Add ?demo=true to any device URL to see demo data"
+        };
         
         return Json(results);
     }
