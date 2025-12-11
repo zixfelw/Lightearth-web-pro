@@ -84,6 +84,15 @@ public class HomeController : Controller
             // Get MQTT cached data for realtime display (will be merged later)
             var mqttData = _solarMonitor.GetCachedData(deviceId);
             
+            // DEMO MODE: Check if demo mode is requested or if this is a known demo device
+            var demoMode = Request.Query.ContainsKey("demo") || 
+                           Environment.GetEnvironmentVariable("DEMO_MODE") == "true";
+            if (demoMode || deviceId.StartsWith("DEMO"))
+            {
+                Log.Information("Returning demo data for device {DeviceId}", deviceId);
+                return Json(GenerateDemoData(deviceId, queryDate));
+            }
+            
             // OPTION 0: Try LEHT API first (lehtapi.suntcn.com) - BEST DATA SOURCE
             var lehtResult = await TryLehtApiFallback(deviceId, queryDate);
             if (lehtResult != null)
@@ -908,5 +917,161 @@ public class HomeController : Controller
             Activity.Current?.Id ?? HttpContext.TraceIdentifier);
 
         return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+    }
+
+    /// <summary>
+    /// Generates demo data for testing purposes when API is unreachable
+    /// </summary>
+    private object GenerateDemoData(string deviceId, DateTime queryDate)
+    {
+        var random = new Random();
+        var now = DateTime.Now;
+        var currentHour = now.Hour;
+        var currentMinute = now.Minute;
+        
+        // Generate realistic solar curve (peaks at noon)
+        var pvValueInfo = new List<int>();
+        var batValueInfo = new List<int>();
+        var gridValueInfo = new List<int>();
+        var loadValueInfo = new List<int>();
+        var socValueInfo = new List<int>();
+        
+        int currentSoc = 30; // Start at 30%
+        double totalPv = 0;
+        double totalLoad = 0;
+        double totalGrid = 0;
+        double totalBat = 0;
+        
+        for (int i = 0; i < 288; i++) // 288 points = 24 hours * 60 min / 5 min intervals
+        {
+            var hour = i * 5 / 60.0;
+            var isCurrentTime = (int)(hour * 60) <= (currentHour * 60 + currentMinute);
+            
+            // Solar production (bell curve, peak at noon)
+            var solarBase = Math.Max(0, Math.Sin((hour - 6) * Math.PI / 12) * 3500);
+            var solarNoise = random.Next(-100, 100);
+            var pvPower = isCurrentTime && hour >= 6 && hour <= 18 
+                ? (int)Math.Max(0, solarBase + solarNoise) 
+                : 0;
+            pvValueInfo.Add(pvPower);
+            totalPv += pvPower / 12.0; // Convert W to Wh (5 min intervals)
+            
+            // Load (more in morning/evening)
+            var loadBase = 800 + 500 * Math.Sin((hour - 2) * Math.PI / 12);
+            var loadNoise = random.Next(-100, 150);
+            var loadPower = isCurrentTime 
+                ? (int)Math.Max(200, loadBase + loadNoise + (hour >= 18 || hour <= 7 ? 400 : 0))
+                : 0;
+            loadValueInfo.Add(loadPower);
+            totalLoad += loadPower / 12.0;
+            
+            // Battery (charges during day, discharges at night)
+            var batPower = 0;
+            if (isCurrentTime)
+            {
+                if (hour >= 9 && hour <= 15 && pvPower > loadPower)
+                {
+                    batPower = (int)Math.Min(2000, (pvPower - loadPower) * 0.8);
+                    currentSoc = Math.Min(100, currentSoc + batPower / 500);
+                }
+                else if ((hour < 9 || hour > 17) && currentSoc > 10)
+                {
+                    batPower = (int)Math.Min(1500, loadPower * 0.6);
+                    currentSoc = Math.Max(10, currentSoc - batPower / 600);
+                }
+            }
+            batValueInfo.Add(batPower);
+            totalBat += batPower / 12.0;
+            socValueInfo.Add(isCurrentTime ? currentSoc : 0);
+            
+            // Grid (import when solar + battery insufficient)
+            var gridPower = isCurrentTime 
+                ? (int)Math.Max(0, loadPower - pvPower - batPower + random.Next(-50, 100))
+                : 0;
+            gridValueInfo.Add(gridPower);
+            totalGrid += gridPower / 12.0;
+        }
+        
+        // Current realtime values
+        var realtimePv = pvValueInfo.Count > 0 ? pvValueInfo[Math.Min((currentHour * 60 + currentMinute) / 5, 287)] : 0;
+        var realtimeLoad = loadValueInfo.Count > 0 ? loadValueInfo[Math.Min((currentHour * 60 + currentMinute) / 5, 287)] : 0;
+        var realtimeBat = batValueInfo.Count > 0 ? batValueInfo[Math.Min((currentHour * 60 + currentMinute) / 5, 287)] : 0;
+        var realtimeGrid = gridValueInfo.Count > 0 ? gridValueInfo[Math.Min((currentHour * 60 + currentMinute) / 5, 287)] : 0;
+        
+        return new {
+            DeviceInfo = new {
+                DeviceId = deviceId,
+                DeviceType = "DEMO - Lumentree 5kW Hybrid",
+                OnlineStatus = 1,
+                RemarkName = "Demo System",
+                ErrorStatus = (string?)null
+            },
+            Pv = new {
+                TableKey = "pv",
+                TableName = "PV发电量",
+                TableValue = (int)(totalPv / 100), // Convert to 0.1kWh units
+                TableValueInfo = pvValueInfo
+            },
+            Bat = new {
+                Bats = new[] {
+                    new { TableName = "电池充电电量", TableValue = (int)(totalBat / 100), TableKey = "bat" },
+                    new { TableName = "电池放电电量", TableValue = (int)(totalBat * 0.9 / 100), TableKey = "batF" }
+                },
+                TableValueInfo = batValueInfo
+            },
+            EssentialLoad = new {
+                TableKey = "essentialLoad",
+                TableName = "不断电负载耗电量",
+                TableValue = (int)(totalLoad * 0.3 / 100),
+                TableValueInfo = loadValueInfo.Select(v => (int)(v * 0.3)).ToList()
+            },
+            Grid = new {
+                TableKey = "grid",
+                TableName = "电网输入电量",
+                TableValue = (int)(totalGrid / 100),
+                TableValueInfo = gridValueInfo
+            },
+            Load = new {
+                TableKey = "homeload",
+                TableName = "家庭负载耗电量",
+                TableValue = (int)(totalLoad / 100),
+                TableValueInfo = loadValueInfo
+            },
+            BatSoc = new {
+                TableKey = "batSoc",
+                TableName = "电池余量百分比",
+                TableValue = currentSoc,
+                TableValueInfo = socValueInfo
+            },
+            RealtimeData = new {
+                device_id = deviceId,
+                data = new {
+                    batterySoc = currentSoc,
+                    batteryVoltage = 51.2 + random.NextDouble() * 2,
+                    batteryPower = realtimeBat,
+                    batteryStatus = realtimeBat > 100 ? "Charging" : (realtimeBat < -100 ? "Discharging" : "Standby"),
+                    gridPowerFlow = realtimeGrid,
+                    gridStatus = realtimeGrid > 0 ? "Importing" : "Exporting",
+                    homeLoad = realtimeLoad,
+                    totalPvPower = realtimePv,
+                    pv1Power = (int)(realtimePv * 0.55),
+                    pv2Power = (int)(realtimePv * 0.45),
+                    temperature = 35 + random.Next(0, 10),
+                    acOutputPower = (int)(realtimeLoad * 0.3),
+                    acInputVoltage = 220 + random.Next(-5, 5)
+                },
+                cells = new {
+                    averageVoltage = 3.2 + random.NextDouble() * 0.1,
+                    cellVoltages = Enumerable.Range(1, 16).ToDictionary(
+                        i => $"cell{i}", 
+                        i => 3.18 + random.NextDouble() * 0.08
+                    ),
+                    numberOfCells = 16
+                }
+            },
+            DataSource = "demo",
+            QueryDate = queryDate.ToString("yyyy-MM-dd"),
+            DemoMessage = "⚠️ Đây là dữ liệu DEMO. Để xem dữ liệu thật, vui lòng deploy lên Railway hoặc server có thể kết nối đến Lumentree API."
+        };
     }
 }
