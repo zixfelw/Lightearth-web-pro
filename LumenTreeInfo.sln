@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35527.113
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LumenTreeInfo.API", "LumenTreeInfo.API\LumenTreeInfo.API.csproj", "{A6E5983C-7EED-4D8F-9128-6C7E48F1AE0E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LumenTreeInfo.Cmd", "LumenTreeInfo.Cmd\LumenTreeInfo.Cmd.csproj", "{5885391E-98DC-43A6-90CE-57A3C0521788}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LumenTreeInfo.Lib", "LumenTreeInfo.Lib\LumenTreeInfo.Lib.csproj", "{04DECD09-E7D8-4DC4-9BD1-171517F88498}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A6E5983C-7EED-4D8F-9128-6C7E48F1AE0E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A6E5983C-7EED-4D8F-9128-6C7E48F1AE0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A6E5983C-7EED-4D8F-9128-6C7E48F1AE0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A6E5983C-7EED-4D8F-9128-6C7E48F1AE0E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5885391E-98DC-43A6-90CE-57A3C0521788}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5885391E-98DC-43A6-90CE-57A3C0521788}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5885391E-98DC-43A6-90CE-57A3C0521788}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5885391E-98DC-43A6-90CE-57A3C0521788}.Release|Any CPU.Build.0 = Release|Any CPU
+		{04DECD09-E7D8-4DC4-9BD1-171517F88498}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{04DECD09-E7D8-4DC4-9BD1-171517F88498}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{04DECD09-E7D8-4DC4-9BD1-171517F88498}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{04DECD09-E7D8-4DC4-9BD1-171517F88498}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,759 @@
+/**
+ * Solar Monitor - Custom CSS
+ * Version: 08029 - Mobile 3-column layout for Summary Stats (Năng Lượng - Pin Lưu Trữ - Nguồn Điện)
+ */
+
+/* ========================================
+   BASE STYLES
+   ======================================== */
+
+html {
+    scroll-behavior: smooth;
+}
+
+/* ========================================
+   CHART STYLES
+   ======================================== */
+
+.chart-container {
+    position: relative;
+    height: 40vh;
+    width: 100%;
+    margin-bottom: 1.5rem;
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    padding-right: 25px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: visible !important;
+}
+
+/* Ensure canvas tooltips are not clipped */
+.chart-container canvas {
+    overflow: visible !important;
+}
+
+/* SOC section specific styling */
+#soc-section {
+    overflow: visible !important;
+}
+
+#soc-section .chart-container {
+    padding-right: 35px;
+}
+
+.dark .chart-container {
+    background: #1f2937;
+}
+
+@media (max-width: 640px) {
+    .chart-container {
+        height: 45vh;
+        padding: 12px;
+    }
+}
+
+/* Custom tooltip styling */
+.chartjs-tooltip {
+    opacity: 0;
+    position: absolute;
+    background: rgba(30, 30, 30, 0.95);
+    color: white;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 12px;
+    pointer-events: none;
+    transform: translate(-50%, 0);
+    transition: opacity 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.chartjs-legend {
+    font-size: 11px !important;
+    padding: 5px !important;
+}
+
+canvas:hover {
+    cursor: crosshair;
+}
+
+/* ========================================
+   STAT CARDS
+   ======================================== */
+
+.stat-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.dark .stat-card {
+    background: #1f2937;
+}
+
+.stat-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card:active {
+    transform: translateY(-2px);
+}
+
+/* ========================================
+   ENERGY FLOW CARDS
+   ======================================== */
+
+.energy-card {
+    transition: all 0.3s ease;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.energy-card.inactive {
+    opacity: 0.5;
+    filter: grayscale(0.5);
+}
+
+.energy-card img {
+    transition: all 0.3s ease;
+}
+
+.energy-card.inactive img {
+    opacity: 0.5;
+    filter: grayscale(100%);
+}
+
+.flow-item.inactive img {
+    opacity: 0.5;
+    filter: grayscale(100%);
+}
+
+/* ========================================
+   VALUE UPDATE ANIMATION - Enhanced Blink Effect
+   ======================================== */
+
+.value-updated {
+    animation: valueFlash 0.6s ease-out;
+}
+
+@keyframes valueFlash {
+    0% { 
+        background-color: rgba(139, 92, 246, 0.5);
+        transform: scale(1.05);
+        text-shadow: 0 0 8px rgba(139, 92, 246, 0.8);
+    }
+    50% {
+        background-color: rgba(139, 92, 246, 0.3);
+        transform: scale(1.02);
+    }
+    100% { 
+        background-color: transparent;
+        transform: scale(1);
+        text-shadow: none;
+    }
+}
+
+/* Cell value blink effect */
+.cell-blink {
+    animation: cellBlink 0.6s ease-out;
+}
+
+@keyframes cellBlink {
+    0% { 
+        box-shadow: 0 0 12px rgba(139, 92, 246, 0.8);
+        transform: scale(1.05);
+    }
+    50% {
+        box-shadow: 0 0 6px rgba(139, 92, 246, 0.5);
+    }
+    100% { 
+        box-shadow: none;
+        transform: scale(1);
+    }
+}
+
+/* Battery communication status */
+.cell-no-communication {
+    opacity: 0.4;
+    background: linear-gradient(135deg, #6b7280, #4b5563) !important;
+}
+
+.cell-no-communication .cell-voltage {
+    color: #9ca3af !important;
+}
+
+.cell-no-communication::after {
+    content: '⚠';
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 10px;
+    color: #ef4444;
+}
+
+/* ========================================
+   BATTERY CELL GRID
+   ======================================== */
+
+.battery-cell-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+@media (min-width: 640px) {
+    .battery-cell-grid {
+        grid-template-columns: repeat(8, 1fr);
+    }
+}
+
+.battery-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 4px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    background: #f3f4f6;
+    color: #374151;
+    transition: all 0.3s ease;
+    min-height: 36px;
+}
+
+.dark .battery-cell {
+    background: #374151;
+    color: #e5e7eb;
+}
+
+@media (min-width: 640px) {
+    .battery-cell {
+        font-size: 12px;
+        padding: 10px 6px;
+    }
+}
+
+/* Cell status colors */
+.battery-cell.cell-excellent {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.battery-cell.cell-good {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.battery-cell.cell-warning {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+/* Battery icon colors */
+.battery-icon-low {
+    filter: hue-rotate(0deg);
+}
+
+.battery-icon-medium {
+    filter: hue-rotate(30deg);
+}
+
+.battery-icon-high {
+    filter: hue-rotate(90deg);
+}
+
+/* ========================================
+   HERO SECTION (Collapsible on Mobile)
+   ======================================== */
+
+.hero-section {
+    transition: all 0.3s ease;
+}
+
+.hero-content {
+    max-height: 1000px;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.hero-content.collapsed {
+    max-height: 0;
+}
+
+.hero-toggle {
+    transition: transform 0.3s ease;
+}
+
+.hero-toggle.rotated {
+    transform: rotate(180deg);
+}
+
+/* ========================================
+   CELL SECTION (Collapsible)
+   ======================================== */
+
+.cell-section {
+    transition: all 0.3s ease;
+}
+
+.cell-content {
+    max-height: 1000px;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.cell-content.collapsed {
+    max-height: 0;
+}
+
+.cell-toggle {
+    transition: transform 0.3s ease;
+}
+
+.cell-toggle.rotated {
+    transform: rotate(180deg);
+}
+
+/* ========================================
+   COMPACT SEARCH BAR
+   ======================================== */
+
+.compact-search-bar {
+    position: sticky;
+    top: 60px;
+    z-index: 40;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    margin-bottom: 16px;
+}
+
+.dark .compact-search-bar {
+    background: #1f2937;
+}
+
+/* Compact Search Bar - Sticky below header */
+#compactSearch {
+    position: sticky;
+    top: 60px; /* Height of header */
+    z-index: 40;
+    transition: top 0.3s ease;
+}
+
+/* When header is hidden, compactSearch moves to top */
+.header-hidden ~ main #compactSearch,
+body:has(#mainHeader.header-hidden) #compactSearch {
+    top: 0;
+}
+
+/* ========================================
+   CONNECTION STATUS
+   ======================================== */
+
+.status-connected {
+    background-color: #10b981;
+    animation: pulse-green 2s infinite;
+}
+
+.status-disconnected {
+    background-color: #ef4444;
+}
+
+.status-connecting {
+    background-color: #f59e0b;
+    animation: pulse-yellow 1s infinite;
+}
+
+@keyframes pulse-green {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+    50% { opacity: 0.8; box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+}
+
+@keyframes pulse-yellow {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.7; transform: scale(1.2); }
+}
+
+/* ========================================
+   LOADING SPINNER
+   ======================================== */
+
+.loading-spinner {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #8b5cf6;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* ========================================
+   SCROLLBAR STYLING
+   ======================================== */
+
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.dark ::-webkit-scrollbar-track {
+    background: #374151;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #8b5cf6;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #7c3aed;
+}
+
+/* ========================================
+   MOBILE RESPONSIVENESS
+   ======================================== */
+
+@media (max-width: 640px) {
+    /* Energy Flow Grid - Keep 3 columns on mobile like desktop */
+    #realTimeFlow .grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+    }
+
+    #realTimeFlow .flow-item {
+        height: auto;
+        min-height: 90px;
+        padding: 6px 4px;
+    }
+    
+    /* Smaller icons and text on mobile */
+    #realTimeFlow .flow-item .w-10 {
+        width: 32px !important;
+        height: 32px !important;
+    }
+    
+    #realTimeFlow .flow-item .w-5 {
+        width: 16px !important;
+        height: 16px !important;
+    }
+    
+    /* Smaller battery icon container on mobile */
+    #realTimeFlow .battery-icon-container {
+        width: 32px !important;
+        height: 32px !important;
+        min-width: 32px !important;
+        min-height: 32px !important;
+    }
+    
+    #realTimeFlow .battery-percent-large {
+        font-size: 10px !important;
+    }
+    
+    /* Smaller text sizes on mobile */
+    #realTimeFlow .text-\[10px\] {
+        font-size: 8px !important;
+    }
+    
+    #realTimeFlow .text-sm {
+        font-size: 12px !important;
+    }
+    
+    #realTimeFlow .text-\[9px\] {
+        font-size: 7px !important;
+    }
+    
+    .compact-search-bar {
+        top: 56px;
+    }
+}
+
+/* ========================================
+   TOUCH-FRIENDLY
+   ======================================== */
+
+@media (pointer: coarse) {
+    .stat-card,
+    .energy-card,
+    button {
+        min-height: 44px;
+    }
+    
+    .battery-cell {
+        min-height: 40px;
+        min-width: 40px;
+    }
+}
+
+/* ========================================
+   CALCULATOR BUTTON
+   ======================================== */
+
+.calculator-btn {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.calculator-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+.calculator-btn:active {
+    transform: translateY(0);
+}
+
+/* ========================================
+   SOC CHART SECTION
+   ======================================== */
+
+.soc-chart-container {
+    height: 200px;
+}
+
+@media (min-width: 640px) {
+    .soc-chart-container {
+        height: 250px;
+    }
+}
+
+/* ========================================
+   GRADIENT BACKGROUNDS
+   ======================================== */
+
+.gradient-pv {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+}
+
+.gradient-battery {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.gradient-grid {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+}
+
+.gradient-load {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.gradient-essential {
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+}
+
+/* ========================================
+   BATTERY ICON WITH FILL
+   ======================================== */
+
+.battery-icon-container {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    position: relative;
+    min-width: 48px;
+    min-height: 48px;
+}
+
+@media (min-width: 640px) {
+    .battery-icon-container {
+        min-width: 56px;
+        min-height: 56px;
+    }
+}
+
+@media (min-width: 768px) {
+    .battery-icon-container {
+        min-width: 64px;
+        min-height: 64px;
+    }
+}
+
+.battery-fill {
+    transition: height 0.5s ease;
+}
+
+.battery-percent-large {
+    font-size: 16px;
+    font-weight: 900;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+    letter-spacing: -0.5px;
+}
+
+@media (min-width: 640px) {
+    .battery-percent-large {
+        font-size: 18px;
+    }
+}
+
+@media (min-width: 768px) {
+    .battery-percent-large {
+        font-size: 20px;
+    }
+}
+
+/* ========================================
+   CELL GRID RESPONSIVE
+   ======================================== */
+
+#cellGrid .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+
+@media (min-width: 640px) {
+    #cellGrid .grid {
+        grid-template-columns: repeat(8, 1fr);
+        gap: 8px;
+    }
+}
+
+.cell-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 4px;
+    border-radius: 8px;
+    min-height: 50px;
+    transition: all 0.3s ease;
+}
+
+.cell-item .cell-label {
+    font-size: 9px;
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+.cell-item .cell-voltage {
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+}
+
+@media (min-width: 640px) {
+    .cell-item {
+        min-height: 60px;
+        padding: 8px 6px;
+    }
+    
+    .cell-item .cell-label {
+        font-size: 10px;
+    }
+    
+    .cell-item .cell-voltage {
+        font-size: 12px;
+    }
+}
+
+/* Cell colors */
+.cell-good {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+}
+
+.cell-ok {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+}
+
+.cell-warning {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+}
+
+.cell-default {
+    background: linear-gradient(135deg, #6b7280, #4b5563);
+    color: white;
+}
+
+/* ========================================
+   FIXED CALCULATE BUTTON
+   ======================================== */
+
+#fixedCalculateBtn {
+    animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+#fixedCalculateBtn a {
+    box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+}
+
+#fixedCalculateBtn a:hover {
+    box-shadow: 0 6px 25px rgba(16, 185, 129, 0.5);
+}
+
+/* ========================================
+   GROUPED SUMMARY CARDS
+   ======================================== */
+
+#summaryStats .grid > div {
+    transition: all 0.3s ease;
+}
+
+#summaryStats .grid > div:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+/* Responsive for mobile - Keep 3 columns on mobile too */
+@media (max-width: 640px) {
+    #summaryStats .grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.375rem; /* 6px */
+    }
+}
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+
+@media print {
+    .fab,
+    .compact-search-bar,
+    header,
+    .hero-toggle,
+    .cell-toggle,
+    #fixedCalculateBtn {
+        display: none !important;
+    }
+    
+    .chart-container {
+        break-inside: avoid;
+        height: 300px;
+    }
+}
