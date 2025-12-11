@@ -879,6 +879,9 @@ public class HomeController : Controller
         try
         {
             var lumentreeNetClient = new LumentreeNetClient();
+            Log.Information("Realtime request for {DeviceId} - Using proxy: {UsingProxy}, BaseUrl: {BaseUrl}", 
+                deviceId, lumentreeNetClient.UsingProxy, lumentreeNetClient.BaseUrl);
+            
             var realtimeData = await lumentreeNetClient.GetRealtimeDataAsync(deviceId);
             
             if (realtimeData?.Data != null)
@@ -955,12 +958,23 @@ public class HomeController : Controller
                 });
             }
             
-            return NotFound(new { error = "No real-time data available", device_id = deviceId });
+            Log.Warning("No realtime data available for {DeviceId} - proxy returned null", deviceId);
+            return NotFound(new { 
+                error = "No real-time data available", 
+                device_id = deviceId,
+                proxy_url = Environment.GetEnvironmentVariable("LUMENTREE_PROXY_URL") ?? "NOT SET",
+                using_proxy = lumentreeNetClient.UsingProxy,
+                base_url = lumentreeNetClient.BaseUrl
+            });
         }
         catch (Exception ex)
         {
             Log.Error(ex, "Error getting realtime data for {DeviceId}", deviceId);
-            return StatusCode(500, new { error = "Failed to get realtime data", message = ex.Message });
+            return StatusCode(500, new { 
+                error = "Failed to get realtime data", 
+                message = ex.Message,
+                proxy_url = Environment.GetEnvironmentVariable("LUMENTREE_PROXY_URL") ?? "NOT SET"
+            });
         }
     }
 
