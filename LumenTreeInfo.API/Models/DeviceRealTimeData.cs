@@ -32,4 +32,7 @@ public class DeviceRealTimeData(string deviceId)
     public int Pv1Voltage { get; set; }
     public int? Pv2Voltage { get; set; }
     public int PvTotalPower { get; set; }
+    
+    // Battery cell voltages
+    public List<double>? CellVoltages { get; set; }
 }

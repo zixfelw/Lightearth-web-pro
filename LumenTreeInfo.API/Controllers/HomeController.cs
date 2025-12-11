@@ -865,6 +865,106 @@ public class HomeController : Controller
     }
 
     /// <summary>
+    /// Gets real-time data for a device - for 2-second polling
+    /// Returns: batterySoc, batteryVoltage, cellVoltages, gridPowerFlow, homeLoad, etc.
+    /// </summary>
+    [Route("/device/{deviceId}/realtime")]
+    public async Task<IActionResult> GetRealtimeData(string deviceId)
+    {
+        if (string.IsNullOrEmpty(deviceId))
+        {
+            return BadRequest(new { error = "Device ID is required" });
+        }
+
+        try
+        {
+            var lumentreeNetClient = new LumentreeNetClient();
+            var realtimeData = await lumentreeNetClient.GetRealtimeDataAsync(deviceId);
+            
+            if (realtimeData?.Data != null)
+            {
+                // Convert cell voltages dictionary to array
+                var cellVoltages = new List<double>();
+                if (realtimeData.Cells?.CellVoltages != null)
+                {
+                    var sortedCells = realtimeData.Cells.CellVoltages
+                        .OrderBy(kvp => {
+                            var numStr = new string(kvp.Key.Where(char.IsDigit).ToArray());
+                            return int.TryParse(numStr, out var num) ? num : 0;
+                        })
+                        .ToList();
+                    
+                    foreach (var cell in sortedCells)
+                    {
+                        cellVoltages.Add(cell.Value);
+                    }
+                }
+
+                return Json(new {
+                    device_id = deviceId,
+                    data = new {
+                        batterySoc = realtimeData.Data.BatterySoc,
+                        batteryVoltage = realtimeData.Data.BatteryVoltage,
+                        batteryPower = realtimeData.Data.BatteryPower,
+                        batteryCurrent = realtimeData.Data.BatteryCurrent,
+                        batteryStatus = realtimeData.Data.BatteryStatus,
+                        gridPowerFlow = realtimeData.Data.GridPowerFlow,
+                        gridStatus = realtimeData.Data.GridStatus,
+                        homeLoad = realtimeData.Data.HomeLoad,
+                        totalPvPower = realtimeData.Data.TotalPvPower,
+                        pv1Power = realtimeData.Data.Pv1Power,
+                        pv2Power = realtimeData.Data.Pv2Power,
+                        pv1Voltage = realtimeData.Data.PvInputVoltage1,
+                        pv2Voltage = realtimeData.Data.PvInputVoltage2,
+                        temperature = realtimeData.Data.Temperature,
+                        acInputVoltage = realtimeData.Data.AcInputVoltage,
+                        acOutputVoltage = realtimeData.Data.AcOutputVoltage,
+                        acOutputPower = realtimeData.Data.AcOutputPower,
+                        cellVoltages = cellVoltages
+                    },
+                    cells = realtimeData.Cells != null ? new {
+                        averageVoltage = realtimeData.Cells.AverageVoltage,
+                        minVoltage = cellVoltages.Count > 0 ? cellVoltages.Min() : 0,
+                        maxVoltage = cellVoltages.Count > 0 ? cellVoltages.Max() : 0,
+                        numberOfCells = realtimeData.Cells.NumberOfCells
+                    } : null,
+                    timestamp = realtimeData.Timestamp,
+                    dataSource = lumentreeNetClient.UsingProxy ? "lumentree.net (proxy)" : "lumentree.net"
+                });
+            }
+            
+            // Fallback to MQTT cached data
+            var mqttData = _solarMonitor.GetCachedData(deviceId);
+            if (mqttData != null)
+            {
+                return Json(new {
+                    device_id = deviceId,
+                    data = new {
+                        batterySoc = mqttData.BatteryPercent,
+                        batteryVoltage = mqttData.BatteryVoltage,
+                        batteryPower = mqttData.BatteryValue,
+                        batteryStatus = mqttData.BatteryStatus,
+                        gridPowerFlow = mqttData.GridValue,
+                        homeLoad = mqttData.LoadValue,
+                        totalPvPower = mqttData.PvTotalPower,
+                        temperature = mqttData.DeviceTempValue,
+                        cellVoltages = mqttData.CellVoltages ?? new List<double>()
+                    },
+                    timestamp = DateTime.UtcNow.ToString("R"),
+                    dataSource = "mqtt_cache"
+                });
+            }
+            
+            return NotFound(new { error = "No real-time data available", device_id = deviceId });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error getting realtime data for {DeviceId}", deviceId);
+            return StatusCode(500, new { error = "Failed to get realtime data", message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Debug endpoint to test connectivity to Lumentree API
     /// Accepts optional deviceId query parameter for testing specific device
     /// </summary>
