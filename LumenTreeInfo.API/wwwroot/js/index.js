@@ -534,10 +534,7 @@ document.addEventListener('DOMContentLoaded', function () {
             console.error("Fast load failed:", error);
             showLoading(false);
             showError('Không thể tải dữ liệu. Vui lòng kiểm tra Device ID và thử lại.');
-            })
-            .finally(() => {
-                showLoading(false);
-            });
+        }
     }
     
     // Fetch SOC timeline from proxy API
