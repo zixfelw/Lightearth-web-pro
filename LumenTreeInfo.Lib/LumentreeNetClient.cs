@@ -67,7 +67,14 @@ public class LumentreeNetClient
                 return null;
             }
             
-            var data = JsonSerializer.Deserialize<LumentreeRealtimeResponse>(json);
+            // Log raw response for debugging
+            Log.Debug("Raw API response: {Json}", json.Length > 500 ? json.Substring(0, 500) : json);
+            
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+            var data = JsonSerializer.Deserialize<LumentreeRealtimeResponse>(json, options);
             
             if (data?.Data != null)
             {
