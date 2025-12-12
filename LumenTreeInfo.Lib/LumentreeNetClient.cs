@@ -30,9 +30,10 @@ public class LumentreeNetClient
         {
             // DEFAULT FALLBACK: Use the known proxy if env var is not set
             // This is needed for Railway deployments where env var might not be picked up
-            BaseUrl = "https://solar-proxy.applike098.workers.dev";
+            // NOTE: Cloudflare Workers may be blocked by lumentree.net protection
+            BaseUrl = "https://lightearth1.hendikenchi.workers.dev";
             UsingProxy = true;
-            Log.Information("LUMENTREE_PROXY_URL not set, using default proxy: {ProxyUrl}", BaseUrl);
+            Log.Information("LUMENTREE_PROXY_URL not set, using default proxy: {ProxyUrl} (may be blocked by Cloudflare)", BaseUrl);
         }
         
         // Set headers to mimic browser
