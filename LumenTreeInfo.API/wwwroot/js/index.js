@@ -522,6 +522,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 updateRealTimeDisplay(displayData);
             }
             
+            // Set summary stats to "Chờ dữ liệu..." while loading day data
+            updateValue('pv-total', 'Chờ...');
+            updateValue('bat-charge', 'Chờ...');
+            updateValue('bat-discharge', 'Chờ...');
+            updateValue('load-total', 'Chờ...');
+            updateValue('grid-total', 'Chờ...');
+            updateValue('essential-total', 'Chờ...');
+            
             showCompactSearchBar(deviceId, date);
             showLoading(false);
             
@@ -529,6 +537,9 @@ document.addEventListener('DOMContentLoaded', function () {
             
             // Fetch SOC timeline from proxy
             fetchSOCFromProxy(deviceId, date, realtimeData.data?.batterySoc || 0);
+            
+            // Try to fetch day data from main API (background, with short timeout)
+            fetchDayDataInBackground(deviceId, date);
             
         } catch (error) {
             console.error("Fast load failed:", error);
@@ -563,6 +574,61 @@ document.addEventListener('DOMContentLoaded', function () {
         } catch (error) {
             console.warn("SOC proxy fetch error:", error);
             if (currentSoc > 0) initializeSOCWithCurrentValue(currentSoc);
+        }
+    }
+    
+    // Fetch day data in background (for summary stats: Năng lượng - Pin Lưu Trữ - Nguồn Điện)
+    async function fetchDayDataInBackground(deviceId, date) {
+        const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
+        
+        // Try main API with 10-second timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        try {
+            console.log("Fetching day data in background...");
+            const response = await fetch(`/device/${deviceId}?date=${queryDate}`, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                throw new Error(`Day data API error: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log("Day data received:", data);
+            
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Update summary stats with day data
+            if (data.pv || data.bat || data.load || data.grid || data.essentialLoad) {
+                updateValue('pv-total', ((data.pv?.tableValue || 0) / 10).toFixed(1) + ' kWh');
+                const batCharge = data.bat?.chargeKwh ?? ((data.bat?.bats?.[0]?.tableValue || 0) / 10);
+                const batDischarge = data.bat?.dischargeKwh ?? ((data.bat?.bats?.[1]?.tableValue || 0) / 10);
+                updateValue('bat-charge', batCharge.toFixed(1) + ' kWh');
+                updateValue('bat-discharge', batDischarge.toFixed(1) + ' kWh');
+                updateValue('load-total', ((data.load?.tableValue || 0) / 10).toFixed(1) + ' kWh');
+                updateValue('grid-total', ((data.grid?.tableValue || 0) / 10).toFixed(1) + ' kWh');
+                updateValue('essential-total', ((data.essentialLoad?.tableValue || 0) / 10).toFixed(1) + ' kWh');
+                console.log("Summary stats updated from day data");
+            }
+            
+            // Update charts if available
+            if (data.pv?.chartDataArr || data.bat?.chartDataArr) {
+                updateCharts(data);
+            }
+            
+        } catch (error) {
+            clearTimeout(timeoutId);
+            console.warn("Day data not available:", error.message);
+            // Keep "Chờ..." or show "N/A" for summary stats
+            updateValue('pv-total', 'N/A');
+            updateValue('bat-charge', 'N/A');
+            updateValue('bat-discharge', 'N/A');
+            updateValue('load-total', 'N/A');
+            updateValue('grid-total', 'N/A');
+            updateValue('essential-total', 'N/A');
         }
     }
     
