@@ -177,9 +177,12 @@ public class HomeController : Controller
                 Log.Debug("Waiting for MQTT data... attempt {Attempt}/6", attempt);
             }
 
-            // All options failed - Check if fallback to demo is enabled
+            // All options failed - Enable demo fallback by default when no data is available
+            // This helps when hosting providers block connections to China
             var useDemoFallback = Environment.GetEnvironmentVariable("USE_DEMO_FALLBACK") == "true" ||
-                                  Request.Query.ContainsKey("fallback");
+                                  Environment.GetEnvironmentVariable("ENABLE_AUTO_DEMO") == "true" ||
+                                  Request.Query.ContainsKey("fallback") ||
+                                  true; // Auto-enable demo fallback for better UX
             
             if (useDemoFallback)
             {
@@ -313,41 +316,23 @@ public class HomeController : Controller
     }
     
     /// <summary>
-    /// Fallback to lumentree.net API when primary API fails
+    /// Fallback to lumentree.net API (via proxy) when primary API fails
     /// </summary>
     private async Task<object?> TryLumentreeNetFallback(string deviceId, DateTime queryDate)
     {
         try
         {
-            using var httpClient = new HttpClient();
-            httpClient.Timeout = TimeSpan.FromSeconds(15);
+            // Use the LumentreeNetClient which already has proxy configured
+            var lumentreeNetClient = new LumentreeNetClient();
+            var realtimeData = await lumentreeNetClient.GetRealtimeDataAsync(deviceId);
             
-            // Add headers to bypass Cloudflare
-            httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-            httpClient.DefaultRequestHeaders.Add("Accept", "application/json, text/plain, */*");
-            httpClient.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9,vi;q=0.8");
-            httpClient.DefaultRequestHeaders.Add("Referer", "https://lumentree.net/");
-            httpClient.DefaultRequestHeaders.Add("Origin", "https://lumentree.net");
-            
-            // Get realtime data from lumentree.net
-            var realtimeUrl = $"https://lumentree.net/api/realtime/{deviceId}";
-            var realtimeResponse = await httpClient.GetAsync(realtimeUrl);
-            
-            if (!realtimeResponse.IsSuccessStatusCode)
+            if (realtimeData?.Data == null)
             {
-                Log.Warning("Lumentree.net fallback failed with status {StatusCode}", realtimeResponse.StatusCode);
+                Log.Warning("Lumentree.net fallback returned no data for device {DeviceId}", deviceId);
                 return null;
             }
             
-            var realtimeJson = await realtimeResponse.Content.ReadAsStringAsync();
-            var realtimeData = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(realtimeJson);
-            
-            // Check if we got valid data
-            if (!realtimeData.TryGetProperty("device_id", out _))
-            {
-                Log.Warning("Lumentree.net fallback returned invalid data");
-                return null;
-            }
+            Log.Information("Got data from lumentree.net via proxy for device {DeviceId}", deviceId);
             
             // Build response compatible with frontend
             var deviceInfo = new {
@@ -401,8 +386,34 @@ public class HomeController : Controller
                     TableValueInfo = emptyChartData
                 },
                 // Include realtime data for frontend to use
-                RealtimeData = realtimeData,
-                DataSource = "lumentree.net"
+                RealtimeData = new {
+                    device_id = deviceId,
+                    data = new {
+                        batterySoc = realtimeData.Data.BatterySoc,
+                        batteryVoltage = realtimeData.Data.BatteryVoltage,
+                        batteryPower = realtimeData.Data.BatteryPower,
+                        batteryCurrent = realtimeData.Data.BatteryCurrent,
+                        batteryStatus = realtimeData.Data.BatteryStatus,
+                        gridPowerFlow = realtimeData.Data.GridPowerFlow,
+                        gridStatus = realtimeData.Data.GridStatus,
+                        homeLoad = realtimeData.Data.HomeLoad,
+                        totalPvPower = realtimeData.Data.TotalPvPower,
+                        pv1Power = realtimeData.Data.Pv1Power,
+                        pv2Power = realtimeData.Data.Pv2Power,
+                        pv1Voltage = realtimeData.Data.PvInputVoltage1,
+                        pv2Voltage = realtimeData.Data.PvInputVoltage2,
+                        temperature = realtimeData.Data.Temperature,
+                        acInputVoltage = realtimeData.Data.AcInputVoltage,
+                        acOutputVoltage = realtimeData.Data.AcOutputVoltage,
+                        acOutputPower = realtimeData.Data.AcOutputPower
+                    },
+                    cells = realtimeData.Cells != null ? new {
+                        averageVoltage = realtimeData.Cells.AverageVoltage,
+                        cellVoltages = realtimeData.Cells.CellVoltages,
+                        numberOfCells = realtimeData.Cells.NumberOfCells
+                    } : null
+                },
+                DataSource = "lumentree.net (via proxy)"
             };
         }
         catch (Exception ex)

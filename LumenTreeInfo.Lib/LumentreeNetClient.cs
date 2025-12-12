@@ -62,10 +62,14 @@ public class LumentreeNetClient
             
             var json = await response.Content.ReadAsStringAsync();
             
-            // Check for Cloudflare challenge page
-            if (json.Contains("challenge-platform") || json.Contains("cf-browser-verification"))
+            // Check for Cloudflare challenge/block page
+            if (json.Contains("challenge-platform") || 
+                json.Contains("cf-browser-verification") ||
+                json.Contains("Sorry, you have been blocked") ||
+                json.Contains("Attention Required") ||
+                json.Contains("<!DOCTYPE html>"))
             {
-                Log.Warning("Cloudflare challenge detected - proxy may not be configured correctly");
+                Log.Warning("Cloudflare blocked or challenge detected - proxy is being blocked. Returning null to fallback to LEHT API or MQTT");
                 return null;
             }
             
