@@ -474,14 +474,17 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             const realtimeResponse = await fetch(`/device/${deviceId}/realtime`);
             
-            if (!realtimeResponse.ok) {
-                throw new Error(`Realtime API error: ${realtimeResponse.status}`);
+            // If realtime API fails or returns error, fallback to main device API
+            if (!realtimeResponse.ok || realtimeResponse.status === 404) {
+                console.warn("Realtime API not available, using main device API instead");
+                return fetchFromMainAPI(deviceId, date);
             }
             
             const realtimeData = await realtimeResponse.json();
             
             if (realtimeData.error) {
-                throw new Error(realtimeData.error);
+                console.warn("Realtime API error:", realtimeData.error, "- falling back to main API");
+                return fetchFromMainAPI(deviceId, date);
             }
             
             console.log("Realtime data loaded (fast):", realtimeData);
@@ -543,6 +546,118 @@ document.addEventListener('DOMContentLoaded', function () {
             
         } catch (error) {
             console.error("Fast load failed:", error);
+            // Try main API as last resort
+            fetchFromMainAPI(deviceId, date);
+        }
+    }
+    
+    // Fallback: Use main device API when realtime is not available
+    async function fetchFromMainAPI(deviceId, date) {
+        try {
+            const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
+            const response = await fetch(`/device/${deviceId}?date=${queryDate}`);
+            
+            if (!response.ok) {
+                throw new Error(`Main API error: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            console.log("Main API data loaded:", data);
+            
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Show all sections
+            showElement('deviceInfo');
+            showElement('summaryStats');
+            showElement('chart-section');
+            showElement('realTimeFlow');
+            showElement('batteryCellSection');
+            showElement('socChartSection');
+            
+            // Update device info
+            if (data.DeviceInfo || data.deviceInfo) {
+                updateDeviceInfo(data.DeviceInfo || data.deviceInfo);
+            }
+            
+            // Update summary stats
+            if (data.Pv || data.pv) {
+                const pvData = data.Pv || data.pv;
+                updateValue('pv-total', ((pvData.TableValue || pvData.tableValue || 0) / 10).toFixed(1) + ' kWh');
+            }
+            if (data.Bat || data.bat) {
+                const batData = data.Bat || data.bat;
+                const bats = batData.Bats || batData.bats || [];
+                updateValue('bat-charge', ((bats[0]?.TableValue || bats[0]?.tableValue || 0) / 10).toFixed(1) + ' kWh');
+                updateValue('bat-discharge', ((bats[1]?.TableValue || bats[1]?.tableValue || 0) / 10).toFixed(1) + ' kWh');
+            }
+            if (data.Load || data.load) {
+                const loadData = data.Load || data.load;
+                updateValue('load-total', ((loadData.TableValue || loadData.tableValue || 0) / 10).toFixed(1) + ' kWh');
+            }
+            if (data.Grid || data.grid) {
+                const gridData = data.Grid || data.grid;
+                updateValue('grid-total', ((gridData.TableValue || gridData.tableValue || 0) / 10).toFixed(1) + ' kWh');
+            }
+            if (data.EssentialLoad || data.essentialLoad) {
+                const essData = data.EssentialLoad || data.essentialLoad;
+                updateValue('essential-total', ((essData.TableValue || essData.tableValue || 0) / 10).toFixed(1) + ' kWh');
+            }
+            
+            // Update realtime display if available
+            if (data.RealtimeData || data.realtimeData) {
+                const rtData = data.RealtimeData || data.realtimeData;
+                if (rtData.data) {
+                    const displayData = {
+                        pvTotalPower: rtData.data.totalPvPower || 0,
+                        pv1Power: rtData.data.pv1Power || 0,
+                        pv2Power: rtData.data.pv2Power || 0,
+                        pv1Voltage: rtData.data.pv1Voltage || 0,
+                        pv2Voltage: rtData.data.pv2Voltage || 0,
+                        gridValue: rtData.data.gridPowerFlow || 0,
+                        gridVoltageValue: rtData.data.acInputVoltage || 0,
+                        batteryPercent: rtData.data.batterySoc || 0,
+                        batteryValue: rtData.data.batteryPower || 0,
+                        batteryVoltage: rtData.data.batteryVoltage || 0,
+                        batteryStatus: rtData.data.batteryStatus || 'Idle',
+                        deviceTempValue: rtData.data.temperature || 0,
+                        essentialValue: rtData.data.acOutputPower || 0,
+                        loadValue: rtData.data.homeLoad || 0,
+                        inverterAcOutPower: rtData.data.acOutputPower || 0
+                    };
+                    updateRealTimeDisplay(displayData);
+                    
+                    // Initialize SOC chart
+                    if (rtData.data.batterySoc > 0) {
+                        fetchSOCFromProxy(deviceId, queryDate, rtData.data.batterySoc);
+                    }
+                    
+                    // Update cell voltages if available
+                    if (rtData.cells && rtData.cells.cellVoltages) {
+                        updateBatteryCells(rtData.data.cellVoltages || []);
+                    }
+                }
+            } else {
+                // No realtime data, initialize with empty values
+                initializeBatteryCellsWaiting();
+                updateValue('pv-power', '0 W');
+                updateValue('bat-power', '0 W');
+                updateValue('bat-soc', '0%');
+                updateValue('grid-power', '0 W');
+                updateValue('load-power', '0 W');
+            }
+            
+            // Update charts
+            if (data.Pv || data.pv || data.Bat || data.bat) {
+                updateCharts(data);
+            }
+            
+            showCompactSearchBar(deviceId, queryDate);
+            showLoading(false);
+            
+        } catch (error) {
+            console.error("Main API also failed:", error);
             showLoading(false);
             showError('Không thể tải dữ liệu. Vui lòng kiểm tra Device ID và thử lại.');
         }
