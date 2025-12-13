@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Giám Sát Năng Lượng Mặt Trời - Sandbox</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/device.css">
+    <link rel="stylesheet" href="/css/energy-flow.css">
+    <link rel="stylesheet" href="/css/console.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-solar-panel"></i> Giám Sát Năng Lượng Mặt Trời</h1>
+                <div class="status-indicator">
+                    <span class="status-label">Trực tiếp Sandbox:</span>
+                    <span id="connection-status" class="status-dot offline"></span>
+                    <span id="connection-text">Đang kết nối...</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="input-section">
+            <div class="input-container">
+                <div class="input-group">
+                    <label for="deviceIdInput" class="input-label">
+                        <i class="fas fa-microchip"></i> Device ID
+                    </label>
+                    <input type="text" id="deviceIdInput" class="device-input" placeholder="Nhập Device ID..." value="P250801055">
+                    <button id="viewBtn" class="view-btn">
+                        <i class="fas fa-eye"></i> Xem
+                    </button>
+                </div>
+                <div class="input-info">
+                    <i class="fas fa-info-circle"></i>
+                    <span>Sử dụng trực tiếp sandbox URL: https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Đang tải dữ liệu từ sandbox...</p>
+        </div>
+
+        <div id="error" class="error-message" style="display: none;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span id="error-text"></span>
+            <button class="retry-btn" onclick="location.reload()">
+                <i class="fas fa-redo"></i> Thử lại
+            </button>
+        </div>
+
+        <div id="main-content" class="main-content" style="display: none;">
+            <!-- Realtime Data Section -->
+            <section class="realtime-section">
+                <h2><i class="fas fa-bolt"></i> Dữ Liệu Thời Gian Thực</h2>
+                
+                <div class="realtime-grid">
+                    <div class="realtime-card">
+                        <div class="card-header">
+                            <i class="fas fa-battery-three-quarters"></i>
+                            <span>PIN</span>
+                        </div>
+                        <div class="card-value" id="battery-soc">--</div>
+                        <div class="card-unit">%</div>
+                    </div>
+                    
+                    <div class="realtime-card">
+                        <div class="card-header">
+                            <i class="fas fa-solar-panel"></i>
+                            <span>NĂNG LƯỢNG MẶT TRỜI</span>
+                        </div>
+                        <div class="card-value" id="pv-power">--</div>
+                        <div class="card-unit">W</div>
+                    </div>
+                    
+                    <div class="realtime-card">
+                        <div class="card-header">
+                            <i class="fas fa-home"></i>
+                            <span>TẢI TIÊU THỤ</span>
+                        </div>
+                        <div class="card-value" id="load-power">--</div>
+                        <div class="card-unit">W</div>
+                    </div>
+                    
+                    <div class="realtime-card">
+                        <div class="card-header">
+                            <i class="fas fa-plug"></i>
+                            <span>LƯỚI ĐIỆN</span>
+                        </div>
+                        <div class="card-value" id="grid-power">--</div>
+                        <div class="card-unit">W</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Battery Cells -->
+            <section class="battery-cells-section">
+                <h2><i class="fas fa-battery-half"></i> Trạng Thái Từng Cell Pin</h2>
+                <div id="battery-cells" class="battery-cells-grid"></div>
+            </section>
+
+            <!-- Energy Flow -->
+            <section class="energy-flow-section">
+                <h2><i class="fas fa-exchange-alt"></i> Luồng Năng Lượng</h2>
+                <div class="energy-flow-container">
+                    <div class="energy-source pv">
+                        <i class="fas fa-solar-panel"></i>
+                        <span>Năng Lượng Mặt Trời</span>
+                        <div class="power-value" id="pv-flow">0W</div>
+                    </div>
+                    
+                    <div class="energy-flow-arrows">
+                        <div class="arrow pv-to-load"></div>
+                        <div class="arrow pv-to-battery"></div>
+                        <div class="arrow battery-to-load"></div>
+                        <div class="arrow grid-to-load"></div>
+                        <div class="arrow pv-to-grid"></div>
+                    </div>
+                    
+                    <div class="energy-destination battery">
+                        <i class="fas fa-battery-three-quarters"></i>
+                        <span>Pin Lưu Trữ</span>
+                        <div class="power-value" id="battery-flow">0W</div>
+                    </div>
+                    
+                    <div class="energy-destination load">
+                        <i class="fas fa-home"></i>
+                        <span>Tải Tiêu Thụ</span>
+                        <div class="power-value" id="load-flow">0W</div>
+                    </div>
+                    
+                    <div class="energy-source-grid">
+                        <i class="fas fa-plug"></i>
+                        <span>Lưới Điện</span>
+                        <div class="power-value" id="grid-flow">0W</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Charts -->
+            <section class="charts-section">
+                <h2><i class="fas fa-chart-line"></i> Biểu Đồ SOC</h2>
+                <div class="chart-container">
+                    <canvas id="socChart"></canvas>
+                </div>
+            </section>
+
+            <!-- Console -->
+            <section class="console-section">
+                <h2><i class="fas fa-terminal"></i> Console</h2>
+                <div class="console-container">
+                    <div id="console" class="console-output"></div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - sử dụng sandbox URL trực tiếp
+        const CONFIG = {
+            SANDBOX_URL: 'https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai',
+            API_ENDPOINT: '/api/proxy/realtime',
+            SOC_ENDPOINT: '/api/proxy/soc',
+            SIGNALR_HUB: '/realtimeHub'
+        };
+
+        // Override fetch functions để sử dụng sandbox URL
+        window.fetchData = async function(deviceId, date) {
+            console.log(`🔄 Đang tải dữ liệu từ sandbox: ${CONFIG.SANDBOX_URL}${CONFIG.API_ENDPOINT}/${deviceId}`);
+            
+            try {
+                showLoading();
+                hideError();
+                
+                // Gọi trực tiếp sandbox URL
+                const realtimeUrl = `${CONFIG.SANDBOX_URL}${CONFIG.API_ENDPOINT}/${deviceId}`;
+                const response = await fetch(realtimeUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Lỗi khi gọi sandbox: ${response.status} - ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log("✅ Dữ liệu từ sandbox:", data);
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Hiển thị dữ liệu
+                displayRealtimeData(data);
+                
+                // Ẩn loading và hiển thị nội dung chính
+                hideLoading();
+                document.getElementById('main-content').style.display = 'block';
+                
+                // Cập nhật trạng thái kết nối
+                updateConnectionStatus(true);
+                
+            } catch (error) {
+                console.error("❌ Lỗi khi tải dữ liệu:", error);
+                hideLoading();
+                showError(`Không thể tải dữ liệu từ sandbox: ${error.message}`);
+                updateConnectionStatus(false);
+            }
+        };
+
+        // Cập nhật trạng thái kết nối
+        function updateConnectionStatus(connected) {
+            const statusDot = document.getElementById('connection-status');
+            const statusText = document.getElementById('connection-text');
+            
+            if (connected) {
+                statusDot.className = 'status-dot online';
+                statusText.textContent = 'Đã kết nối sandbox';
+            } else {
+                statusDot.className = 'status-dot offline';
+                statusText.textContent = 'Mất kết nối';
+            }
+        }
+
+        // Hiển thị dữ liệu realtime
+        function displayRealtimeData(data) {
+            if (data && data.data) {
+                const realtimeData = data.data;
+                
+                // Cập nhật các giá trị
+                updateValue('battery-soc', formatValue(realtimeData.batterySoc, 1), '%');
+                updateValue('pv-power', formatValue(realtimeData.pvPower, 0), 'W');
+                updateValue('load-power', formatValue(realtimeData.loadPower, 0), 'W');
+                updateValue('grid-power', formatValue(realtimeData.gridPower, 0), 'W');
+                
+                // Cập nhật luồng năng lượng
+                updateEnergyFlow(realtimeData);
+                
+                // Cập nhật trạng thái pin
+                updateBatteryStatus(realtimeData);
+                
+                console.log(`✅ Cập nhật dữ liệu thành công - Pin: ${realtimeData.batterySoc}%`);
+            }
+        }
+
+        // Format giá trị
+        function formatValue(value, decimals = 0) {
+            if (value === null || value === undefined) return '--';
+            return parseFloat(value).toFixed(decimals);
+        }
+
+        // Cập nhật luồng năng lượng
+        function updateEnergyFlow(data) {
+            const pvPower = data.pvPower || 0;
+            const batteryPower = data.batteryPower || 0;
+            const loadPower = data.loadPower || 0;
+            const gridPower = data.gridPower || 0;
+            
+            document.getElementById('pv-flow').textContent = `${Math.abs(pvPower)}W`;
+            document.getElementById('battery-flow').textContent = `${Math.abs(batteryPower)}W`;
+            document.getElementById('load-flow').textContent = `${Math.abs(loadPower)}W`;
+            document.getElementById('grid-flow').textContent = `${Math.abs(gridPower)}W`;
+            
+            // Cập nhật trạng thái mũi tên
+            updateFlowArrows(pvPower, batteryPower, loadPower, gridPower);
+        }
+
+        // Cập nhật mũi tên luồng
+        function updateFlowArrows(pvPower, batteryPower, loadPower, gridPower) {
+            const arrows = document.querySelectorAll('.arrow');
+            arrows.forEach(arrow => arrow.classList.remove('active'));
+            
+            if (pvPower > 0) {
+                document.querySelector('.pv-to-load').classList.add('active');
+                if (batteryPower < 0) {
+                    document.querySelector('.pv-to-battery').classList.add('active');
+                }
+                if (gridPower < 0) {
+                    document.querySelector('.pv-to-grid').classList.add('active');
+                }
+            }
+            
+            if (batteryPower > 0) {
+                document.querySelector('.battery-to-load').classList.add('active');
+            }
+            
+            if (gridPower > 0) {
+                document.querySelector('.grid-to-load').classList.add('active');
+            }
+        }
+
+        // Cập nhật trạng thái pin
+        function updateBatteryStatus(data) {
+            const batterySoc = data.batterySoc || 0;
+            const batteryVoltage = data.batteryVoltage || 0;
+            const batteryCurrent = data.batteryCurrent || 0;
+            
+            // Cập nhật SOC
+            const socElement = document.getElementById('battery-soc');
+            if (socElement) {
+                socElement.textContent = formatValue(batterySoc, 1);
+            }
+            
+            // Hiển thị thêm thông tin pin nếu có
+            console.log(`🔋 Pin: ${batterySoc}%, ${batteryVoltage}V, ${batteryCurrent}A`);
+        }
+
+        // Cập nhật giá trị với hiệu ứng nhấp nháy
+        function updateValue(elementId, value, unit = '') {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = value;
+                element.classList.add('updated');
+                setTimeout(() => element.classList.remove('updated'), 500);
+            }
+        }
+
+        // Hiển thị loading
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+
+        // Ẩn loading
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // Hiển thị lỗi
+        function showError(message) {
+            const errorElement = document.getElementById('error');
+            const errorText = document.getElementById('error-text');
+            errorText.textContent = message;
+            errorElement.style.display = 'block';
+        }
+
+        // Ẩn lỗi
+        function hideError() {
+            document.getElementById('error').style.display = 'none';
+        }
+
+        // Console logging
+        function logToConsole(message, type = 'info') {
+            const console = document.getElementById('console');
+            const timestamp = new Date().toLocaleTimeString();
+            const className = type === 'error' ? 'error' : type === 'warning' ? 'warning' : 'info';
+            console.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            console.scrollTop = console.scrollHeight;
+        }
+
+        // Override console methods
+        console.log = function(message) { logToConsole(message, 'info'); };
+        console.error = function(message) { logToConsole(message, 'error'); };
+        console.warn = function(message) { logToConsole(message, 'warning'); };
+
+        // Khởi động ứng dụng
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Ứng dụng giám sát năng lượng mặt trời - Sử dụng Sandbox URL');
+            console.log(`📡 Sandbox URL: ${CONFIG.SANDBOX_URL}`);
+            
+            // Gán sự kiện cho nút Xem
+            const viewBtn = document.getElementById('viewBtn');
+            const deviceIdInput = document.getElementById('deviceIdInput');
+            
+            viewBtn.addEventListener('click', function() {
+                const deviceId = deviceIdInput.value.trim();
+                if (deviceId) {
+                    fetchData(deviceId, new Date().toISOString().split('T')[0]);
+                } else {
+                    showError('Vui lòng nhập Device ID');
+                }
+            });
+            
+            // Enter key support
+            deviceIdInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    viewBtn.click();
+                }
+            });
+            
+            // Tự động tải dữ liệu nếu có deviceId trong URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlDeviceId = urlParams.get('deviceId');
+            if (urlDeviceId) {
+                deviceIdInput.value = urlDeviceId;
+                setTimeout(() => fetchData(urlDeviceId, new Date().toISOString().split('T')[0]), 1000);
+            }
+        });
+    </script>
+</body>
+</html>

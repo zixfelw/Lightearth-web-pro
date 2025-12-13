@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solar Monitor - Trực Tiếp Sandbox</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 30px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            border-radius: 10px;
+            color: white;
+        }
+        .form-group { 
+            margin-bottom: 20px; 
+            display: flex;
+            align-items: center;
+        }
+        label { 
+            display: inline-block; 
+            width: 150px; 
+            font-weight: bold; 
+            color: #555;
+        }
+        input[type="text"] { 
+            flex: 1;
+            padding: 12px; 
+            border: 2px solid #e1e8ed; 
+            border-radius: 8px; 
+            font-size: 14px;
+        }
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 175, 80, 0.4);
+        }
+        .btn-secondary {
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            color: white;
+        }
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.4);
+        }
+        .result {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        .loading.active {
+            display: block;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .success {
+            color: #155724;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        pre {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .info-box {
+            background: #e3f2fd;
+            border: 1px solid #bbdefb;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌞 Solar Monitor - Trực Tiếp Sandbox</h1>
+            <p>Kết nối trực tiếp với sandbox đã test để lấy dữ liệu</p>
+        </div>
+
+        <div class="info-box">
+            <strong>💡 Hướng dẫn:</strong>
+            <br>• Nhập Device ID (mặc định: P250801055)
+            <br>• Click "Xem Trực Tiếp" để lấy data từ sandbox
+            <br>• Sandbox URL: https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai
+        </div>
+
+        <div class="form-group">
+            <label for="deviceId">Device ID:</label>
+            <input type="text" id="deviceId" value="P250801055" placeholder="Nhập Device ID">
+        </div>
+
+        <div class="button-group">
+            <button type="button" class="btn-primary" onclick="fetchDirectSandbox()">🔍 Xem Trực Tiếp</button>
+            <button type="button" class="btn-secondary" onclick="testConnection()">⚡ Test Kết Nối</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div>⏳ Đang tải dữ liệu từ sandbox...</div>
+        </div>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // Lấy dữ liệu trực tiếp từ sandbox
+        async function fetchDirectSandbox() {
+            const deviceId = document.getElementById('deviceId').value.trim();
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+
+            if (!deviceId) {
+                showError('Vui lòng nhập Device ID');
+                return;
+            }
+
+            // Hiển thị loading
+            loading.classList.add('active');
+            result.innerHTML = '';
+
+            // Cập nhật URL
+            const url = new URL(window.location);
+            url.searchParams.set('deviceId', deviceId);
+            window.history.pushState({}, '', url);
+
+            try {
+                // 🔥 TRỰC TIẾP GỌI SANDBOX - KHÔNG QUA PROXY
+                const sandboxUrl = `https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai/api/proxy/realtime/${deviceId}`;
+                console.log('📡 Fetching from sandbox:', sandboxUrl);
+                
+                const response = await fetch(sandboxUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Sandbox API error: ${response.status} - ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('✅ Data received from sandbox:', data);
+                
+                // Hiển thị kết quả
+                displayResult(data, deviceId);
+                
+            } catch (error) {
+                console.error('❌ Error fetching from sandbox:', error);
+                showError(`Lỗi kết nối sandbox: ${error.message}`);
+            } finally {
+                loading.classList.remove('active');
+            }
+        }
+
+        // Test kết nối sandbox
+        async function testConnection() {
+            const deviceId = document.getElementById('deviceId').value.trim() || 'P250801055';
+            const result = document.getElementById('result');
+            
+            try {
+                const testUrl = `https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai/api/proxy/realtime/${deviceId}`;
+                result.innerHTML = `<div class="loading active">🔄 Testing connection to sandbox...</div>`;
+                
+                const response = await fetch(testUrl, { method: 'HEAD' });
+                
+                if (response.ok) {
+                    result.innerHTML = `
+                        <div class="success">
+                            ✅ Kết nối sandbox thành công!<br>
+                            📡 URL: ${testUrl}<br>
+                            ⏱️ Response time: ${response.headers.get('date') || 'N/A'}
+                        </div>
+                    `;
+                } else {
+                    result.innerHTML = `
+                        <div class="error">
+                            ❌ Kết nối sandbox thất bại<br>
+                            🔍 Status: ${response.status} ${response.statusText}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                result.innerHTML = `
+                    <div class="error">
+                        ❌ Lỗi test kết nối: ${error.message}<br>
+                        💡 Kiểm tra xem sandbox có đang chạy không
+                    </div>
+                `;
+            }
+        }
+
+        // Hiển thị kết quả
+        function displayResult(data, deviceId) {
+            const result = document.getElementById('result');
+            
+            if (data.error) {
+                result.innerHTML = `
+                    <div class="error">
+                        ❌ Lỗi từ sandbox: ${data.error}<br>
+                        🔍 Device ID: ${deviceId}
+                    </div>
+                `;
+                return;
+            }
+
+            if (!data.data) {
+                result.innerHTML = `
+                    <div class="error">
+                        ❌ Không có dữ liệu từ sandbox<br>
+                        📋 Response: ${JSON.stringify(data, null, 2)}
+                    </div>
+                `;
+                return;
+            }
+
+            const batterySoc = data.data.batterySoc || 0;
+            const batteryPower = data.data.batteryPower || 0;
+            const pvPower = (data.data.pv1Power || 0) + (data.data.pv2Power || 0);
+            const homeLoad = data.data.homeLoad || 0;
+            const temperature = data.data.temperature || 0;
+
+            result.innerHTML = `
+                <div class="success">
+                    ✅ Lấy dữ liệu thành công từ sandbox!
+                </div>
+                
+                <div style="margin-top: 15px;">
+                    <h3>📊 Thông tin thiết bị: ${deviceId}</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-top: 10px;">
+                        <div style="background: #fff3cd; padding: 10px; border-radius: 5px; border: 1px solid #ffeaa7;">
+                            <strong>🔋 Battery SOC:</strong> ${batterySoc}%
+                        </div>
+                        <div style="background: #d1ecf1; padding: 10px; border-radius: 5px; border: 1px solid #bee5eb;">
+                            <strong>⚡ Battery Power:</strong> ${batteryPower}W
+                        </div>
+                        <div style="background: #d4edda; padding: 10px; border-radius: 5px; border: 1px solid #c3e6cb;">
+                            <strong>☀️ PV Power:</strong> ${pvPower}W
+                        </div>
+                        <div style="background: #f8d7da; padding: 10px; border-radius: 5px; border: 1px solid #f5c6cb;">
+                            <strong>🏠 Home Load:</strong> ${homeLoad}W
+                        </div>
+                        <div style="background: #d1d1d1; padding: 10px; border-radius: 5px; border: 1px solid #b8b8b8;">
+                            <strong>🌡️ Temperature:</strong> ${temperature}°C
+                        </div>
+                    </div>
+                    
+                    <h4>📋 Raw Data:</h4>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        // Hiển thị lỗi
+        function showError(message) {
+            const result = document.getElementById('result');
+            result.innerHTML = `<div class="error">❌ ${message}</div>`;
+        }
+
+        // Tự động chạy nếu có deviceId trong URL
+        window.addEventListener('load', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const deviceId = urlParams.get('deviceId');
+            if (deviceId) {
+                document.getElementById('deviceId').value = deviceId;
+                fetchDirectSandbox();
+            }
+        });
+    </script>
+</body>
+</html>

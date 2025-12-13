@@ -363,7 +363,9 @@ document.addEventListener('DOMContentLoaded', function () {
     
     async function fetchRealtimeData(deviceId) {
         try {
-            const response = await fetch(`/api/proxy/realtime/${deviceId}`);
+            // Gọi trực tiếp sandbox URL thay vì Railway proxy
+            const sandboxUrl = `https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai/api/proxy/realtime/${deviceId}`;
+            const response = await fetch(sandboxUrl);
             if (!response.ok) return;
             
             const data = await response.json();
@@ -472,7 +474,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // Fast load: Realtime API first, then fetch historical data in background
     async function fetchRealtimeFirst(deviceId, date) {
         try {
-            const realtimeResponse = await fetch(`/api/proxy/realtime/${deviceId}`);
+            // Gọi trực tiếp sandbox URL thay vì Railway proxy
+            const sandboxUrl = `https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai/api/proxy/realtime/${deviceId}`;
+            const realtimeResponse = await fetch(sandboxUrl);
             
             if (!realtimeResponse.ok) {
                 throw new Error(`Realtime API error: ${realtimeResponse.status}`);

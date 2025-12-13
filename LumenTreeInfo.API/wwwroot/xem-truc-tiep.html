@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xem Trực Tiếp - Sandbox URL</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container { 
+            background: white; 
+            padding: 40px; 
+            border-radius: 20px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+        }
+        h1 {
+            color: #4a5568;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #718096;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        .form-group { 
+            margin-bottom: 25px; 
+            text-align: left;
+        }
+        label { 
+            display: block;
+            font-weight: 600; 
+            color: #4a5568;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        input[type="text"] { 
+            width: 100%;
+            padding: 15px; 
+            border: 2px solid #e2e8f0; 
+            border-radius: 12px; 
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+        input[type="text"]:focus {
+            border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        button {
+            flex: 1;
+            padding: 16px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+        .btn-secondary {
+            background: linear-gradient(45deg, #48bb78, #38a169);
+            color: white;
+        }
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(72, 187, 120, 0.3);
+        }
+        .info-box {
+            background: linear-gradient(135deg, #ebf4ff, #c3dafe);
+            border: 1px solid #a3bffa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            text-align: left;
+        }
+        .info-box strong {
+            color: #4c51bf;
+        }
+        .result {
+            margin-top: 25px;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            display: none;
+        }
+        .result.show {
+            display: block;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+            font-weight: 500;
+        }
+        .loading.show {
+            display: block;
+        }
+        .error {
+            color: #e53e3e;
+            background: #fed7d7;
+            border: 1px solid #feb2b2;
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 15px;
+            font-weight: 500;
+        }
+        .success {
+            color: #38a169;
+            background: #c6f6d5;
+            border: 1px solid #9ae6b4;
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 15px;
+            font-weight: 500;
+        }
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .data-item {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            text-align: center;
+        }
+        .data-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+        .data-label {
+            font-size: 12px;
+            color: #718096;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .url-info {
+            background: #f0fff4;
+            border: 1px solid #9ae6b4;
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #22543d;
+        }
+        .url-info code {
+            background: #c6f6d5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ Solar Monitor</h1>
+            <div class="subtitle">Kết nối trực tiếp với sandbox đã test</div>
+        </div>
+
+        <div class="info-box">
+            <strong>💡 Hướng dẫn:</strong>
+            <br>• Nhập Device ID (mặc định: P250801055)
+            <br>• Click "Xem Trực Tiếp" để lấy data từ sandbox
+            <br>• Sandbox URL: <code>https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai</code>
+        </div>
+
+        <div class="form-group">
+            <label for="deviceId">Device ID:</label>
+            <input type="text" id="deviceId" value="P250801055" placeholder="Nhập Device ID">
+        </div>
+
+        <div class="button-group">
+            <button type="button" class="btn-primary" onclick="fetchDirectSandbox()">🔍 Xem Trực Tiếp</button>
+            <button type="button" class="btn-secondary" onclick="testConnection()">⚡ Test Kết Nối</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div>⏳ Đang kết nối sandbox...</div>
+        </div>
+
+        <div class="result" id="result"></div>
+    </div>
+
+    <script>
+        // Hàm chính: Lấy dữ liệu trực tiếp từ sandbox
+        async function fetchDirectSandbox() {
+            const deviceId = document.getElementById('deviceId').value.trim();
+            const loading = document.getElementById('loading');
+            const result = document.getElementById('result');
+
+            if (!deviceId) {
+                showError('Vui lòng nhập Device ID');
+                return;
+            }
+
+            // Hiển thị loading
+            loading.classList.add('show');
+            result.classList.remove('show');
+            result.innerHTML = '';
+
+            // Cập nhật URL
+            const url = new URL(window.location);
+            url.searchParams.set('deviceId', deviceId);
+            window.history.pushState({}, '', url);
+
+            try {
+                // 🔥 TRỰC TIẾP GỌI SANDBOX - KHÔNG QUA PROXY
+                const sandboxUrl = `https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai/api/proxy/realtime/${deviceId}`;
+                console.log('📡 Fetching from sandbox:', sandboxUrl);
+                
+                const response = await fetch(sandboxUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`Sandbox API error: ${response.status} - ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('✅ Data received from sandbox:', data);
+                
+                // Hiển thị kết quả
+                displayResult(data, deviceId);
+                
+            } catch (error) {
+                console.error('❌ Error fetching from sandbox:', error);
+                showError(`Lỗi kết nối sandbox: ${error.message}`);
+            } finally {
+                loading.classList.remove('show');
+            }
+        }
+
+        // Test kết nối sandbox
+        async function testConnection() {
+            const deviceId = document.getElementById('deviceId').value.trim() || 'P250801055';
+            const result = document.getElementById('result');
+            
+            try {
+                const testUrl = `https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai/api/proxy/realtime/${deviceId}`;
+                result.innerHTML = `<div class="loading show">🔄 Testing connection to sandbox...</div>`;
+                result.classList.add('show');
+                
+                const response = await fetch(testUrl, { method: 'HEAD' });
+                
+                if (response.ok) {
+                    result.innerHTML = `
+                        <div class="success">
+                            ✅ Kết nối sandbox thành công!<br>
+                            📡 URL: ${testUrl}<br>
+                            ⏱️ Response: ${response.status} ${response.statusText}
+                        </div>
+                        <div class="url-info">
+                            <strong>🔗 URL đang dùng:</strong><br>
+                            <code>${testUrl}</code>
+                        </div>
+                    `;
+                } else {
+                    result.innerHTML = `
+                        <div class="error">
+                            ❌ Kết nối sandbox thất bại<br>
+                            🔍 Status: ${response.status} ${response.statusText}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                result.innerHTML = `
+                    <div class="error">
+                        ❌ Lỗi test kết nối: ${error.message}<br>
+                        💡 Kiểm tra xem sandbox có đang chạy không
+                    </div>
+                `;
+            }
+        }
+
+        // Hiển thị kết quả
+        function displayResult(data, deviceId) {
+            const result = document.getElementById('result');
+            
+            if (data.error) {
+                result.innerHTML = `
+                    <div class="error">
+                        ❌ Lỗi từ sandbox: ${data.error}<br>
+                        🔍 Device ID: ${deviceId}
+                    </div>
+                `;
+                return;
+            }
+
+            if (!data.data) {
+                result.innerHTML = `
+                    <div class="error">
+                        ❌ Không có dữ liệu từ sandbox<br>
+                        📋 Response: ${JSON.stringify(data, null, 2)}
+                    </div>
+                `;
+                return;
+            }
+
+            const batterySoc = data.data.batterySoc || 0;
+            const batteryPower = data.data.batteryPower || 0;
+            const pvPower = (data.data.pv1Power || 0) + (data.data.pv2Power || 0);
+            const homeLoad = data.data.homeLoad || 0;
+            const temperature = data.data.temperature || 0;
+
+            result.innerHTML = `
+                <div class="success">
+                    ✅ Kết nối thành công! Dữ liệu từ sandbox
+                </div>
+                
+                <div class="data-grid">
+                    <div class="data-item">
+                        <div class="data-value">${batterySoc}%</div>
+                        <div class="data-label">Battery SOC</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-value">${batteryPower}W</div>
+                        <div class="data-label">Battery Power</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-value">${pvPower}W</div>
+                        <div class="data-label">PV Power</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-value">${homeLoad}W</div>
+                        <div class="data-label">Home Load</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-value">${temperature}°C</div>
+                        <div class="data-label">Temperature</div>
+                    </div>
+                </div>
+                
+                <div class="url-info">
+                    <strong>🔗 URL đã gọi:</strong><br>
+                    <code>https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai/api/proxy/realtime/${deviceId}</code>
+                </div>
+            `;
+            result.classList.add('show');
+        }
+
+        // Hiển thị lỗi
+        function showError(message) {
+            const result = document.getElementById('result');
+            result.innerHTML = `<div class="error">❌ ${message}</div>`;
+            result.classList.add('show');
+        }
+
+        // Tự động chạy nếu có deviceId trong URL
+        window.addEventListener('load', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const deviceId = urlParams.get('deviceId');
+            if (deviceId) {
+                document.getElementById('deviceId').value = deviceId;
+                fetchDirectSandbox();
+            }
+        });
+    </script>
+</body>
+</html>

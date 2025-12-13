@@ -217,7 +217,7 @@
 
         <div class="highlight">
             <strong>📋 Hướng dẫn:</strong>
-            <br>• Nhập URL server (Railway: https://lightearth1.up.railway.app)
+            <br>• Nhập URL server (Sandbox: https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai)
             <br>• Nhập Device ID (mặc định: P250801055)
             <br>• Click "Bắt Đầu" để chạy pusher
             <br>• Dùng "Trạng Thái" để kiểm tra hoạt động
@@ -268,6 +268,11 @@
         // Preset configurations
         function setPreset(type) {
             const presets = {
+                sandbox: {
+                    serverUrl: 'https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai',
+                    deviceId: 'P250801055',
+                    interval: '2'
+                },
                 railway: {
                     serverUrl: 'https://lightearth1.up.railway.app',
                     deviceId: 'P250801055',
