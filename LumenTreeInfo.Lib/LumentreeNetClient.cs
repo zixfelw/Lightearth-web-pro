@@ -28,10 +28,10 @@ public class LumentreeNetClient
         }
         else
         {
-            // Gọi trực tiếp đến lumentree.net thay vì tạo vòng lặp proxy
-            BaseUrl = "https://lumentree.net/api/realtime";
-            UsingProxy = false;
-            Log.Information("Using direct lumentree.net endpoint: {BaseUrl}", BaseUrl);
+            // Sử dụng link sandbox đã hoạt động thay vì tự build proxy
+            BaseUrl = "https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai/api/proxy/realtime";
+            UsingProxy = true;
+            Log.Information("Using working sandbox endpoint: {BaseUrl}", BaseUrl);
         }
         
         // Set headers to mimic browser
