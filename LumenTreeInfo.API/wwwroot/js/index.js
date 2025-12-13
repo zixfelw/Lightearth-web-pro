@@ -418,13 +418,37 @@ document.addEventListener('DOMContentLoaded', function () {
                 };
                 updateRealTimeDisplay(displayData);
                 
-                // Update battery cell voltages
-                if (data.data.cellVoltages && data.data.cellVoltages.length > 0) {
-                    const cellData = {
-                        cells: data.data.cellVoltages,
-                        maximumVoltage: data.cells?.maxVoltage || Math.max(...data.data.cellVoltages)
-                    };
-                    updateBatteryCellDisplay(cellData);
+                // Update battery cell voltages - data is in data.cells.cellVoltages
+                if (data.cells && data.cells.cellVoltages) {
+                    let cellVoltages = [];
+                    const rawVoltages = data.cells.cellVoltages;
+                    
+                    // Handle Array format: [3.413, 3.379, ...]
+                    if (Array.isArray(rawVoltages)) {
+                        cellVoltages = rawVoltages;
+                    } 
+                    // Handle Object format: {"Cell 01": 3.223, ...}
+                    else if (typeof rawVoltages === 'object') {
+                        const cellNames = Object.keys(rawVoltages).sort((a, b) => 
+                            parseInt(a.replace(/\D/g, '')) - parseInt(b.replace(/\D/g, ''))
+                        );
+                        cellNames.forEach(cellName => {
+                            cellVoltages.push(rawVoltages[cellName]);
+                        });
+                    }
+                    
+                    if (cellVoltages.length > 0) {
+                        const validVoltages = cellVoltages.filter(v => v > 0);
+                        const cellData = {
+                            cells: cellVoltages,
+                            maximumVoltage: data.cells.maximumVoltage || Math.max(...validVoltages, 0),
+                            minimumVoltage: data.cells.minimumVoltage || Math.min(...validVoltages.filter(v => v > 0), 0),
+                            averageVoltage: data.cells.averageVoltage || (validVoltages.length > 0 ? validVoltages.reduce((a, b) => a + b, 0) / validVoltages.length : 0),
+                            numberOfCells: cellVoltages.length
+                        };
+                        updateBatteryCellDisplay(cellData);
+                        console.log(`📊 Cell voltages updated: ${cellVoltages.length} cells`);
+                    }
                 }
                 
                 // Update SOC
