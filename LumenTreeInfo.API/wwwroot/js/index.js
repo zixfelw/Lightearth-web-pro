@@ -73,6 +73,12 @@ document.addEventListener('DOMContentLoaded', function () {
             name: 'Sandbox Novita',
             realtime: 'https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai/api/proxy/realtime',
             soc: 'https://solar-proxy.applike098.workers.dev/api/soc'
+        },
+        // Direct lumentree.net - most accurate but may have CORS issues
+        lumentree: {
+            name: 'Lumentree Direct',
+            realtime: 'https://solar-proxy.applike098.workers.dev/api/realtime', // Still use proxy for realtime
+            soc: 'https://lumentree.net/api/soc'  // Direct for SOC (more accurate)
         }
     };
     
@@ -85,6 +91,14 @@ document.addEventListener('DOMContentLoaded', function () {
     
     function getSocApiUrl(deviceId, date) {
         return `${API_SOURCES[currentApiSource].soc}/${deviceId}/${date}`;
+    }
+    
+    // Try direct lumentree.net first, fallback to proxy if CORS fails
+    function getSocApiUrlWithFallback(deviceId, date) {
+        return {
+            primary: `https://lumentree.net/api/soc/${deviceId}/${date}`,
+            fallback: `${API_SOURCES[currentApiSource].soc}/${deviceId}/${date}`
+        };
     }
     
     // Store previous values for blink detection
@@ -655,14 +669,33 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     
-    // Fetch SOC timeline from proxy API
+    // Fetch SOC timeline - Try direct lumentree.net first, fallback to proxy
     async function fetchSOCFromProxy(deviceId, date, currentSoc) {
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
-        const proxyUrl = getSocApiUrl(deviceId, queryDate);
+        const urls = getSocApiUrlWithFallback(deviceId, queryDate);
         
+        // Try direct lumentree.net first (most accurate data)
         try {
-            console.log("Fetching SOC from proxy:", proxyUrl);
-            const response = await fetch(proxyUrl);
+            console.log("🎯 Fetching SOC from lumentree.net (direct):", urls.primary);
+            const response = await fetch(urls.primary);
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log("✅ SOC data from lumentree.net:", data);
+                
+                if (data?.timeline && Array.isArray(data.timeline) && data.timeline.length > 0) {
+                    loadSOCTimeline(data.timeline);
+                    return; // Success, no need for fallback
+                }
+            }
+        } catch (error) {
+            console.warn("⚠️ Direct lumentree.net failed (likely CORS):", error.message);
+        }
+        
+        // Fallback to proxy API
+        try {
+            console.log("📡 Fallback: Fetching SOC from proxy:", urls.fallback);
+            const response = await fetch(urls.fallback);
             
             if (!response.ok) {
                 console.warn("SOC proxy API error:", response.status);
