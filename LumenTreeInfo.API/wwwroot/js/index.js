@@ -524,6 +524,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     inverterAcOutPower: realtimeData.data.acOutputPower || 0
                 };
                 updateRealTimeDisplay(displayData);
+                
+                // Update battery cell voltages
+                if (realtimeData.cells && realtimeData.cells.cellVoltages) {
+                    const cellData = {
+                        cells: Object.values(realtimeData.cells.cellVoltages),
+                        maximumVoltage: realtimeData.cells.maximumVoltage || 0,
+                        minimumVoltage: realtimeData.cells.minimumVoltage || 0,
+                        averageVoltage: realtimeData.cells.averageVoltage || 0,
+                        numberOfCells: realtimeData.cells.numberOfCells || 16
+                    };
+                    updateBatteryCellDisplay(cellData);
+                }
             }
             
             // Set summary stats to "Chờ dữ liệu..." while loading day data
