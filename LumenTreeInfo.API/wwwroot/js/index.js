@@ -722,35 +722,16 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // Fetch day data in background (for summary stats: Năng lượng - Pin Lưu Trữ - Nguồn Điện)
-    // Try lumentree.net first (most accurate), fallback to Workers proxy
+    // Use Workers proxy with cache-busting to get fresh data
     async function fetchDayDataInBackground(deviceId, date) {
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
         
-        // Try direct lumentree.net first (most accurate data)
-        const primaryUrl = `https://lumentree.net/api/day/${deviceId}/${queryDate}`;
-        const fallbackUrl = `https://solar-proxy.applike098.workers.dev/api/day/${deviceId}/${queryDate}`;
-        
-        let response;
-        let dayApiUrl;
+        // Add cache-busting timestamp to ensure fresh data
+        const timestamp = Date.now();
+        const dayApiUrl = `https://solar-proxy.applike098.workers.dev/api/day/${deviceId}/${queryDate}?_t=${timestamp}`;
         
         try {
-            // Try lumentree.net first
-            console.log("📊 Trying lumentree.net day data:", primaryUrl);
-            response = await fetch(primaryUrl);
-            dayApiUrl = primaryUrl;
-            
-            if (!response.ok) {
-                throw new Error('Primary API failed');
-            }
-        } catch (primaryError) {
-            // Fallback to Workers proxy
-            console.log("📊 Fallback to Workers proxy:", fallbackUrl);
-            response = await fetch(fallbackUrl);
-            dayApiUrl = fallbackUrl;
-        }
-        
-        try {
-            console.log("📊 Fetching day data from:", dayApiUrl);
+            console.log("📊 Fetching day data (fresh):", dayApiUrl);
             
             if (!response.ok) {
                 throw new Error(`Day data API error: ${response.status}`);
