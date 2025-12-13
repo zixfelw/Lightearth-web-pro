@@ -469,6 +469,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (data.data.batterySoc !== undefined) {
                     updateSOCFromRealtime(data.data.batterySoc);
                 }
+                
+                // Also fetch day summary every 2s for realtime sync
+                const date = document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
+                fetchDayDataInBackground(deviceId, date);
             }
             
             updateConnectionStatus('connected');

@@ -236,6 +236,48 @@
             </div>
         </div>
 
+        <!-- Day Summary - Tổng kết ngày -->
+        <div class="mb-4">
+            <div class="bg-white dark:bg-slate-800 rounded-xl shadow-md p-3 border-2 border-violet-200 dark:border-violet-800">
+                <div class="flex items-center justify-between mb-2">
+                    <h2 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                        <i data-lucide="bar-chart-3" class="w-4 h-4 text-violet-500"></i>
+                        Tổng Kết Ngày
+                    </h2>
+                    <div class="flex items-center gap-2 text-[10px] text-slate-500">
+                        <i data-lucide="clock" class="w-3 h-3"></i>
+                        <span id="daySummaryUpdateTime">--:--:--</span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                    <div class="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-lg p-2 text-center border border-amber-200 dark:border-amber-700">
+                        <div class="text-[8px] font-bold text-amber-600 dark:text-amber-400 uppercase">PV Sản Xuất</div>
+                        <div class="text-sm font-black text-amber-700 dark:text-amber-300" id="day-pv">--</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-lg p-2 text-center border border-emerald-200 dark:border-emerald-700">
+                        <div class="text-[8px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">Tải Tiêu Thụ</div>
+                        <div class="text-sm font-black text-emerald-700 dark:text-emerald-300" id="day-load">--</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20 rounded-lg p-2 text-center border border-orange-200 dark:border-orange-700">
+                        <div class="text-[8px] font-bold text-orange-600 dark:text-orange-400 uppercase">Lưới EVN</div>
+                        <div class="text-sm font-black text-orange-700 dark:text-orange-300" id="day-grid">--</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-green-50 to-teal-50 dark:from-green-900/20 dark:to-teal-900/20 rounded-lg p-2 text-center border border-green-200 dark:border-green-700">
+                        <div class="text-[8px] font-bold text-green-600 dark:text-green-400 uppercase">Pin Nạp</div>
+                        <div class="text-sm font-black text-green-700 dark:text-green-300" id="day-bat-charge">--</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20 rounded-lg p-2 text-center border border-red-200 dark:border-red-700">
+                        <div class="text-[8px] font-bold text-red-600 dark:text-red-400 uppercase">Pin Xả</div>
+                        <div class="text-sm font-black text-red-700 dark:text-red-300" id="day-bat-discharge">--</div>
+                    </div>
+                    <div class="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-lg p-2 text-center border border-indigo-200 dark:border-indigo-700">
+                        <div class="text-[8px] font-bold text-indigo-600 dark:text-indigo-400 uppercase">Dự Phòng</div>
+                        <div class="text-sm font-black text-indigo-700 dark:text-indigo-300" id="day-backup">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- SOC Chart -->
         <div class="bg-white dark:bg-slate-800 rounded-xl shadow-md p-3 sm:p-4 border-2 border-emerald-200 dark:border-emerald-800 mb-4">
             <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -350,6 +392,56 @@
             document.getElementById('errorMessage').classList.add('hidden');
         }
 
+        // Fetch Day Summary - Tổng kết ngày (mỗi 2s)
+        async function fetchDaySummary() {
+            const deviceId = document.getElementById('deviceId').value.trim();
+            if (!deviceId) return;
+
+            const today = new Date().toISOString().split('T')[0];
+            const dayApiUrl = `https://solar-proxy.applike098.workers.dev/api/day/${deviceId}/${today}`;
+            
+            try {
+                console.log('📊 Fetching Day Summary:', dayApiUrl);
+                const res = await fetch(dayApiUrl);
+                if (!res.ok) return;
+                
+                const data = await res.json();
+                if (data.error) return;
+
+                // Update day summary display
+                const now = getTimeString();
+                updateValue('daySummaryUpdateTime', now);
+
+                if (data.summary) {
+                    const s = data.summary;
+                    updateValue('day-pv', `${(s.pv_day || 0).toFixed(1)} kWh`);
+                    updateValue('day-load', `${(s.load_day || 0).toFixed(1)} kWh`);
+                    updateValue('day-grid', `${(s.grid_day || 0).toFixed(1)} kWh`);
+                    updateValue('day-backup', `${(s.backup_day || 0).toFixed(1)} kWh`);
+                    
+                    // Battery charge/discharge from bat_raw
+                    if (data.bat_raw?.bats) {
+                        const charge = (data.bat_raw.bats[0]?.tableValue || 0) / 10;
+                        const discharge = (data.bat_raw.bats[1]?.tableValue || 0) / 10;
+                        updateValue('day-bat-charge', `${charge.toFixed(1)} kWh`);
+                        updateValue('day-bat-discharge', `${discharge.toFixed(1)} kWh`);
+                    } else {
+                        const batNet = s.bat_day || 0;
+                        if (batNet >= 0) {
+                            updateValue('day-bat-charge', `${batNet.toFixed(1)} kWh`);
+                            updateValue('day-bat-discharge', '0.0 kWh');
+                        } else {
+                            updateValue('day-bat-charge', '0.0 kWh');
+                            updateValue('day-bat-discharge', `${Math.abs(batNet).toFixed(1)} kWh`);
+                        }
+                    }
+                    console.log('✅ Day summary updated:', s);
+                }
+            } catch (err) {
+                console.warn('Day summary fetch error:', err);
+            }
+        }
+
         // Fetch data
         async function fetchData() {
             const deviceId = document.getElementById('deviceId').value.trim();
@@ -370,6 +462,9 @@
 
                 hideError();
                 displayData(data);
+                
+                // Also fetch day summary every refresh
+                fetchDaySummary();
 
             } catch (err) {
                 console.error('Fetch error:', err);
