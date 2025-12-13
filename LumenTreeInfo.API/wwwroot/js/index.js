@@ -526,14 +526,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 updateRealTimeDisplay(displayData);
                 
                 // Update battery cell voltages
-                if (realtimeData.data && realtimeData.data.cells && realtimeData.data.cells.cellVoltages) {
-                    console.log("Cell voltages data found:", realtimeData.data.cells);
+                if (realtimeData.cells && realtimeData.cells.cellVoltages) {
+                    console.log("Cell voltages data found:", realtimeData.cells);
                     
                     // Convert cellVoltages object to array with cell names
                     const cellVoltages = [];
-                    const cellNames = Object.keys(realtimeData.data.cells.cellVoltages);
+                    const cellNames = Object.keys(realtimeData.cells.cellVoltages);
                     cellNames.forEach(cellName => {
-                        const voltage = realtimeData.data.cells.cellVoltages[cellName];
+                        const voltage = realtimeData.cells.cellVoltages[cellName];
                         cellVoltages.push(voltage);
                     });
                     
@@ -541,16 +541,19 @@ document.addEventListener('DOMContentLoaded', function () {
                     
                     const cellData = {
                         cells: cellVoltages,
-                        maximumVoltage: realtimeData.data.cells.maximumVoltage || 0,
-                        minimumVoltage: realtimeData.data.cells.minimumVoltage || 0,
-                        averageVoltage: realtimeData.data.cells.averageVoltage || 0,
-                        numberOfCells: realtimeData.data.cells.numberOfCells || 16
+                        maximumVoltage: realtimeData.cells.maximumVoltage || 0,
+                        minimumVoltage: realtimeData.cells.minimumVoltage || 0,
+                        averageVoltage: realtimeData.cells.averageVoltage || 0,
+                        numberOfCells: realtimeData.cells.numberOfCells || 16
                     };
                     updateBatteryCellDisplay(cellData);
                 } else {
                     console.log("No cell voltages data found. realtimeData structure:", realtimeData);
                     if (realtimeData.data) {
                         console.log("Available data keys:", Object.keys(realtimeData.data));
+                    }
+                    if (realtimeData.cells) {
+                        console.log("Available cells keys:", Object.keys(realtimeData.cells));
                     }
                 }
             }
