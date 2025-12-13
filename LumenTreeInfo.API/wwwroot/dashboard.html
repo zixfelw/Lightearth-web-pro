@@ -393,18 +393,15 @@
         }
 
         // Fetch Day Summary - Tổng kết ngày (mỗi 2s)
-        // Use Workers proxy with cache-busting for fresh data
         async function fetchDaySummary() {
             const deviceId = document.getElementById('deviceId').value.trim();
             if (!deviceId) return;
 
             const today = new Date().toISOString().split('T')[0];
-            // Add cache-busting timestamp to ensure fresh data
-            const timestamp = Date.now();
-            const dayApiUrl = `https://solar-proxy.applike098.workers.dev/api/day/${deviceId}/${today}?_t=${timestamp}`;
+            const dayApiUrl = `https://solar-proxy.applike098.workers.dev/api/day/${deviceId}/${today}`;
             
             try {
-                console.log('📊 Fetching Day Summary (fresh):', dayApiUrl);
+                console.log('📊 Fetching Day Summary:', dayApiUrl);
                 const res = await fetch(dayApiUrl);
                 if (!res.ok) return;
                 

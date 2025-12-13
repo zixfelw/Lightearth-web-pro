@@ -722,16 +722,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // Fetch day data in background (for summary stats: Năng lượng - Pin Lưu Trữ - Nguồn Điện)
-    // Use Workers proxy with cache-busting to get fresh data
     async function fetchDayDataInBackground(deviceId, date) {
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
         
-        // Add cache-busting timestamp to ensure fresh data
-        const timestamp = Date.now();
-        const dayApiUrl = `https://solar-proxy.applike098.workers.dev/api/day/${deviceId}/${queryDate}?_t=${timestamp}`;
+        // Use Workers proxy API for day data (has summary stats)
+        const dayApiUrl = `https://solar-proxy.applike098.workers.dev/api/day/${deviceId}/${queryDate}`;
         
         try {
-            console.log("📊 Fetching day data (fresh):", dayApiUrl);
+            console.log("📊 Fetching day data from:", dayApiUrl);
+            const response = await fetch(dayApiUrl);
             
             if (!response.ok) {
                 throw new Error(`Day data API error: ${response.status}`);
