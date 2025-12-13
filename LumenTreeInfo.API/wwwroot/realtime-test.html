@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumentree Realtime Test - P250801055</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .blink {
+            animation: blink 0.3s ease-in-out;
+        }
+        @keyframes blink {
+            0%, 100% { background-color: transparent; }
+            50% { background-color: rgba(74, 222, 128, 0.3); }
+        }
+        .cell-good { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); }
+        .cell-ok { background: linear-gradient(135deg, #eab308 0%, #ca8a04 100%); }
+        .cell-warning { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 min-h-screen text-white p-4">
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-6">
+            <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-cyan-400 to-green-400 bg-clip-text text-transparent">
+                ⚡ Lumentree Realtime Monitor
+            </h1>
+            <p class="text-slate-400 text-sm mt-1">Dữ liệu thời gian thực từ API lumentree.net</p>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="bg-slate-800/50 rounded-xl p-4 mb-4 border border-slate-700">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div id="statusIndicator" class="w-3 h-3 rounded-full bg-yellow-500 animate-pulse"></div>
+                    <span id="statusText" class="text-sm">Đang kết nối...</span>
+                </div>
+                <div class="flex items-center gap-4 text-sm text-slate-400">
+                    <span>Device: <strong class="text-cyan-400" id="deviceIdDisplay">P250801055</strong></span>
+                    <span>City: <strong class="text-green-400" id="cityDisplay">--</strong></span>
+                    <span>Cập nhật: <strong id="lastUpdate">--</strong></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Stats Grid -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+            <!-- SOC -->
+            <div class="bg-gradient-to-br from-emerald-900/50 to-green-900/50 rounded-xl p-4 border border-emerald-700">
+                <div class="text-xs text-emerald-400 uppercase font-bold">SOC Pin</div>
+                <div class="text-2xl md:text-3xl font-black text-emerald-400" id="soc">--%</div>
+                <div class="text-xs text-slate-400" id="batteryStatus">--</div>
+            </div>
+            <!-- Battery Power -->
+            <div class="bg-gradient-to-br from-blue-900/50 to-cyan-900/50 rounded-xl p-4 border border-blue-700">
+                <div class="text-xs text-blue-400 uppercase font-bold">Pin</div>
+                <div class="text-2xl md:text-3xl font-black text-blue-400" id="batteryPower">-- W</div>
+                <div class="text-xs text-slate-400" id="batteryVoltage">-- V</div>
+            </div>
+            <!-- PV Power -->
+            <div class="bg-gradient-to-br from-amber-900/50 to-yellow-900/50 rounded-xl p-4 border border-amber-700">
+                <div class="text-xs text-amber-400 uppercase font-bold">PV Solar</div>
+                <div class="text-2xl md:text-3xl font-black text-amber-400" id="pvPower">-- W</div>
+                <div class="text-xs text-slate-400" id="pvVoltage">--</div>
+            </div>
+            <!-- Grid -->
+            <div class="bg-gradient-to-br from-purple-900/50 to-violet-900/50 rounded-xl p-4 border border-purple-700">
+                <div class="text-xs text-purple-400 uppercase font-bold">Lưới EVN</div>
+                <div class="text-2xl md:text-3xl font-black text-purple-400" id="gridPower">-- W</div>
+                <div class="text-xs text-slate-400" id="gridVoltage">-- V</div>
+            </div>
+            <!-- Home Load -->
+            <div class="bg-gradient-to-br from-rose-900/50 to-pink-900/50 rounded-xl p-4 border border-rose-700">
+                <div class="text-xs text-rose-400 uppercase font-bold">Tải Nhà</div>
+                <div class="text-2xl md:text-3xl font-black text-rose-400" id="homeLoad">-- W</div>
+                <div class="text-xs text-slate-400">Tiêu thụ</div>
+            </div>
+            <!-- Temperature -->
+            <div class="bg-gradient-to-br from-orange-900/50 to-red-900/50 rounded-xl p-4 border border-orange-700">
+                <div class="text-xs text-orange-400 uppercase font-bold">Nhiệt độ</div>
+                <div class="text-2xl md:text-3xl font-black text-orange-400" id="temperature">-- °C</div>
+                <div class="text-xs text-slate-400">Inverter</div>
+            </div>
+        </div>
+
+        <!-- Cell Voltages Section -->
+        <div class="bg-slate-800/50 rounded-xl p-4 mb-4 border border-slate-700">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold text-teal-400">🔋 Cell Voltages</h2>
+                <div class="flex items-center gap-2 text-xs">
+                    <span class="px-2 py-1 rounded bg-teal-900/50 text-teal-400" id="cellCount">-- cells</span>
+                    <span class="text-slate-400">Avg: <strong id="cellAvg">--</strong></span>
+                    <span class="text-slate-400">Δ: <strong id="cellDiff">--</strong></span>
+                </div>
+            </div>
+            <div id="cellGrid" class="grid grid-cols-4 md:grid-cols-8 lg:grid-cols-16 gap-2">
+                <div class="text-center text-slate-500 col-span-full py-8">Đang chờ dữ liệu cell...</div>
+            </div>
+        </div>
+
+        <!-- Raw JSON Data -->
+        <div class="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-lg font-bold text-cyan-400">📋 Raw JSON Data</h2>
+                <button onclick="copyJSON()" class="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-sm font-bold transition-colors">
+                    📋 Copy JSON
+                </button>
+            </div>
+            <pre id="jsonOutput" class="bg-slate-900 rounded-lg p-4 text-xs overflow-auto max-h-64 text-green-400 font-mono">Đang tải...</pre>
+        </div>
+
+        <!-- Instructions -->
+        <div class="mt-4 bg-amber-900/30 border border-amber-700 rounded-xl p-4">
+            <h3 class="text-amber-400 font-bold mb-2">⚠️ Lưu ý quan trọng:</h3>
+            <ul class="text-sm text-amber-200/80 space-y-1">
+                <li>• Trang này fetch trực tiếp từ <code class="bg-slate-700 px-1 rounded">lumentree.net/api/realtime/P250801055</code></li>
+                <li>• Nếu bạn đã đăng nhập lumentree.net trên browser này, data sẽ chính xác</li>
+                <li>• Nếu chưa đăng nhập, API sẽ trả về random data (city = Hà Nội thay vì TPHCM)</li>
+                <li>• Data tự động refresh mỗi 2 giây</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const DEVICE_ID = 'P250801055';
+        const API_URL = `https://lumentree.net/api/realtime/${DEVICE_ID}`;
+        let fetchCount = 0;
+        let latestData = null;
+        let previousValues = {};
+
+        // Fetch data from API
+        async function fetchData() {
+            try {
+                const response = await fetch(API_URL, {
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const data = await response.json();
+                latestData = data;
+                fetchCount++;
+
+                // Update status
+                updateStatus('connected', `Đã kết nối (${fetchCount} lần)`);
+
+                // Update displays
+                updateDisplays(data);
+
+                // Update JSON output
+                document.getElementById('jsonOutput').textContent = JSON.stringify(data, null, 2);
+
+                console.log(`[${new Date().toLocaleTimeString()}] Fetched:`, data);
+
+            } catch (error) {
+                updateStatus('error', `Lỗi: ${error.message}`);
+                console.error('Fetch error:', error);
+            }
+        }
+
+        function updateStatus(status, text) {
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+
+            indicator.className = 'w-3 h-3 rounded-full';
+            if (status === 'connected') {
+                indicator.classList.add('bg-green-500');
+            } else if (status === 'error') {
+                indicator.classList.add('bg-red-500', 'animate-pulse');
+            } else {
+                indicator.classList.add('bg-yellow-500', 'animate-pulse');
+            }
+
+            statusText.textContent = text;
+        }
+
+        function updateDisplays(data) {
+            // City
+            updateValue('cityDisplay', data.city || '--');
+
+            // Last update
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('vi-VN');
+
+            if (data.data) {
+                const d = data.data;
+
+                // SOC
+                updateValue('soc', `${d.batterySoc ?? '--'}%`);
+                updateValue('batteryStatus', d.batteryStatus || '--');
+
+                // Battery Power
+                const batPower = d.batteryPower ?? 0;
+                const batDisplay = batPower < 0 ? `${Math.abs(batPower)} W` : `+${batPower} W`;
+                updateValue('batteryPower', batDisplay);
+                updateValue('batteryVoltage', `${d.batteryVoltage?.toFixed(1) ?? '--'} V`);
+
+                // PV
+                const pv1 = d.pv1Power ?? 0;
+                const pv2 = d.pv2Power ?? 0;
+                updateValue('pvPower', `${pv1 + pv2} W`);
+                updateValue('pvVoltage', `PV1: ${pv1}W | PV2: ${pv2}W`);
+
+                // Grid
+                updateValue('gridPower', `${d.gridPowerFlow ?? 0} W`);
+                updateValue('gridVoltage', `${d.acInputVoltage ?? '--'} V`);
+
+                // Home Load
+                updateValue('homeLoad', `${d.homeLoad ?? 0} W`);
+
+                // Temperature
+                updateValue('temperature', `${d.temperature ?? '--'} °C`);
+            }
+
+            // Cell Voltages
+            if (data.cells?.cellVoltages) {
+                updateCellGrid(data.cells.cellVoltages);
+            }
+        }
+
+        function updateValue(elementId, value) {
+            const element = document.getElementById(elementId);
+            if (!element) return;
+
+            const oldValue = previousValues[elementId];
+            const newValue = String(value);
+
+            if (oldValue !== newValue) {
+                element.textContent = value;
+                element.classList.add('blink');
+                setTimeout(() => element.classList.remove('blink'), 300);
+                previousValues[elementId] = newValue;
+            }
+        }
+
+        function updateCellGrid(cellVoltages) {
+            const cells = Object.entries(cellVoltages);
+            if (cells.length === 0) return;
+
+            const values = cells.map(([_, v]) => v);
+            const avg = values.reduce((a, b) => a + b, 0) / values.length;
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            const diff = max - min;
+
+            // Update stats
+            document.getElementById('cellCount').textContent = `${cells.length} cells`;
+            document.getElementById('cellAvg').textContent = `${avg.toFixed(3)}V`;
+            document.getElementById('cellDiff').textContent = `${(diff * 1000).toFixed(1)}mV`;
+
+            // Sort cells by name
+            cells.sort((a, b) => {
+                const numA = parseInt(a[0].replace(/\D/g, ''));
+                const numB = parseInt(b[0].replace(/\D/g, ''));
+                return numA - numB;
+            });
+
+            // Generate grid
+            const grid = document.getElementById('cellGrid');
+            grid.innerHTML = cells.map(([name, voltage], index) => {
+                const deviation = Math.abs(voltage - avg);
+                let colorClass = 'bg-slate-700';
+                if (deviation < 0.01) colorClass = 'cell-good';
+                else if (deviation < 0.03) colorClass = 'cell-ok';
+                else colorClass = 'cell-warning';
+
+                return `
+                    <div class="${colorClass} rounded-lg p-2 text-center transition-all hover:scale-105">
+                        <div class="text-[10px] text-white/70">C${index + 1}</div>
+                        <div class="text-xs font-bold text-white">${voltage.toFixed(3)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function copyJSON() {
+            if (latestData) {
+                navigator.clipboard.writeText(JSON.stringify(latestData, null, 2))
+                    .then(() => alert('✅ Đã copy JSON!'))
+                    .catch(err => alert('❌ Lỗi: ' + err));
+            }
+        }
+
+        // Start fetching
+        fetchData();
+        setInterval(fetchData, 2000); // Every 2 seconds
+    </script>
+</body>
+</html>
