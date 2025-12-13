@@ -62,6 +62,31 @@ document.addEventListener('DOMContentLoaded', function () {
     const MAX_SOC_HISTORY = 1440; // 24 hours * 60 (1-min intervals)
     let socDataReceived = false; // Track if we received real SOC data
     
+    // API URL Configuration - Support multiple sources
+    const API_SOURCES = {
+        workers: {
+            name: 'Cloudflare Workers',
+            realtime: 'https://solar-proxy.applike098.workers.dev/api/realtime',
+            soc: 'https://solar-proxy.applike098.workers.dev/api/soc'
+        },
+        sandbox: {
+            name: 'Sandbox Novita',
+            realtime: 'https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai/api/proxy/realtime',
+            soc: 'https://solar-proxy.applike098.workers.dev/api/soc'
+        }
+    };
+    
+    // Default to Workers API (more stable)
+    let currentApiSource = 'workers';
+    
+    function getRealtimeApiUrl(deviceId) {
+        return `${API_SOURCES[currentApiSource].realtime}/${deviceId}`;
+    }
+    
+    function getSocApiUrl(deviceId, date) {
+        return `${API_SOURCES[currentApiSource].soc}/${deviceId}/${date}`;
+    }
+    
     // Store previous values for blink detection
     let previousValues = {};
     let previousCellValues = {};
@@ -363,9 +388,10 @@ document.addEventListener('DOMContentLoaded', function () {
     
     async function fetchRealtimeData(deviceId) {
         try {
-            // Gọi trực tiếp sandbox URL thay vì Railway proxy
-            const sandboxUrl = `https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai/api/proxy/realtime/${deviceId}`;
-            const response = await fetch(sandboxUrl);
+            // Use configured API source (Workers or Sandbox)
+            const apiUrl = getRealtimeApiUrl(deviceId);
+            console.log(`📡 Fetching from ${API_SOURCES[currentApiSource].name}:`, apiUrl);
+            const response = await fetch(apiUrl);
             if (!response.ok) return;
             
             const data = await response.json();
@@ -474,9 +500,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // Fast load: Realtime API first, then fetch historical data in background
     async function fetchRealtimeFirst(deviceId, date) {
         try {
-            // Gọi trực tiếp sandbox URL thay vì Railway proxy
-            const sandboxUrl = `https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai/api/proxy/realtime/${deviceId}`;
-            const realtimeResponse = await fetch(sandboxUrl);
+            // Use configured API source (Workers or Sandbox)
+            const apiUrl = getRealtimeApiUrl(deviceId);
+            console.log(`🚀 Fast loading from ${API_SOURCES[currentApiSource].name}:`, apiUrl);
+            const realtimeResponse = await fetch(apiUrl);
             
             if (!realtimeResponse.ok) {
                 throw new Error(`Realtime API error: ${realtimeResponse.status}`);
@@ -525,26 +552,42 @@ document.addEventListener('DOMContentLoaded', function () {
                 };
                 updateRealTimeDisplay(displayData);
                 
-                // Update battery cell voltages
+                // Update battery cell voltages - Support both Object and Array format
                 if (realtimeData.cells && realtimeData.cells.cellVoltages) {
                     console.log("Cell voltages data found:", realtimeData.cells);
                     
-                    // Convert cellVoltages object to array with cell names
-                    const cellVoltages = [];
-                    const cellNames = Object.keys(realtimeData.cells.cellVoltages);
-                    cellNames.forEach(cellName => {
-                        const voltage = realtimeData.cells.cellVoltages[cellName];
-                        cellVoltages.push(voltage);
-                    });
+                    let cellVoltages = [];
+                    const rawVoltages = realtimeData.cells.cellVoltages;
                     
-                    console.log("Converted cell voltages array:", cellVoltages);
+                    // Handle Array format from Workers API: [3.413, 3.379, ...]
+                    if (Array.isArray(rawVoltages)) {
+                        cellVoltages = rawVoltages;
+                        console.log("Cell voltages (Array format):", cellVoltages);
+                    } 
+                    // Handle Object format from Sandbox API: {"Cell 01": 3.223, ...}
+                    else if (typeof rawVoltages === 'object') {
+                        const cellNames = Object.keys(rawVoltages).sort((a, b) => 
+                            parseInt(a.replace(/\D/g, '')) - parseInt(b.replace(/\D/g, ''))
+                        );
+                        cellNames.forEach(cellName => {
+                            cellVoltages.push(rawVoltages[cellName]);
+                        });
+                        console.log("Cell voltages (Object format converted):", cellVoltages);
+                    }
+                    
+                    // Calculate stats if not provided by API
+                    const validVoltages = cellVoltages.filter(v => v > 0);
+                    const avgVoltage = realtimeData.cells.averageVoltage || 
+                        (validVoltages.length > 0 ? validVoltages.reduce((a, b) => a + b, 0) / validVoltages.length : 0);
+                    const maxVoltage = realtimeData.cells.maximumVoltage || Math.max(...validVoltages, 0);
+                    const minVoltage = realtimeData.cells.minimumVoltage || Math.min(...validVoltages.filter(v => v > 0), 0);
                     
                     const cellData = {
                         cells: cellVoltages,
-                        maximumVoltage: realtimeData.cells.maximumVoltage || 0,
-                        minimumVoltage: realtimeData.cells.minimumVoltage || 0,
-                        averageVoltage: realtimeData.cells.averageVoltage || 0,
-                        numberOfCells: realtimeData.cells.numberOfCells || 16
+                        maximumVoltage: maxVoltage,
+                        minimumVoltage: minVoltage,
+                        averageVoltage: avgVoltage,
+                        numberOfCells: realtimeData.cells.numberOfCells || cellVoltages.length
                     };
                     updateBatteryCellDisplay(cellData);
                 } else {
@@ -587,7 +630,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Fetch SOC timeline from proxy API
     async function fetchSOCFromProxy(deviceId, date, currentSoc) {
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
-        const proxyUrl = `https://solar-proxy.applike098.workers.dev/api/soc/${deviceId}/${queryDate}`;
+        const proxyUrl = getSocApiUrl(deviceId, queryDate);
         
         try {
             console.log("Fetching SOC from proxy:", proxyUrl);
