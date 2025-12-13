@@ -28,10 +28,10 @@ public class LumentreeNetClient
         }
         else
         {
-            // Default Railway endpoint - you can change this as needed
-            BaseUrl = "https://lightearth1.up.railway.app/api/proxy/realtime";
-            UsingProxy = true;
-            Log.Information("Using default Railway endpoint: {BaseUrl}", BaseUrl);
+            // Gọi trực tiếp đến lumentree.net thay vì tạo vòng lặp proxy
+            BaseUrl = "https://lumentree.net/api/realtime";
+            UsingProxy = false;
+            Log.Information("Using direct lumentree.net endpoint: {BaseUrl}", BaseUrl);
         }
         
         // Set headers to mimic browser
