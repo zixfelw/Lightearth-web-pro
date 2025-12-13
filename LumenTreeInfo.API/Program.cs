@@ -15,6 +15,13 @@ public class Program
         // Configure Serilog
         SetupSerilog(builder.Configuration);
 
+        // Get proxy URL from configuration
+        var proxyUrl = builder.Configuration["Lumentree:ProxyUrl"] ?? Environment.GetEnvironmentVariable("LUMENTREE_PROXY_URL");
+        if (!string.IsNullOrEmpty(proxyUrl))
+        {
+            Environment.SetEnvironmentVariable("LUMENTREE_PROXY_URL", proxyUrl);
+        }
+
         // Add services to the container.
         builder.Services.AddControllersWithViews();
 

@@ -18,21 +18,20 @@ public class LumentreeNetClient
         _httpClient = new HttpClient();
         _httpClient.Timeout = TimeSpan.FromSeconds(15);
         
-        // Check if proxy URL is configured
-        var proxyUrl = Environment.GetEnvironmentVariable("LUMENTREE_PROXY_URL");
-        if (!string.IsNullOrEmpty(proxyUrl))
+        // Read from environment variable or use default Railway endpoint
+        var envUrl = Environment.GetEnvironmentVariable("LUMENTREE_PROXY_URL");
+        if (!string.IsNullOrEmpty(envUrl))
         {
-            BaseUrl = proxyUrl.TrimEnd('/');
+            BaseUrl = envUrl.TrimEnd('/');
             UsingProxy = true;
-            Log.Information("Using Cloudflare Worker proxy: {ProxyUrl}", BaseUrl);
+            Log.Information("Using proxy URL from environment variable: {BaseUrl}", BaseUrl);
         }
         else
         {
-            // DEFAULT FALLBACK: Use the known proxy if env var is not set
-            // This is needed for Railway deployments where env var might not be picked up
-            BaseUrl = "https://solar-proxy.applike098.workers.dev";
+            // Default Railway endpoint - you can change this as needed
+            BaseUrl = "https://lightearth1.up.railway.app/api/proxy/realtime";
             UsingProxy = true;
-            Log.Information("LUMENTREE_PROXY_URL not set, using default proxy: {ProxyUrl}", BaseUrl);
+            Log.Information("Using default Railway endpoint: {BaseUrl}", BaseUrl);
         }
         
         // Set headers to mimic browser
@@ -48,9 +47,8 @@ public class LumentreeNetClient
     {
         try
         {
-            var url = $"{BaseUrl}/api/realtime/{deviceId}";
-            _httpClient.DefaultRequestHeaders.Remove("Referer");
-            _httpClient.DefaultRequestHeaders.Add("Referer", $"https://lumentree.net/monitor/{deviceId}");
+            var url = $"{BaseUrl}/{deviceId}";
+            Log.Debug("Fetching from URL: {Url}", url);
             
             var response = await _httpClient.GetAsync(url);
             
@@ -99,9 +97,9 @@ public class LumentreeNetClient
     {
         try
         {
-            var url = $"{BaseUrl}/api/soc/{deviceId}/{date}";
-            _httpClient.DefaultRequestHeaders.Remove("Referer");
-            _httpClient.DefaultRequestHeaders.Add("Referer", $"https://lumentree.net/monitor/{deviceId}");
+            // Use the proxy endpoint for SOC data
+            var url = $"https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai/api/proxy/soc/{deviceId}/{date}";
+            Log.Debug("Fetching SOC from URL: {Url}", url);
             
             var response = await _httpClient.GetAsync(url);
             

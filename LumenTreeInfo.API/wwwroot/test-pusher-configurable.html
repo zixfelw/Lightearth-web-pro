@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Solar Data Pusher - Configurable</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 20px; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 900px; 
+            margin: 0 auto; 
+            background: white; 
+            padding: 30px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            border-radius: 10px;
+            color: white;
+        }
+        .form-group { 
+            margin-bottom: 20px; 
+            display: flex;
+            align-items: center;
+        }
+        label { 
+            display: inline-block; 
+            width: 150px; 
+            font-weight: bold; 
+            color: #555;
+        }
+        input[type="text"], select { 
+            flex: 1;
+            padding: 12px; 
+            border: 2px solid #e1e8ed; 
+            border-radius: 8px; 
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus, select:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+        button { 
+            padding: 12px 24px; 
+            margin: 5px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .btn-primary { 
+            background: linear-gradient(45deg, #667eea, #764ba2); 
+            color: white; 
+        }
+        .btn-success { 
+            background: linear-gradient(45deg, #56ab2f, #a8e6cf); 
+            color: white; 
+        }
+        .btn-danger { 
+            background: linear-gradient(45deg, #ff416c, #ff4b2b); 
+            color: white; 
+        }
+        .btn-warning { 
+            background: linear-gradient(45deg, #feca57, #ff9ff3); 
+            color: white; 
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+        .console-output { 
+            background: #1e1e1e; 
+            color: #f8f8f2; 
+            padding: 20px; 
+            border-radius: 10px; 
+            font-family: 'Fira Code', 'Courier New', monospace; 
+            font-size: 13px;
+            max-height: 400px; 
+            overflow-y: auto; 
+            margin: 20px 0;
+            border: 2px solid #333;
+        }
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }
+        .status-item {
+            text-align: center;
+        }
+        .status-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .status-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .config-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #e1e8ed;
+        }
+        .preset-buttons {
+            display: flex;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .preset-btn {
+            padding: 8px 16px;
+            background: #e9ecef;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .preset-btn:hover {
+            background: #dee2e6;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        .highlight {
+            background: linear-gradient(45deg, #ffeaa7, #fab1a0);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid #e17055;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌞 TEST SOLAR DATA PUSHER - CONFIGURABLE</h1>
+            <p>Test với proxy URL có thể cấu hình - Railway Ready!</p>
+        </div>
+
+        <div class="config-section">
+            <h3>⚙️ Cấu Hình</h3>
+            <div class="form-group">
+                <label>Server URL:</label>
+                <input type="text" id="serverUrl" value="https://7000-i2k60sp1918tbfxp5253a-2e77fc33.sandbox.novita.ai" placeholder="Server URL">
+            </div>
+            <div class="form-group">
+                <label>Device ID:</label>
+                <input type="text" id="deviceId" value="P250801055" placeholder="Device ID">
+            </div>
+            <div class="form-group">
+                <label>Interval (giây):</label>
+                <input type="text" id="interval" value="2" placeholder="Interval in seconds">
+            </div>
+            
+            <div class="preset-buttons">
+                <button class="preset-btn" onclick="setPreset('railway')">Railway Default</button>
+                <button class="preset-btn" onclick="setPreset('sandbox')">Sandbox Current</button>
+                <button class="preset-btn" onclick="setPreset('localhost')">Localhost</button>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn-success" onclick="startPusher()">🚀 Bắt Đầu</button>
+            <button class="btn-danger" onclick="stopPusher()">⏹️ Dừng</button>
+            <button class="btn-primary" onclick="checkStatus()">📊 Trạng Thái</button>
+            <button class="btn-warning" onclick="clearConsole()">🗑️ Xóa Console</button>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-value" id="pushCount">0</div>
+                <div class="status-label">Pushes</div>
+            </div>
+            <div class="status-item">
+                <div class="status-value" id="errorCount">0</div>
+                <div class="status-label">Errors</div>
+            </div>
+            <div class="status-item">
+                <div class="status-value" id="lastSoc">--</div>
+                <div class="status-label">Battery SOC</div>
+            </div>
+            <div class="status-item">
+                <div class="status-value" id="status">Stopped</div>
+                <div class="status-label">Status</div>
+            </div>
+        </div>
+
+        <div class="highlight">
+            <strong>📋 Hướng dẫn:</strong>
+            <br>• Nhập URL server (Railway: https://lightearth1.up.railway.app)
+            <br>• Nhập Device ID (mặc định: P250801055)
+            <br>• Click "Bắt Đầu" để chạy pusher
+            <br>• Dùng "Trạng Thái" để kiểm tra hoạt động
+        </div>
+
+        <div class="console-output" id="consoleOutput">
+            <div style="color: #888;">Console output sẽ hiển thị ở đây...</div>
+        </div>
+    </div>
+
+    <!-- Load the configurable pusher -->
+    <script src="/solar-data-pusher-configurable.js"></script>
+    
+    <script>
+        // Override console.log to display in our custom console
+        const originalConsoleLog = console.log;
+        const originalConsoleError = console.error;
+        const consoleOutput = document.getElementById('consoleOutput');
+        
+        function addConsoleMessage(message, type = 'log') {
+            const timestamp = new Date().toLocaleTimeString('vi-VN');
+            const color = type === 'error' ? '#ff6b6b' : type === 'warn' ? '#feca57' : '#f8f8f2';
+            const prefix = type === 'error' ? '❌' : type === 'warn' ? '⚠️' : '📄';
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.style.cssText = `color: ${color}; margin: 2px 0;`;
+            messageDiv.innerHTML = `<span style="color: #6272a4;">${timestamp}</span> ${prefix} ${message}`;
+            
+            consoleOutput.appendChild(messageDiv);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalConsoleLog.apply(console, args);
+            addConsoleMessage(args.join(' '), 'log');
+        };
+        
+        console.error = function(...args) {
+            originalConsoleError.apply(console, args);
+            addConsoleMessage(args.join(' '), 'error');
+        };
+        
+        console.warn = function(...args) {
+            originalConsoleLog.apply(console, args);
+            addConsoleMessage(args.join(' '), 'warn');
+        };
+        
+        // Preset configurations
+        function setPreset(type) {
+            const presets = {
+                railway: {
+                    serverUrl: 'https://lightearth1.up.railway.app',
+                    deviceId: 'P250801055',
+                    interval: '2'
+                },
+                sandbox: {
+                    serverUrl: 'https://7000-i2k60sp1918tbfxp5253a-2e77fc33.sandbox.novita.ai',
+                    deviceId: 'P250801055',
+                    interval: '2'
+                },
+                localhost: {
+                    serverUrl: 'http://localhost:7000',
+                    deviceId: 'P250801055',
+                    interval: '2'
+                }
+            };
+            
+            const preset = presets[type];
+            if (preset) {
+                document.getElementById('serverUrl').value = preset.serverUrl;
+                document.getElementById('deviceId').value = preset.deviceId;
+                document.getElementById('interval').value = preset.interval;
+                console.log(`✅ Applied preset: ${type}`);
+            }
+        }
+        
+        function startPusher() {
+            const serverUrl = document.getElementById('serverUrl').value.trim();
+            const deviceId = document.getElementById('deviceId').value.trim();
+            const interval = parseInt(document.getElementById('interval').value) * 1000;
+            
+            if (!serverUrl || !deviceId) {
+                alert('❌ Vui lòng nhập đầy đủ Server URL và Device ID');
+                return;
+            }
+            
+            // Set global variables for the pusher
+            window.SOLAR_SERVER_URL = serverUrl;
+            window.SOLAR_DEVICE_ID = deviceId;
+            window.SOLAR_PUSH_INTERVAL = interval;
+            
+            console.log('🚀 Starting Solar Data Pusher...');
+            console.log('📡 Server URL:', serverUrl);
+            console.log('🔌 Device ID:', deviceId);
+            console.log('⏱️  Interval:', interval/1000, 'seconds');
+            
+            // Reload the pusher script with new config
+            const existingScript = document.querySelector('script[src*="solar-data-pusher"]');
+            if (existingScript) {
+                existingScript.remove();
+            }
+            
+            const script = document.createElement('script');
+            script.src = '/solar-data-pusher-configurable.js';
+            script.onload = function() {
+                console.log('✅ Pusher started successfully!');
+                updateStatus('Running');
+            };
+            script.onerror = function() {
+                console.error('❌ Failed to load pusher script');
+                updateStatus('Error');
+            };
+            document.head.appendChild(script);
+        }
+        
+        function stopPusher() {
+            if (window.solarPusher) {
+                window.solarPusher.stop();
+                updateStatus('Stopped');
+            } else {
+                console.log('⚠️ Pusher not running');
+                updateStatus('Stopped');
+            }
+        }
+        
+        function checkStatus() {
+            if (window.solarPusher) {
+                window.solarPusher.status();
+                if (window.solarPusher.intervalId) {
+                    updateStatus('Running');
+                } else {
+                    updateStatus('Stopped');
+                }
+            } else {
+                console.log('⚠️ Pusher not initialized');
+                updateStatus('Not Started');
+            }
+        }
+        
+        function updateStatus(status) {
+            document.getElementById('status').textContent = status;
+            
+            if (window.solarPusher) {
+                document.getElementById('pushCount').textContent = window.solarPusher.pushCount || 0;
+                document.getElementById('errorCount').textContent = window.solarPusher.errorCount || 0;
+                document.getElementById('lastSoc').textContent = (window.solarPusher.lastBatterySoc || '--') + '%';
+            }
+        }
+        
+        function clearConsole() {
+            document.getElementById('consoleOutput').innerHTML = '<div style="color: #888;">Console đã được xóa...</div>';
+        }
+        
+        // Auto-update status every 5 seconds
+        setInterval(function() {
+            if (window.solarPusher && window.solarPusher.intervalId) {
+                updateStatus('Running');
+            }
+        }, 5000);
+        
+        console.log('✅ Test page loaded! Ready to test Solar Data Pusher.');
+    </script>
+</body>
+</html>

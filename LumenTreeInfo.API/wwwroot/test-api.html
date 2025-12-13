@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Endpoint</title>
+</head>
+<body>
+    <h1>Test API Endpoint</h1>
+    <button onclick="testEndpoint()">Test /api/proxy/realtime/P250801055</button>
+    <pre id="result"></pre>
+    
+    <script>
+        async function testEndpoint() {
+            try {
+                const response = await fetch('/api/proxy/realtime/P250801055');
+                const data = await response.json();
+                document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('result').textContent = 'Error: ' + error.message;
+            }
+        }
+    </script>
+</body>
+</html>

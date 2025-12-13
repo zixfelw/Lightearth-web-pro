@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Nút Xem - Solar Monitor</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        input, button { padding: 10px; margin: 5px; }
+        input { width: 200px; }
+        button { background: #007bff; color: white; border: none; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        #result { margin-top: 20px; padding: 10px; border: 1px solid #ccc; background: #f9f9f9; }
+        .success { color: green; }
+        .error { color: red; }
+        .loading { color: orange; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test Nút "Xem" - Solar Monitor</h1>
+        
+        <div>
+            <label for="deviceId">Device ID:</label>
+            <input type="text" id="deviceId" value="P250801055" placeholder="Nhập Device ID">
+            <button onclick="testXemButton()">Xem</button>
+        </div>
+        
+        <div id="result"></div>
+        
+        <h3>Chi tiết fetch:</h3>
+        <div id="fetchDetails"></div>
+    </div>
+
+    <script>
+        async function testXemButton() {
+            const deviceId = document.getElementById('deviceId').value.trim();
+            const resultDiv = document.getElementById('result');
+            const detailsDiv = document.getElementById('fetchDetails');
+            
+            if (!deviceId) {
+                resultDiv.innerHTML = '<span class="error">Vui lòng nhập Device ID!</span>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<span class="loading">Đang tải dữ liệu...</span>';
+            detailsDiv.innerHTML = '';
+            
+            try {
+                // Gọi API endpoint mới
+                const apiUrl = `/api/proxy/realtime/${deviceId}`;
+                detailsDiv.innerHTML = `<p>Fetching từ: <strong>${apiUrl}</strong></p>`;
+                
+                console.log('Fetching from:', apiUrl);
+                const response = await fetch(apiUrl);
+                
+                detailsDiv.innerHTML += `<p>HTTP Status: <strong>${response.status}</strong></p>`;
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Dữ liệu nhận được:', data);
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Hiển thị kết quả
+                resultDiv.innerHTML = '<span class="success">✓ Tải dữ liệu thành công!</span>';
+                
+                if (data.data) {
+                    detailsDiv.innerHTML += '<h4>Dữ liệu realtime:</h4>';
+                    detailsDiv.innerHTML += `<pre>${JSON.stringify(data.data, null, 2)}</pre>`;
+                    
+                    // Hiển thị một số thông tin chính
+                    const info = [
+                        `Battery SOC: ${data.data.batterySoc || 'N/A'}%`,
+                        `PV Power: ${data.data.totalPvPower || 'N/A'}W`,
+                        `Grid Power: ${data.data.gridPowerFlow || 'N/A'}W`,
+                        `Load: ${data.data.homeLoad || 'N/A'}W`,
+                        `Temperature: ${data.data.temperature || 'N/A'}°C`
+                    ];
+                    
+                    resultDiv.innerHTML += '<br><strong>Thông tin chính:</strong><ul>' + 
+                        info.map(item => `<li>${item}</li>`).join('') + 
+                        '</ul>';
+                } else {
+                    detailsDiv.innerHTML += '<p>Không có dữ liệu trong response.</p>';
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML = `<span class="error">✗ Lỗi: ${error.message}</span>`;
+                detailsDiv.innerHTML += `<p class="error">Chi tiết lỗi: ${error.stack}</p>`;
+                console.error('Lỗi khi fetch:', error);
+            }
+        }
+        
+        // Test khi load trang
+        window.onload = function() {
+            console.log('Trang test đã load. Nhấn nút "Xem" để test.');
+        };
+    </script>
+</body>
+</html>

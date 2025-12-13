@@ -363,7 +363,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
     async function fetchRealtimeData(deviceId) {
         try {
-            const response = await fetch(`/device/${deviceId}/realtime`);
+            const response = await fetch(`/api/proxy/realtime/${deviceId}`);
             if (!response.ok) return;
             
             const data = await response.json();
@@ -472,7 +472,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Fast load: Realtime API first, then fetch historical data in background
     async function fetchRealtimeFirst(deviceId, date) {
         try {
-            const realtimeResponse = await fetch(`/device/${deviceId}/realtime`);
+            const realtimeResponse = await fetch(`/api/proxy/realtime/${deviceId}`);
             
             if (!realtimeResponse.ok) {
                 throw new Error(`Realtime API error: ${realtimeResponse.status}`);
