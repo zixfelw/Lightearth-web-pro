@@ -997,7 +997,7 @@ document.addEventListener('DOMContentLoaded', function () {
         previousValues['cellDayMax_value'] = '0';
         
         // Show waiting message in cell grid
-        const cellGrid = document.getElementById('cellGrid');
+        const cellGrid = document.getElementById('battery-cells');
         if (cellGrid) {
             cellGrid.innerHTML = `
                 <div class="cell-placeholder bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 rounded-xl p-6 flex flex-col items-center justify-center gap-3 border-2 border-dashed border-slate-300 dark:border-slate-600">
@@ -1115,7 +1115,7 @@ document.addEventListener('DOMContentLoaded', function () {
         lastCellUpdateTime = currentTime;
 
         // Generate cell grid dynamically with blink effect and communication status
-        const cellGrid = document.getElementById('cellGrid');
+        const cellGrid = document.getElementById('battery-cells');
         if (cellGrid) {
             let gridHtml = '<div class="grid">';
             
@@ -1176,7 +1176,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Show message when device doesn't support cell monitoring
     function showNoCellCommunication() {
-        const cellGrid = document.getElementById('cellGrid');
+        const cellGrid = document.getElementById('battery-cells');
         if (cellGrid) {
             cellGrid.innerHTML = `
                 <div class="cell-placeholder bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl p-6 flex flex-col items-center justify-center gap-3 border-2 border-dashed border-amber-300 dark:border-amber-700">
