@@ -527,8 +527,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 // Update battery cell voltages
                 if (realtimeData.cells && realtimeData.cells.cellVoltages) {
+                    // Convert cellVoltages object to array with cell names
+                    const cellVoltages = [];
+                    const cellNames = Object.keys(realtimeData.cells.cellVoltages);
+                    cellNames.forEach(cellName => {
+                        const voltage = realtimeData.cells.cellVoltages[cellName];
+                        cellVoltages.push(voltage);
+                    });
+                    
                     const cellData = {
-                        cells: Object.values(realtimeData.cells.cellVoltages),
+                        cells: cellVoltages,
                         maximumVoltage: realtimeData.cells.maximumVoltage || 0,
                         minimumVoltage: realtimeData.cells.minimumVoltage || 0,
                         averageVoltage: realtimeData.cells.averageVoltage || 0,
@@ -1115,7 +1123,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     // Cell has no communication
                     gridHtml += `
                         <div class="cell-item cell-no-communication relative">
-                            <span class="cell-label">C${index + 1}</span>
+                            <span class="cell-label">Cell ${index + 1}</span>
                             <span class="cell-voltage">N/A</span>
                             <span class="text-[8px] text-red-400 block">Mất kết nối</span>
                         </div>
@@ -1137,7 +1145,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     
                     gridHtml += `
                         <div class="cell-item ${colorClass} ${blinkClass}">
-                            <span class="cell-label">C${index + 1}</span>
+                            <span class="cell-label">Cell ${index + 1}</span>
                             <span class="cell-voltage">${voltage.toFixed(3)}V</span>
                         </div>
                     `;
