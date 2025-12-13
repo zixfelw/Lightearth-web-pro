@@ -636,7 +636,11 @@ document.addEventListener('DOMContentLoaded', function () {
             showCompactSearchBar(deviceId, date);
             showLoading(false);
             
-            initializeBatteryCellsWaiting();
+            // Only initialize waiting state if we DON'T have cell data yet
+            // (initializeBatteryCellsWaiting was resetting stats AFTER updateBatteryCellDisplay already set them)
+            if (!hasCellData) {
+                initializeBatteryCellsWaiting();
+            }
             
             // Fetch SOC timeline from proxy
             fetchSOCFromProxy(deviceId, date, realtimeData.data?.batterySoc || 0);
