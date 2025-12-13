@@ -1,11 +1,13 @@
 using LumenTreeInfo.Lib;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Cors;
 using Serilog;
 
 namespace LumenTreeInfo.API.Controllers;
 
 [ApiController]
 [Route("api/proxy")]
+[EnableCors("AllowLumentreeNet")]
 public class DataProxyController : ControllerBase
 {
     private static readonly Serilog.ILogger Log = Serilog.Log.Logger;
@@ -96,6 +98,48 @@ public class DataProxyController : ControllerBase
                 error = "Failed to get realtime data", 
                 message = ex.Message,
                 proxy_url = Environment.GetEnvironmentVariable("LUMENTREE_PROXY_URL") ?? "NOT SET"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Push data to the proxy endpoint (for testing and data forwarding)
+    /// </summary>
+    /// <param name="deviceId">The device ID (e.g., P250801055)</param>
+    /// <param name="data">The data to push</param>
+    [HttpPost("push/{deviceId}")]
+    [EnableCors("AllowLumentreeNet")]
+    public async Task<IActionResult> PushData(string deviceId, [FromBody] object data)
+    {
+        if (string.IsNullOrEmpty(deviceId))
+        {
+            return BadRequest(new { error = "Device ID is required" });
+        }
+
+        if (data == null)
+        {
+            return BadRequest(new { error = "Data is required" });
+        }
+
+        try
+        {
+            Log.Information("Push data received for {DeviceId}: {Data}", deviceId, data.ToString());
+            
+            // In a real implementation, you would store or forward this data
+            // For now, we'll just acknowledge receipt
+            return Ok(new { 
+                message = "Data received successfully", 
+                device_id = deviceId,
+                timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"),
+                data_received = data
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error pushing data for {DeviceId}", deviceId);
+            return StatusCode(500, new { 
+                error = "Failed to process push data", 
+                message = ex.Message
             });
         }
     }

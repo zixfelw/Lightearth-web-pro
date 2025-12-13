@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Cors;
 using Serilog;
 
 namespace LumenTreeInfo.API.Controllers;
 
 [ApiController]
 [Route("api/config")]
+[EnableCors("AllowLumentreeNet")]
 public class ConfigController : ControllerBase
 {
     private static readonly Serilog.ILogger Log = Serilog.Log.Logger;

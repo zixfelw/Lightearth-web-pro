@@ -25,6 +25,25 @@ public class Program
         // Add services to the container.
         builder.Services.AddControllersWithViews();
 
+        // Add CORS policy to allow requests from lumentree.net
+        builder.Services.AddCors(options =>
+        {
+            options.AddPolicy("AllowLumentreeNet", policy =>
+            {
+                policy.WithOrigins("https://lumentree.net", "https://www.lumentree.net")
+                      .AllowAnyHeader()
+                      .AllowAnyMethod()
+                      .AllowCredentials();
+            });
+            
+            options.AddPolicy("AllowAll", policy =>
+            {
+                policy.AllowAnyOrigin()
+                      .AllowAnyHeader()
+                      .AllowAnyMethod();
+            });
+        });
+
         // Add Memory Cache
         builder.Services.AddMemoryCache();
 
@@ -69,6 +88,9 @@ public class Program
         app.UseStaticFiles();
 
         app.UseRouting();
+
+        // Add CORS middleware - MUST be after UseRouting but before UseAuthorization
+        app.UseCors("AllowLumentreeNet");
 
         app.UseAuthorization();
 
