@@ -393,20 +393,38 @@
         }
 
         // Fetch Day Summary - Tổng kết ngày (mỗi 2s)
+        // Try lumentree.net first (most accurate), fallback to Workers proxy
         async function fetchDaySummary() {
             const deviceId = document.getElementById('deviceId').value.trim();
             if (!deviceId) return;
 
             const today = new Date().toISOString().split('T')[0];
-            const dayApiUrl = `https://solar-proxy.applike098.workers.dev/api/day/${deviceId}/${today}`;
+            const primaryUrl = `https://lumentree.net/api/day/${deviceId}/${today}`;
+            const fallbackUrl = `https://solar-proxy.applike098.workers.dev/api/day/${deviceId}/${today}`;
+            
+            let res;
+            let dayApiUrl;
             
             try {
-                console.log('📊 Fetching Day Summary:', dayApiUrl);
-                const res = await fetch(dayApiUrl);
+                // Try lumentree.net first (most accurate data)
+                console.log('📊 Trying lumentree.net:', primaryUrl);
+                res = await fetch(primaryUrl);
+                dayApiUrl = primaryUrl;
+                
+                if (!res.ok) throw new Error('Primary failed');
+            } catch (e) {
+                // Fallback to Workers proxy
+                console.log('📊 Fallback to Workers:', fallbackUrl);
+                res = await fetch(fallbackUrl);
+                dayApiUrl = fallbackUrl;
+            }
+            
+            try {
                 if (!res.ok) return;
                 
                 const data = await res.json();
                 if (data.error) return;
+                console.log('📊 Day data from:', dayApiUrl);
 
                 // Update day summary display
                 const now = getTimeString();
