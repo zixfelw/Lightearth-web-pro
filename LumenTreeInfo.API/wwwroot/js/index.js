@@ -721,48 +721,88 @@ document.addEventListener('DOMContentLoaded', function () {
     async function fetchDayDataInBackground(deviceId, date) {
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
         
-        // Try main API with 10-second timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        // Use Workers proxy API for day data (has summary stats)
+        const dayApiUrl = `https://solar-proxy.applike098.workers.dev/api/day/${deviceId}/${queryDate}`;
         
         try {
-            console.log("Fetching day data in background...");
-            const response = await fetch(`/device/${deviceId}?date=${queryDate}`, { signal: controller.signal });
-            clearTimeout(timeoutId);
+            console.log("📊 Fetching day data from:", dayApiUrl);
+            const response = await fetch(dayApiUrl);
             
             if (!response.ok) {
                 throw new Error(`Day data API error: ${response.status}`);
             }
             
             const data = await response.json();
-            console.log("Day data received:", data);
+            console.log("✅ Day data received:", data);
             
             if (data.error) {
                 throw new Error(data.error);
             }
             
-            // Update summary stats with day data
-            if (data.pv || data.bat || data.load || data.grid || data.essentialLoad) {
-                updateValue('pv-total', ((data.pv?.tableValue || 0) / 10).toFixed(1) + ' kWh');
-                const batCharge = data.bat?.chargeKwh ?? ((data.bat?.bats?.[0]?.tableValue || 0) / 10);
-                const batDischarge = data.bat?.dischargeKwh ?? ((data.bat?.bats?.[1]?.tableValue || 0) / 10);
-                updateValue('bat-charge', batCharge.toFixed(1) + ' kWh');
-                updateValue('bat-discharge', batDischarge.toFixed(1) + ' kWh');
-                updateValue('load-total', ((data.load?.tableValue || 0) / 10).toFixed(1) + ' kWh');
-                updateValue('grid-total', ((data.grid?.tableValue || 0) / 10).toFixed(1) + ' kWh');
-                updateValue('essential-total', ((data.essentialLoad?.tableValue || 0) / 10).toFixed(1) + ' kWh');
-                console.log("Summary stats updated from day data");
+            // Update summary stats from day data summary
+            if (data.summary) {
+                const summary = data.summary;
+                // summary contains: pv_day, load_day, bat_day, grid_day, backup_day (in kWh)
+                updateValue('pv-total', (summary.pv_day || 0).toFixed(1) + ' kWh');
+                updateValue('load-total', (summary.load_day || 0).toFixed(1) + ' kWh');
+                updateValue('grid-total', (summary.grid_day || 0).toFixed(1) + ' kWh');
+                updateValue('essential-total', (summary.backup_day || 0).toFixed(1) + ' kWh');
+                
+                // For battery charge/discharge, use bat_raw.bats if available
+                if (data.bat_raw?.bats) {
+                    const batCharge = (data.bat_raw.bats[0]?.tableValue || 0) / 10;
+                    const batDischarge = (data.bat_raw.bats[1]?.tableValue || 0) / 10;
+                    updateValue('bat-charge', batCharge.toFixed(1) + ' kWh');
+                    updateValue('bat-discharge', batDischarge.toFixed(1) + ' kWh');
+                } else {
+                    // Fallback: show net battery (positive = charge, negative = discharge)
+                    const batNet = summary.bat_day || 0;
+                    if (batNet >= 0) {
+                        updateValue('bat-charge', batNet.toFixed(1) + ' kWh');
+                        updateValue('bat-discharge', '0.0 kWh');
+                    } else {
+                        updateValue('bat-charge', '0.0 kWh');
+                        updateValue('bat-discharge', Math.abs(batNet).toFixed(1) + ' kWh');
+                    }
+                }
+                
+                console.log("✅ Summary stats updated:", summary);
             }
             
-            // Update charts if available
-            if (data.pv?.chartDataArr || data.bat?.chartDataArr) {
-                updateCharts(data);
+            // Update charts if timeline data available
+            if (data.timeline && Array.isArray(data.timeline)) {
+                // Could use this for detailed charts later
+                console.log(`📈 Timeline data available: ${data.timeline.length} points`);
             }
             
         } catch (error) {
-            clearTimeout(timeoutId);
-            console.warn("Day data not available:", error.message);
-            // Keep "Chờ..." or show "N/A" for summary stats
+            console.warn("⚠️ Day data fetch failed:", error.message);
+            
+            // Fallback: Try Railway backend API
+            try {
+                console.log("📡 Fallback: Trying Railway backend...");
+                const fallbackResponse = await fetch(`/device/${deviceId}?date=${queryDate}`);
+                
+                if (fallbackResponse.ok) {
+                    const fallbackData = await fallbackResponse.json();
+                    if (!fallbackData.error && (fallbackData.pv || fallbackData.bat || fallbackData.load)) {
+                        updateValue('pv-total', ((fallbackData.pv?.tableValue || 0) / 10).toFixed(1) + ' kWh');
+                        const batCharge = fallbackData.bat?.chargeKwh ?? ((fallbackData.bat?.bats?.[0]?.tableValue || 0) / 10);
+                        const batDischarge = fallbackData.bat?.dischargeKwh ?? ((fallbackData.bat?.bats?.[1]?.tableValue || 0) / 10);
+                        updateValue('bat-charge', batCharge.toFixed(1) + ' kWh');
+                        updateValue('bat-discharge', batDischarge.toFixed(1) + ' kWh');
+                        updateValue('load-total', ((fallbackData.load?.tableValue || 0) / 10).toFixed(1) + ' kWh');
+                        updateValue('grid-total', ((fallbackData.grid?.tableValue || 0) / 10).toFixed(1) + ' kWh');
+                        updateValue('essential-total', ((fallbackData.essentialLoad?.tableValue || 0) / 10).toFixed(1) + ' kWh');
+                        console.log("✅ Summary stats updated from Railway backend");
+                        return;
+                    }
+                }
+            } catch (fallbackError) {
+                console.warn("⚠️ Railway fallback also failed:", fallbackError.message);
+            }
+            
+            // All failed - show N/A
             updateValue('pv-total', 'N/A');
             updateValue('bat-charge', 'N/A');
             updateValue('bat-discharge', 'N/A');
