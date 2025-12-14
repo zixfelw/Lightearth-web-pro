@@ -346,16 +346,16 @@
                 <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                 Luồng Năng Lượng Thời Gian Thực
             </h2>
-            <!-- Toggle button for reduced animation mode -->
+            <!-- Toggle button for animation mode (default: reduced) -->
             <button id="toggleAnimationBtn" onclick="toggleAnimationMode()" 
                 class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-all duration-200
-                       bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 
-                       text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600"
-                title="Bật/Tắt chế độ giảm hiệu ứng">
+                       bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/50 dark:hover:bg-amber-800/50 
+                       text-amber-700 dark:text-amber-300 border border-amber-400 dark:border-amber-600"
+                title="Bật/Tắt chế độ tăng hiệu ứng">
                 <svg id="animationIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
                 </svg>
-                <span id="animationBtnText">Giảm hiệu ứng</span>
+                <span id="animationBtnText">Tăng hiệu ứng</span>
             </button>
         </div>
         
@@ -850,8 +850,8 @@
     <!-- SignalR Client Library -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="/css/index.css?v=12151" rel="stylesheet" />
-    <script src="/js/index.js?v=13031"></script>
+    <link href="/css/index.css?v=12152" rel="stylesheet" />
+    <script src="/js/index.js?v=13032"></script>
 
 </body>
 </html>

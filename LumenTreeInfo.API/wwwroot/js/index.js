@@ -62,8 +62,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const MAX_SOC_HISTORY = 1440; // 24 hours * 60 (1-min intervals)
     let socDataReceived = false; // Track if we received real SOC data
     
-    // Animation mode: false = normal (multiple particles), true = reduced (1 particle only)
-    let reducedAnimationMode = false;
+    // Animation mode: true = reduced (1 particle only - default), false = normal (multiple particles)
+    let reducedAnimationMode = true;
     
     // API URL Configuration - Support multiple sources
     const API_SOURCES = {
