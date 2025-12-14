@@ -798,171 +798,228 @@ body:has(#mainHeader.header-hidden) #compactSearch {
     transform: translate(-50%, -50%);
 }
 
-/* PV Dot - Yellow/Orange */
+/* ===== PV Dots - Yellow/Amber ===== */
+/* <3000W: 3 particles, >=3000W: 5 particles */
 .energy-dot-pv {
     background: #fbbf24;
-    box-shadow: 0 0 12px 4px rgba(251, 191, 36, 0.9), 0 0 25px 8px rgba(251, 191, 36, 0.5);
-    animation: pv-flow 2s linear infinite;
+    box-shadow: 0 0 10px 3px rgba(251, 191, 36, 0.9), 0 0 20px 6px rgba(251, 191, 36, 0.5);
+    animation: pv-flow 1.5s ease-in-out infinite;
 }
-.energy-dot-pv::before {
-    background: #fbbf24;
-    box-shadow: 0 0 8px rgba(251, 191, 36, 0.7);
-    animation: pv-flow 2s linear infinite;
-    animation-delay: -0.12s;
+.energy-dot-pv-2 {
+    animation: pv-flow 1.5s ease-in-out infinite;
+    animation-delay: -0.3s;
+    width: 9px;
+    height: 9px;
 }
-.energy-dot-pv::after {
-    background: #fcd34d;
-    box-shadow: 0 0 6px rgba(252, 211, 77, 0.5);
-    animation: pv-flow 2s linear infinite;
-    animation-delay: -0.24s;
+.energy-dot-pv-3 {
+    animation: pv-flow 1.5s ease-in-out infinite;
+    animation-delay: -0.6s;
+    width: 8px;
+    height: 8px;
+    opacity: 0.95;
+}
+.energy-dot-pv-4 {
+    animation: pv-flow 1.5s ease-in-out infinite;
+    animation-delay: -0.9s;
+    width: 8px;
+    height: 8px;
+    opacity: 0.9;
+}
+.energy-dot-pv-5 {
+    animation: pv-flow 1.5s ease-in-out infinite;
+    animation-delay: -1.2s;
+    width: 7px;
+    height: 7px;
+    opacity: 0.85;
 }
 
-/* EVN Dot - Orange */
+/* ===== EVN Dots - Emerald ===== */
+/* <3000W: 3 particles, >=3000W: 5 particles */
 .energy-dot-evn {
-    background: #fb923c;
-    box-shadow: 0 0 12px 4px rgba(251, 146, 60, 0.9), 0 0 25px 8px rgba(251, 146, 60, 0.5);
-    animation: evn-flow 2.4s linear infinite;
-    animation-delay: 0.6s;
+    background: #34d399;
+    box-shadow: 0 0 10px 3px rgba(52, 211, 153, 0.9), 0 0 20px 6px rgba(52, 211, 153, 0.5);
+    animation: evn-flow 1.5s ease-in-out infinite;
 }
-.energy-dot-evn::before {
-    background: #fb923c;
-    box-shadow: 0 0 8px rgba(251, 146, 60, 0.7);
-    animation: evn-flow 2.4s linear infinite;
-    animation-delay: 0.48s;
+.energy-dot-evn-2 {
+    animation: evn-flow 1.5s ease-in-out infinite;
+    animation-delay: -0.3s;
+    width: 9px;
+    height: 9px;
 }
-.energy-dot-evn::after {
-    background: #fdba74;
-    box-shadow: 0 0 6px rgba(253, 186, 116, 0.5);
-    animation: evn-flow 2.4s linear infinite;
-    animation-delay: 0.36s;
+.energy-dot-evn-3 {
+    animation: evn-flow 1.5s ease-in-out infinite;
+    animation-delay: -0.6s;
+    width: 8px;
+    height: 8px;
+    opacity: 0.95;
+}
+.energy-dot-evn-4 {
+    animation: evn-flow 1.5s ease-in-out infinite;
+    animation-delay: -0.9s;
+    width: 8px;
+    height: 8px;
+    opacity: 0.9;
+}
+.energy-dot-evn-5 {
+    animation: evn-flow 1.5s ease-in-out infinite;
+    animation-delay: -1.2s;
+    width: 7px;
+    height: 7px;
+    opacity: 0.85;
 }
 
-/* Battery Dot */
+/* ===== Battery Dots ===== */
+/* 1000W=1, 2000W=2, 3000W=3 particles */
 .energy-dot-battery {
     background: #34d399;
-    box-shadow: 0 0 12px 4px rgba(52, 211, 153, 0.9), 0 0 25px 8px rgba(52, 211, 153, 0.5);
+    box-shadow: 0 0 10px 3px rgba(52, 211, 153, 0.9), 0 0 20px 6px rgba(52, 211, 153, 0.5);
 }
-
-/* Battery Charging - Green flowing TO battery */
+/* Battery Charging */
 .energy-dot-battery.charging {
-    animation: battery-charge 2.2s linear infinite;
-    animation-delay: 0.3s;
+    animation: battery-charge 1.8s ease-in-out infinite;
 }
-.energy-dot-battery.charging::before {
-    background: #34d399;
-    animation: battery-charge 2.2s linear infinite;
-    animation-delay: 0.18s;
+.energy-dot-battery-2.charging {
+    animation: battery-charge 1.8s ease-in-out infinite;
+    animation-delay: -0.6s;
+    width: 9px;
+    height: 9px;
 }
-.energy-dot-battery.charging::after {
-    background: #6ee7b7;
-    animation: battery-charge 2.2s linear infinite;
-    animation-delay: 0.06s;
+.energy-dot-battery-3.charging {
+    animation: battery-charge 1.8s ease-in-out infinite;
+    animation-delay: -1.2s;
+    width: 8px;
+    height: 8px;
+    opacity: 0.9;
 }
-
-/* Battery Discharging - Orange flowing FROM battery */
+/* Battery Discharging */
 .energy-dot-battery.discharging {
     background: #f97316;
-    box-shadow: 0 0 12px 4px rgba(249, 115, 22, 0.9), 0 0 25px 8px rgba(249, 115, 22, 0.5);
-    animation: battery-discharge 2.2s linear infinite;
-    animation-delay: 0.4s;
+    box-shadow: 0 0 10px 3px rgba(249, 115, 22, 0.9), 0 0 20px 6px rgba(249, 115, 22, 0.5);
+    animation: battery-discharge 1.8s ease-in-out infinite;
 }
-.energy-dot-battery.discharging::before {
+.energy-dot-battery-2.discharging {
     background: #f97316;
-    animation: battery-discharge 2.2s linear infinite;
-    animation-delay: 0.28s;
+    box-shadow: 0 0 10px 3px rgba(249, 115, 22, 0.9), 0 0 20px 6px rgba(249, 115, 22, 0.5);
+    animation: battery-discharge 1.8s ease-in-out infinite;
+    animation-delay: -0.6s;
+    width: 9px;
+    height: 9px;
 }
-.energy-dot-battery.discharging::after {
-    background: #fdba74;
-    animation: battery-discharge 2.2s linear infinite;
-    animation-delay: 0.16s;
+.energy-dot-battery-3.discharging {
+    background: #f97316;
+    box-shadow: 0 0 10px 3px rgba(249, 115, 22, 0.9), 0 0 20px 6px rgba(249, 115, 22, 0.5);
+    animation: battery-discharge 1.8s ease-in-out infinite;
+    animation-delay: -1.2s;
+    width: 8px;
+    height: 8px;
+    opacity: 0.9;
 }
 
-/* Essential Load Dot - Cyan */
+/* ===== Essential Load Dots (Tải cổng load) - Cyan ===== */
+/* 1000W=1, 2000W=2, 3000W=3 particles */
 .energy-dot-essential {
     background: #22d3ee;
-    box-shadow: 0 0 12px 4px rgba(34, 211, 238, 0.9), 0 0 25px 8px rgba(34, 211, 238, 0.5);
-    animation: essential-flow 1.6s linear infinite;
-    animation-delay: 0.5s;
+    box-shadow: 0 0 10px 3px rgba(34, 211, 238, 0.9), 0 0 20px 6px rgba(34, 211, 238, 0.5);
+    animation: essential-flow 1.2s ease-in-out infinite;
 }
-.energy-dot-essential::before {
-    background: #22d3ee;
-    box-shadow: 0 0 8px rgba(34, 211, 238, 0.7);
-    animation: essential-flow 1.6s linear infinite;
-    animation-delay: 0.38s;
+.energy-dot-essential-2 {
+    animation: essential-flow 1.2s ease-in-out infinite;
+    animation-delay: -0.4s;
+    width: 9px;
+    height: 9px;
 }
-.energy-dot-essential::after {
-    background: #67e8f9;
-    box-shadow: 0 0 6px rgba(103, 232, 249, 0.5);
-    animation: essential-flow 1.6s linear infinite;
-    animation-delay: 0.26s;
+.energy-dot-essential-3 {
+    animation: essential-flow 1.2s ease-in-out infinite;
+    animation-delay: -0.8s;
+    width: 8px;
+    height: 8px;
+    opacity: 0.9;
 }
 
-/* Load Dot - Emerald */
+/* ===== Load Dots (Tải hòa lưới) - Emerald ===== */
+/* 1000W=1, 2000W=2, 3000W=3 particles */
 .energy-dot-load {
     background: #10b981;
-    box-shadow: 0 0 12px 4px rgba(16, 185, 129, 0.9), 0 0 25px 8px rgba(16, 185, 129, 0.5);
-    animation: load-flow 2.3s linear infinite;
-    animation-delay: 0.8s;
+    box-shadow: 0 0 10px 3px rgba(16, 185, 129, 0.9), 0 0 20px 6px rgba(16, 185, 129, 0.5);
+    animation: load-flow 1.5s ease-in-out infinite;
 }
-.energy-dot-load::before {
-    background: #10b981;
-    box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
-    animation: load-flow 2.3s linear infinite;
-    animation-delay: 0.68s;
+.energy-dot-load-2 {
+    animation: load-flow 1.5s ease-in-out infinite;
+    animation-delay: -0.5s;
+    width: 9px;
+    height: 9px;
 }
-.energy-dot-load::after {
-    background: #6ee7b7;
-    box-shadow: 0 0 6px rgba(110, 231, 183, 0.5);
-    animation: load-flow 2.3s linear infinite;
-    animation-delay: 0.56s;
+.energy-dot-load-3 {
+    animation: load-flow 1.5s ease-in-out infinite;
+    animation-delay: -1.0s;
+    width: 8px;
+    height: 8px;
+    opacity: 0.9;
 }
 
 /* ========================================
    KEYFRAME ANIMATIONS
    ======================================== */
 
-/* PV Flow: down -> right -> down to inverter */
+/* PV Flow: from PV panel -> down -> right -> down to inverter */
 @keyframes pv-flow {
-    0% { left: 16.67%; top: 0%; }
-    30% { left: 16.67%; top: 50%; }
-    60% { left: 50%; top: 50%; }
-    100% { left: 50%; top: 100%; }
+    0% { left: 16.67%; top: 0%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    5% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    30% { left: 16.67%; top: 48%; }
+    50% { left: 33%; top: 50%; }
+    70% { left: 50%; top: 52%; }
+    95% { left: 50%; top: 98%; opacity: 1; }
+    100% { left: 50%; top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
 }
 
-/* EVN Flow: down -> left -> down to inverter */
+/* EVN Flow: from EVN grid -> down -> left -> down to inverter */
 @keyframes evn-flow {
-    0% { left: 83.33%; top: 0%; }
-    30% { left: 83.33%; top: 50%; }
-    60% { left: 50%; top: 50%; }
-    100% { left: 50%; top: 100%; }
+    0% { left: 83.33%; top: 0%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    5% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    30% { left: 83.33%; top: 48%; }
+    50% { left: 67%; top: 50%; }
+    70% { left: 50%; top: 52%; }
+    95% { left: 50%; top: 98%; opacity: 1; }
+    100% { left: 50%; top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
 }
 
 /* Battery Charge: from inverter -> left -> down to battery */
 @keyframes battery-charge {
-    0% { left: 50%; top: 0%; }
-    30% { left: 50%; top: 50%; }
-    60% { left: 16.67%; top: 50%; }
-    100% { left: 16.67%; top: 100%; }
+    0% { left: 50%; top: 0%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    5% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    30% { left: 50%; top: 48%; }
+    50% { left: 33%; top: 50%; }
+    70% { left: 16.67%; top: 52%; }
+    95% { left: 16.67%; top: 98%; opacity: 1; }
+    100% { left: 16.67%; top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
 }
 
 /* Battery Discharge: from battery -> up -> right -> up to inverter */
 @keyframes battery-discharge {
-    0% { left: 16.67%; top: 100%; }
-    30% { left: 16.67%; top: 50%; }
-    60% { left: 50%; top: 50%; }
-    100% { left: 50%; top: 0%; }
+    0% { left: 16.67%; top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    5% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    30% { left: 16.67%; top: 52%; }
+    50% { left: 33%; top: 50%; }
+    70% { left: 50%; top: 48%; }
+    95% { left: 50%; top: 2%; opacity: 1; }
+    100% { left: 50%; top: 0%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
 }
 
-/* Essential Flow: straight down from inverter */
+/* Essential Flow: straight down from inverter to essential load */
 @keyframes essential-flow {
-    0% { left: 50%; top: 0%; }
-    100% { left: 50%; top: 100%; }
+    0% { left: 50%; top: 0%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    10% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    90% { opacity: 1; }
+    100% { left: 50%; top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
 }
 
-/* Load Flow: from inverter -> right -> down to load */
+/* Load Flow: from inverter -> right -> down to grid load */
 @keyframes load-flow {
-    0% { left: 50%; top: 0%; }
-    30% { left: 50%; top: 50%; }
-    60% { left: 83.33%; top: 50%; }
-    100% { left: 83.33%; top: 100%; }
+    0% { left: 50%; top: 0%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    5% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    30% { left: 50%; top: 48%; }
+    50% { left: 67%; top: 50%; }
+    70% { left: 83.33%; top: 52%; }
+    95% { left: 83.33%; top: 98%; opacity: 1; }
+    100% { left: 83.33%; top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
 }

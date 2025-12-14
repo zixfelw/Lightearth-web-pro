@@ -387,8 +387,18 @@
                 <div class="absolute left-[16.67%] right-[16.67%] top-1/2 h-0.5 border-t-2 border-dashed border-slate-400 dark:border-slate-500"></div>
                 <div class="absolute left-1/2 top-1/2 h-1/2 w-0.5 border-l-2 border-dashed border-slate-400 dark:border-slate-500"></div>
                 <!-- Animation dots -->
+                <!-- PV: <3000W=3 particles, >=3000W=5 particles -->
                 <div id="pv-flow-dot" class="energy-dot energy-dot-pv" style="display:none;"></div>
+                <div id="pv-flow-dot-2" class="energy-dot energy-dot-pv energy-dot-pv-2" style="display:none;"></div>
+                <div id="pv-flow-dot-3" class="energy-dot energy-dot-pv energy-dot-pv-3" style="display:none;"></div>
+                <div id="pv-flow-dot-4" class="energy-dot energy-dot-pv energy-dot-pv-4" style="display:none;"></div>
+                <div id="pv-flow-dot-5" class="energy-dot energy-dot-pv energy-dot-pv-5" style="display:none;"></div>
+                <!-- EVN: <3000W=3 particles, >=3000W=5 particles -->
                 <div id="evn-flow-dot" class="energy-dot energy-dot-evn" style="display:none;"></div>
+                <div id="evn-flow-dot-2" class="energy-dot energy-dot-evn energy-dot-evn-2" style="display:none;"></div>
+                <div id="evn-flow-dot-3" class="energy-dot energy-dot-evn energy-dot-evn-3" style="display:none;"></div>
+                <div id="evn-flow-dot-4" class="energy-dot energy-dot-evn energy-dot-evn-4" style="display:none;"></div>
+                <div id="evn-flow-dot-5" class="energy-dot energy-dot-evn energy-dot-evn-5" style="display:none;"></div>
             </div>
             
             <!-- Row 2: Biến Tần -->
@@ -413,9 +423,18 @@
                 <div class="absolute left-1/2 top-1/2 h-1/2 w-0.5 border-l-2 border-dashed border-slate-400 dark:border-slate-500"></div>
                 <div class="absolute left-[83.33%] top-1/2 h-1/2 w-0.5 border-l-2 border-dashed border-slate-400 dark:border-slate-500"></div>
                 <!-- Animation dots -->
+                <!-- Battery: 1000W=1, 2000W=2, 3000W=3 particles -->
                 <div id="battery-flow-dot" class="energy-dot energy-dot-battery" style="display:none;"></div>
+                <div id="battery-flow-dot-2" class="energy-dot energy-dot-battery energy-dot-battery-2" style="display:none;"></div>
+                <div id="battery-flow-dot-3" class="energy-dot energy-dot-battery energy-dot-battery-3" style="display:none;"></div>
+                <!-- Essential (Tải cổng load): 1000W=1, 2000W=2, 3000W=3 particles -->
                 <div id="essential-flow-dot" class="energy-dot energy-dot-essential" style="display:none;"></div>
+                <div id="essential-flow-dot-2" class="energy-dot energy-dot-essential energy-dot-essential-2" style="display:none;"></div>
+                <div id="essential-flow-dot-3" class="energy-dot energy-dot-essential energy-dot-essential-3" style="display:none;"></div>
+                <!-- Load (Tải hòa lưới): 1000W=1, 2000W=2, 3000W=3 particles -->
                 <div id="load-flow-dot" class="energy-dot energy-dot-load" style="display:none;"></div>
+                <div id="load-flow-dot-2" class="energy-dot energy-dot-load energy-dot-load-2" style="display:none;"></div>
+                <div id="load-flow-dot-3" class="energy-dot energy-dot-load energy-dot-load-3" style="display:none;"></div>
             </div>
             
             <!-- Row 3: Pin, Tải cổng load, Tải hòa lưới -->
@@ -820,8 +839,8 @@
     <!-- SignalR Client Library -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="/css/index.css?v=12125" rel="stylesheet" />
-    <script src="/js/index.js?v=13010"></script>
+    <link href="/css/index.css?v=12150" rel="stylesheet" />
+    <script src="/js/index.js?v=13030"></script>
 
 </body>
 </html>

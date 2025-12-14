@@ -1845,48 +1845,89 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Energy Flow Animation - Control dots based on real-time data
+    // Energy Flow Animation - Control particles based on power levels
+    // Logic: Higher power = More particles for visual effect
     function updateEnergyFlowAnimation(data) {
-        // PV Flow: PV > 0 -> show animation
-        const pvDot = document.getElementById('pv-flow-dot');
-        if (pvDot) {
-            pvDot.style.display = data.pvTotalPower > 0 ? 'block' : 'none';
-        }
-
-        // EVN Grid Flow: Grid > 20W -> show animation
-        const evnDot = document.getElementById('evn-flow-dot');
-        if (evnDot) {
-            evnDot.style.display = data.gridValue > 20 ? 'block' : 'none';
-        }
-
-        // Battery Flow: Charging -> inverter to battery, Discharging -> battery to inverter
-        const batteryDot = document.getElementById('battery-flow-dot');
-        if (batteryDot) {
-            if (data.batteryStatus === "Charging" && data.batteryValue > 0) {
-                batteryDot.style.display = 'block';
-                batteryDot.classList.remove('discharging');
-                batteryDot.classList.add('charging');
-            } else if (data.batteryStatus === "Discharging" && Math.abs(data.batteryValue) > 0) {
-                batteryDot.style.display = 'block';
-                batteryDot.classList.remove('charging');
-                batteryDot.classList.add('discharging');
-            } else {
-                batteryDot.style.display = 'none';
-                batteryDot.classList.remove('charging', 'discharging');
+        // Helper to show/hide dots by count
+        const setDotsByPower = (baseName, power, thresholds = [1000, 2000, 3000]) => {
+            const dots = [
+                document.getElementById(baseName),
+                document.getElementById(baseName + '-2'),
+                document.getElementById(baseName + '-3')
+            ];
+            
+            let count = 0;
+            if (power > 0) {
+                if (power >= thresholds[2]) count = 3;      // >= 3000W: 3 particles
+                else if (power >= thresholds[1]) count = 2; // >= 2000W: 2 particles
+                else count = 1;                              // > 0W: 1 particle
             }
+            
+            dots.forEach((dot, i) => {
+                if (dot) dot.style.display = (i < count) ? 'block' : 'none';
+            });
+        };
+
+        // Helper for PV/EVN with high power mode (5 particles at >=3000W)
+        const setDotsByPowerHighMode = (baseName, power) => {
+            const dots = [
+                document.getElementById(baseName),
+                document.getElementById(baseName + '-2'),
+                document.getElementById(baseName + '-3'),
+                document.getElementById(baseName + '-4'),
+                document.getElementById(baseName + '-5')
+            ];
+            
+            let count = 0;
+            if (power > 0) {
+                if (power >= 3000) count = 5;  // >= 3000W: 5 particles
+                else count = 3;                 // < 3000W: 3 particles
+            }
+            
+            dots.forEach((dot, i) => {
+                if (dot) dot.style.display = (i < count) ? 'block' : 'none';
+            });
+        };
+
+        // Helper to set battery dot state
+        const setBatteryState = (state) => {
+            const dots = [
+                document.getElementById('battery-flow-dot'),
+                document.getElementById('battery-flow-dot-2'),
+                document.getElementById('battery-flow-dot-3')
+            ];
+            dots.forEach(dot => {
+                if (dot) {
+                    dot.classList.remove('charging', 'discharging');
+                    if (state) dot.classList.add(state);
+                }
+            });
+        };
+
+        // === PV Flow: 0W=0, <3000W=3 particles, >=3000W=5 particles ===
+        setDotsByPowerHighMode('pv-flow-dot', data.pvTotalPower);
+
+        // === EVN Grid Flow: Same logic as PV ===
+        setDotsByPowerHighMode('evn-flow-dot', data.gridValue > 20 ? data.gridValue : 0);
+
+        // === Battery Flow: 1000W=1, 2000W=2, 3000W=3 particles ===
+        const batteryPower = Math.abs(data.batteryValue);
+        if (data.batteryStatus === "Charging" && data.batteryValue > 0) {
+            setDotsByPower('battery-flow-dot', batteryPower);
+            setBatteryState('charging');
+        } else if (data.batteryStatus === "Discharging" && batteryPower > 0) {
+            setDotsByPower('battery-flow-dot', batteryPower);
+            setBatteryState('discharging');
+        } else {
+            setDotsByPower('battery-flow-dot', 0);
+            setBatteryState(null);
         }
 
-        // Essential Load Flow: Essential > 0 -> show animation
-        const essentialDot = document.getElementById('essential-flow-dot');
-        if (essentialDot) {
-            essentialDot.style.display = data.essentialValue > 0 ? 'block' : 'none';
-        }
+        // === Essential Load (Tải cổng load): 1000W=1, 2000W=2, 3000W=3 particles ===
+        setDotsByPower('essential-flow-dot', data.essentialValue);
 
-        // Load Flow: Load > 0 -> show animation
-        const loadDot = document.getElementById('load-flow-dot');
-        if (loadDot) {
-            loadDot.style.display = data.loadValue > 0 ? 'block' : 'none';
-        }
+        // === Grid Load (Tải hòa lưới): 1000W=1, 2000W=2, 3000W=3 particles ===
+        setDotsByPower('load-flow-dot', data.loadValue);
     }
 
     function showLoading(show) {
