@@ -62,6 +62,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const MAX_SOC_HISTORY = 1440; // 24 hours * 60 (1-min intervals)
     let socDataReceived = false; // Track if we received real SOC data
     
+    // Animation mode: false = normal (multiple particles), true = reduced (1 particle only)
+    let reducedAnimationMode = false;
+    
     // API URL Configuration - Support multiple sources
     const API_SOURCES = {
         workers: {
@@ -1847,8 +1850,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Energy Flow Animation - Control particles based on power levels
     // Logic: Higher power = More particles for visual effect
+    // Supports reduced animation mode (1 particle only)
     function updateEnergyFlowAnimation(data) {
-        // Helper to show/hide dots by count
+        // Helper to show/hide dots by count (supports reduced mode)
         const setDotsByPower = (baseName, power, thresholds = [1000, 2000, 3000]) => {
             const dots = [
                 document.getElementById(baseName),
@@ -1858,9 +1862,13 @@ document.addEventListener('DOMContentLoaded', function () {
             
             let count = 0;
             if (power > 0) {
-                if (power >= thresholds[2]) count = 3;      // >= 3000W: 3 particles
-                else if (power >= thresholds[1]) count = 2; // >= 2000W: 2 particles
-                else count = 1;                              // > 0W: 1 particle
+                if (reducedAnimationMode) {
+                    count = 1; // Reduced mode: always 1 particle
+                } else {
+                    if (power >= thresholds[2]) count = 3;      // >= 3000W: 3 particles
+                    else if (power >= thresholds[1]) count = 2; // >= 2000W: 2 particles
+                    else count = 1;                              // > 0W: 1 particle
+                }
             }
             
             dots.forEach((dot, i) => {
@@ -1880,8 +1888,12 @@ document.addEventListener('DOMContentLoaded', function () {
             
             let count = 0;
             if (power > 0) {
-                if (power >= 3000) count = 5;  // >= 3000W: 5 particles
-                else count = 3;                 // < 3000W: 3 particles
+                if (reducedAnimationMode) {
+                    count = 1; // Reduced mode: always 1 particle
+                } else {
+                    if (power >= 3000) count = 5;  // >= 3000W: 5 particles
+                    else count = 3;                 // < 3000W: 3 particles
+                }
             }
             
             dots.forEach((dot, i) => {
@@ -1904,13 +1916,13 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         };
 
-        // === PV Flow: 0W=0, <3000W=3 particles, >=3000W=5 particles ===
+        // === PV Flow: 0W=0, <3000W=3 particles, >=3000W=5 particles (or 1 in reduced mode) ===
         setDotsByPowerHighMode('pv-flow-dot', data.pvTotalPower);
 
         // === EVN Grid Flow: Same logic as PV ===
         setDotsByPowerHighMode('evn-flow-dot', data.gridValue > 20 ? data.gridValue : 0);
 
-        // === Battery Flow: 1000W=1, 2000W=2, 3000W=3 particles ===
+        // === Battery Flow: 1000W=1, 2000W=2, 3000W=3 particles (or 1 in reduced mode) ===
         const batteryPower = Math.abs(data.batteryValue);
         if (data.batteryStatus === "Charging" && data.batteryValue > 0) {
             setDotsByPower('battery-flow-dot', batteryPower);
@@ -1923,12 +1935,42 @@ document.addEventListener('DOMContentLoaded', function () {
             setBatteryState(null);
         }
 
-        // === Essential Load (Tải cổng load): 1000W=1, 2000W=2, 3000W=3 particles ===
+        // === Essential Load (Tải cổng load): 1000W=1, 2000W=2, 3000W=3 particles (or 1 in reduced mode) ===
         setDotsByPower('essential-flow-dot', data.essentialValue);
 
-        // === Grid Load (Tải hòa lưới): 1000W=1, 2000W=2, 3000W=3 particles ===
+        // === Grid Load (Tải hòa lưới): 1000W=1, 2000W=2, 3000W=3 particles (or 1 in reduced mode) ===
         setDotsByPower('load-flow-dot', data.loadValue);
     }
+    
+    // Toggle animation mode function - exposed globally
+    window.toggleAnimationMode = function() {
+        reducedAnimationMode = !reducedAnimationMode;
+        
+        // Update button appearance
+        const btn = document.getElementById('toggleAnimationBtn');
+        const btnText = document.getElementById('animationBtnText');
+        const icon = document.getElementById('animationIcon');
+        
+        if (reducedAnimationMode) {
+            // Reduced mode active - button shows "Tăng hiệu ứng"
+            btn.classList.remove('bg-slate-100', 'hover:bg-slate-200', 'dark:bg-slate-700', 'dark:hover:bg-slate-600', 
+                                 'text-slate-600', 'dark:text-slate-300', 'border-slate-300', 'dark:border-slate-600');
+            btn.classList.add('bg-amber-100', 'hover:bg-amber-200', 'dark:bg-amber-900/50', 'dark:hover:bg-amber-800/50',
+                             'text-amber-700', 'dark:text-amber-300', 'border-amber-400', 'dark:border-amber-600');
+            btnText.textContent = 'Tăng hiệu ứng';
+            icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>';
+        } else {
+            // Normal mode - button shows "Giảm hiệu ứng"
+            btn.classList.remove('bg-amber-100', 'hover:bg-amber-200', 'dark:bg-amber-900/50', 'dark:hover:bg-amber-800/50',
+                                'text-amber-700', 'dark:text-amber-300', 'border-amber-400', 'dark:border-amber-600');
+            btn.classList.add('bg-slate-100', 'hover:bg-slate-200', 'dark:bg-slate-700', 'dark:hover:bg-slate-600',
+                             'text-slate-600', 'dark:text-slate-300', 'border-slate-300', 'dark:border-slate-600');
+            btnText.textContent = 'Giảm hiệu ứng';
+            icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>';
+        }
+        
+        console.log('Animation mode:', reducedAnimationMode ? 'REDUCED (1 particle)' : 'NORMAL (multiple particles)');
+    };
 
     function showLoading(show) {
         const loading = document.getElementById('loading');
