@@ -346,21 +346,40 @@
                 <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                 Luồng Năng Lượng Thời Gian Thực
             </h2>
-            <!-- Toggle button for animation mode (default: reduced) -->
-            <button id="toggleAnimationBtn" onclick="toggleAnimationMode()" 
-                class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-all duration-200
-                       bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/50 dark:hover:bg-amber-800/50 
-                       text-amber-700 dark:text-amber-300 border border-amber-400 dark:border-amber-600"
-                title="Bật/Tắt chế độ tăng hiệu ứng">
-                <svg id="animationIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
-                </svg>
-                <span id="animationBtnText">Tăng hiệu ứng</span>
-            </button>
+            
+            <div class="flex items-center gap-2">
+                <!-- Pro/Basic Interface Toggle -->
+                <div class="flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
+                    <button id="basicViewBtn" onclick="switchEnergyFlowView('basic')" 
+                        class="px-2.5 py-1.5 text-xs font-medium rounded-md transition-all duration-200
+                               text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                        title="Giao diện Basic - Đơn giản">
+                        Basic
+                    </button>
+                    <button id="proViewBtn" onclick="switchEnergyFlowView('pro')" 
+                        class="px-2.5 py-1.5 text-xs font-medium rounded-md transition-all duration-200
+                               bg-violet-500 text-white shadow-sm"
+                        title="Giao diện Pro - Đầy đủ animation">
+                        Pro
+                    </button>
+                </div>
+                
+                <!-- Toggle button for animation mode (default: reduced) -->
+                <button id="toggleAnimationBtn" onclick="toggleAnimationMode()" 
+                    class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg transition-all duration-200
+                           bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/50 dark:hover:bg-amber-800/50 
+                           text-amber-700 dark:text-amber-300 border border-amber-400 dark:border-amber-600"
+                    title="Bật/Tắt chế độ tăng hiệu ứng">
+                    <svg id="animationIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                    </svg>
+                    <span id="animationBtnText">Tăng hiệu ứng</span>
+                </button>
+            </div>
         </div>
         
-        <!-- Energy Flow Diagram -->
-        <div class="energy-flow-container max-w-[700px] mx-auto">
+        <!-- Energy Flow Diagram - Pro View (default) -->
+        <div id="energyFlowPro" class="energy-flow-container max-w-[700px] mx-auto">
             <!-- Row 1: Công suất PV + Lưới EVN -->
             <div class="grid grid-cols-3 gap-2 sm:gap-3">
                 <!-- Công suất PV - Style amber/orange (cam vàng) -->
@@ -485,6 +504,79 @@
                         </div>
                         <div class="text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Tải hòa lưới</div>
                         <div class="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400" id="load-power">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Energy Flow Diagram - Basic View (hidden by default) -->
+        <div id="energyFlowBasic" class="hidden">
+            <div class="grid grid-cols-3 gap-2 sm:gap-3">
+                <!-- Row 1: PV, Inverter, Grid -->
+                <div class="flow-item bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl p-2.5 sm:p-3 border border-amber-200 dark:border-amber-800">
+                    <div class="flex flex-col items-center">
+                        <div class="w-12 h-12 sm:w-14 sm:h-14 mb-1.5 flex items-center justify-center">
+                            <img src="/icons/solar-panel.png" alt="Tấm Pin" class="w-full h-full object-contain drop-shadow-md">
+                        </div>
+                        <div class="text-xs font-semibold text-amber-700 dark:text-amber-300 text-center">Tấm Pin</div>
+                        <div class="text-base sm:text-lg font-black text-amber-600 dark:text-amber-400" id="pv-power-basic">--</div>
+                    </div>
+                </div>
+                
+                <div class="flow-item bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 rounded-xl p-2.5 sm:p-3 border border-cyan-200 dark:border-cyan-800">
+                    <div class="flex flex-col items-center">
+                        <div class="w-12 h-12 sm:w-14 sm:h-14 mb-1.5 flex items-center justify-center">
+                            <img src="/icons/inverter.png" alt="Inverter" class="w-full h-full object-contain drop-shadow-md">
+                        </div>
+                        <div class="text-xs sm:text-sm font-bold text-cyan-700 dark:text-cyan-300 truncate max-w-full" id="inverter-type-basic">Lumentree Inverter</div>
+                        <div class="text-xs sm:text-sm font-medium text-slate-500 dark:text-slate-400" id="device-temp-basic">--</div>
+                    </div>
+                </div>
+                
+                <div class="flow-item bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-xl p-2.5 sm:p-3 border border-orange-200 dark:border-orange-800">
+                    <div class="flex flex-col items-center">
+                        <div class="w-12 h-12 sm:w-14 sm:h-14 mb-1.5 flex items-center justify-center">
+                            <img src="/icons/evn-grid.png" alt="Lưới EVN" class="w-full h-full object-contain drop-shadow-md">
+                        </div>
+                        <div class="text-xs font-semibold text-orange-700 dark:text-orange-300 text-center">Lưới EVN</div>
+                        <div class="text-base sm:text-lg font-black text-orange-600 dark:text-orange-400" id="grid-power-basic">--</div>
+                        <div class="text-[10px] text-slate-500" id="grid-voltage-basic">--</div>
+                    </div>
+                </div>
+                
+                <!-- Row 2: Battery, Essential, Load -->
+                <div class="flow-item bg-gradient-to-br from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800 rounded-xl p-2.5 sm:p-3 border border-slate-200 dark:border-slate-700">
+                    <div class="flex flex-col items-center">
+                        <div class="w-14 h-8 sm:w-16 sm:h-9 mb-1.5 flex items-center justify-center relative">
+                            <div class="w-12 h-7 sm:w-14 sm:h-8 rounded-md border-2 border-slate-400 dark:border-slate-500 relative overflow-hidden bg-white dark:bg-slate-700">
+                                <div id="battery-fill-basic" class="absolute left-0 top-0 bottom-0 bg-green-500 transition-all duration-500" style="width: 0%"></div>
+                                <span id="battery-percent-basic" class="absolute inset-0 flex items-center justify-center text-xs sm:text-sm font-black text-slate-700 dark:text-white z-10">--%</span>
+                            </div>
+                            <div class="w-1 h-3 bg-slate-400 dark:bg-slate-500 rounded-r-sm"></div>
+                        </div>
+                        <div class="text-xs font-semibold text-slate-600 dark:text-slate-300 text-center">Pin</div>
+                        <div id="battery-power-basic" class="text-base sm:text-lg font-black text-slate-700 dark:text-slate-300">--</div>
+                        <div id="battery-status-basic" class="text-xs font-medium truncate max-w-full text-slate-500 dark:text-slate-400">--</div>
+                    </div>
+                </div>
+                
+                <div class="flow-item bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-xl p-2.5 sm:p-3 border border-indigo-200 dark:border-indigo-800">
+                    <div class="flex flex-col items-center">
+                        <div class="w-12 h-12 sm:w-14 sm:h-14 mb-1.5 flex items-center justify-center">
+                            <img src="/icons/backup.png" alt="Tải cổng load" class="w-full h-full object-contain drop-shadow-md">
+                        </div>
+                        <div class="text-xs font-semibold text-indigo-700 dark:text-indigo-300 text-center">Tải cổng load</div>
+                        <div class="text-base sm:text-lg font-black text-indigo-600 dark:text-indigo-400" id="essential-power-basic">--</div>
+                    </div>
+                </div>
+                
+                <div class="flow-item bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl p-2.5 sm:p-3 border border-emerald-200 dark:border-emerald-800">
+                    <div class="flex flex-col items-center">
+                        <div class="w-12 h-12 sm:w-14 sm:h-14 mb-1.5 flex items-center justify-center">
+                            <img src="/icons/load.png" alt="Tải hòa lưới" class="w-full h-full object-contain drop-shadow-md">
+                        </div>
+                        <div class="text-xs font-semibold text-emerald-700 dark:text-emerald-300 text-center">Tải hòa lưới</div>
+                        <div class="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400" id="load-power-basic">--</div>
                     </div>
                 </div>
             </div>
@@ -828,7 +920,7 @@
     <script src="https://unpkg.com/@@microsoft/signalr@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="/css/index.css?v=12203" rel="stylesheet" />
-    <script src="/js/index.js?v=13111"></script>
+    <script src="/js/index.js?v=13112"></script>
 
 </body>
 </html>
