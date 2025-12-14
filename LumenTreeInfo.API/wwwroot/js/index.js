@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', function () {
     configureChartDefaults();
 
     // Chart objects
-    let pvChart, batChart, loadChart, gridChart, essentialChart, socChart;
+    let combinedEnergyChart, socChart;
 
     // SignalR connection
     let connection;
@@ -473,9 +473,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     updateSOCFromRealtime(data.data.batterySoc);
                 }
                 
-                // Also fetch day summary every 2s for realtime sync
-                const date = document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
-                fetchDayDataInBackground(deviceId, date);
+                // NOTE: Chart data is loaded only once in fetchData()
+                // Do NOT call fetchDayDataInBackground here to avoid continuous chart reloading
             }
             
             updateConnectionStatus('connected');
@@ -776,10 +775,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.log("✅ Summary stats updated:", summary);
             }
             
-            // Update charts if timeline data available
-            if (data.timeline && Array.isArray(data.timeline)) {
-                // Could use this for detailed charts later
-                console.log(`📈 Timeline data available: ${data.timeline.length} points`);
+            // Update combined energy chart with raw data
+            if (data.pv_raw || data.bat_raw || data.other_raw) {
+                const chartData = {
+                    pv: { tableValueInfo: data.pv_raw?.pv?.tableValueInfo || [] },
+                    bat: { tableValueInfo: data.bat_raw?.tableValueInfo || [] },
+                    load: { tableValueInfo: data.other_raw?.homeload?.tableValueInfo || [] },
+                    grid: { tableValueInfo: data.other_raw?.grid?.tableValueInfo || [] },
+                    essentialLoad: { tableValueInfo: data.other_raw?.essentialLoad?.tableValueInfo || [] }
+                };
+                console.log("📊 Updating combined energy chart with day data");
+                updateCharts(chartData);
             }
             
         } catch (error) {
@@ -1618,77 +1624,141 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const commonOptions = getCommonChartOptions();
 
-        // PV Chart
-        pvChart = createChart(pvChart, 'pvChart', 'Sản Lượng PV (W)', timeLabels, processedData.pv,
-            'rgb(234, 179, 8)', 'rgba(234, 179, 8, 0.15)', commonOptions);
-
-        // Battery Chart
-        updateBatChart(timeLabels, processedData.batCharge, processedData.batDischarge, commonOptions);
-
-        // Load Chart
-        loadChart = createChart(loadChart, 'loadChart', 'Tải Tiêu Thụ (W)', timeLabels, processedData.load,
-            'rgb(37, 99, 235)', 'rgba(37, 99, 235, 0.15)', commonOptions);
-
-        // Grid Chart
-        gridChart = createChart(gridChart, 'gridChart', 'Điện Lưới (W)', timeLabels, processedData.grid,
-            'rgb(139, 92, 246)', 'rgba(139, 92, 246, 0.15)', commonOptions);
-
-        // Essential Load Chart
-        essentialChart = createChart(essentialChart, 'essentialChart', 'Tải Thiết Yếu (W)', timeLabels, processedData.essentialLoad,
-            'rgb(75, 85, 99)', 'rgba(75, 85, 99, 0.15)', commonOptions);
+        // Combined Energy Chart - All datasets in one chart
+        updateCombinedEnergyChart(timeLabels, processedData, commonOptions);
     }
 
-    function createChart(chartObj, canvasId, label, labels, data, borderColor, backgroundColor, options) {
-        const ctx = document.getElementById(canvasId);
-        if (!ctx) return null;
+    // Combined Energy Chart - All 6 datasets in one chart
+    function updateCombinedEnergyChart(labels, processedData, options) {
+        const ctx = document.getElementById('combinedEnergyChart');
+        if (!ctx) {
+            console.error("❌ Canvas 'combinedEnergyChart' not found!");
+            return;
+        }
+        
+        console.log("📈 Creating combined chart with", labels.length, "labels");
+        console.log("📈 PV data points:", processedData.pv?.length || 0);
 
-        if (chartObj) chartObj.destroy();
+        if (combinedEnergyChart) combinedEnergyChart.destroy();
 
-        return new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: label,
-                    data: data,
-                    borderColor: borderColor,
-                    backgroundColor: backgroundColor,
-                    fill: true
-                }]
-            },
-            options: options
-        });
-    }
-
-    function updateBatChart(labels, chargeData, dischargeData, options) {
-        const ctx = document.getElementById('batChart');
-        if (!ctx) return;
-
-        if (batChart) batChart.destroy();
-
-        batChart = new Chart(ctx, {
+        combinedEnergyChart = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: labels,
                 datasets: [
                     {
+                        label: 'Sản Lượng PV (W)',
+                        data: processedData.pv,
+                        borderColor: 'rgb(245, 158, 11)',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.3
+                    },
+                    {
                         label: 'Sạc Pin (W)',
-                        data: chargeData,
-                        borderColor: 'rgb(22, 163, 74)',
-                        backgroundColor: 'rgba(22, 163, 74, 0.15)',
-                        fill: true
+                        data: processedData.batCharge,
+                        borderColor: 'rgb(34, 197, 94)',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.3
                     },
                     {
                         label: 'Xả Pin (W)',
-                        data: dischargeData,
-                        borderColor: 'rgb(220, 38, 38)',
-                        backgroundColor: 'rgba(220, 38, 38, 0.15)',
-                        fill: true
+                        data: processedData.batDischarge,
+                        borderColor: 'rgb(239, 68, 68)',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Điện Tiêu Thụ (W)',
+                        data: processedData.load,
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Điện Lưới EVN (W)',
+                        data: processedData.grid,
+                        borderColor: 'rgb(168, 85, 247)',
+                        backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Điện Dự Phòng (W)',
+                        data: processedData.essentialLoad,
+                        borderColor: 'rgb(6, 182, 212)',
+                        backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.3
                     }
                 ]
             },
-            options: options
+            options: {
+                ...options,
+                plugins: {
+                    ...options.plugins,
+                    legend: {
+                        display: false // We use custom legend buttons
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgba(30, 30, 30, 0.95)',
+                        titleFont: { size: 12, weight: 'bold' },
+                        bodyFont: { size: 11 },
+                        padding: 10,
+                        callbacks: {
+                            label: function(context) {
+                                let value = context.parsed.y;
+                                if (value >= 1000) {
+                                    return context.dataset.label + ': ' + (value / 1000).toFixed(2) + ' kW';
+                                }
+                                return context.dataset.label + ': ' + value.toFixed(0) + ' W';
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            }
         });
+    }
+    
+    // Toggle dataset visibility - exposed globally
+    window.toggleDataset = function(index) {
+        if (!combinedEnergyChart) return;
+        
+        const meta = combinedEnergyChart.getDatasetMeta(index);
+        meta.hidden = !meta.hidden;
+        combinedEnergyChart.update();
+        
+        // Update button appearance
+        const buttons = document.querySelectorAll('#chartLegendToggle .legend-btn');
+        if (buttons[index]) {
+            buttons[index].classList.toggle('active', !meta.hidden);
+        }
+    };
+
+    // Legacy function - kept for backward compatibility but not used
+    function createChart(chartObj, canvasId, label, labels, data, borderColor, backgroundColor, options) {
+        return null; // Deprecated - using combined chart now
+    }
+
+    function updateBatChart(labels, chargeData, dischargeData, options) {
+        // Deprecated - data now shown in combined chart
+        // This function is kept for backward compatibility but does nothing
     }
 
     function getCommonChartOptions() {
@@ -1996,16 +2066,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // ========================================
-    // AUTO REFRESH
+    // AUTO REFRESH - DISABLED
     // ========================================
-    
-    setInterval(() => {
-        const deviceId = document.getElementById('deviceId')?.value?.trim();
-        if (deviceId) {
-            console.log("Auto-refreshing data");
-            fetchData();
-        }
-    }, 5 * 60 * 1000); // 5 minutes
+    // NOTE: Auto-refresh is disabled. Chart data loads only once on page load.
+    // To reload data, user must press F5 or click "Xem Dữ Liệu" button.
+    // 
+    // Previously: setInterval(() => fetchData(), 5 * 60 * 1000);
+    // Disabled to prevent continuous chart reloading
 
     // Listen for theme changes
     const observer = new MutationObserver(() => {

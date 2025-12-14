@@ -673,58 +673,35 @@
         <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-2 text-center">Dữ liệu SOC được cập nhật real-time từ thiết bị qua MQTT (theo từng phút)</p>
     </div>
 
-    <!-- PV Production Chart -->
-    <div id="pv-section" class="bg-white dark:bg-slate-800 rounded-xl shadow-md p-3 sm:p-4 border border-slate-200 dark:border-slate-700">
+    <!-- Combined Energy Chart -->
+    <div id="energy-chart-section" class="bg-white dark:bg-slate-800 rounded-xl shadow-md p-3 sm:p-4 border border-slate-200 dark:border-slate-700">
         <h2 class="text-sm sm:text-base font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
-            <i data-lucide="sun" class="w-4 h-4 text-amber-500"></i>
-            Sản Lượng Pin Mặt Trời
+            <i data-lucide="activity" class="w-4 h-4 text-emerald-500"></i>
+            Biểu Đồ Năng Lượng Tổng Hợp
         </h2>
-        <div class="chart-container">
-            <canvas id="pvChart"></canvas>
+        <!-- Legend toggle buttons -->
+        <div class="flex flex-wrap gap-1.5 mb-3" id="chartLegendToggle">
+            <button onclick="toggleDataset(0)" class="legend-btn active px-2 py-1 text-xs rounded-full border-2 transition-all" data-color="amber" title="Sản Lượng PV">
+                <span class="w-2 h-2 rounded-full bg-amber-500 inline-block mr-1"></span>PV
+            </button>
+            <button onclick="toggleDataset(1)" class="legend-btn active px-2 py-1 text-xs rounded-full border-2 transition-all" data-color="green" title="Sạc Pin">
+                <span class="w-2 h-2 rounded-full bg-green-500 inline-block mr-1"></span>Sạc
+            </button>
+            <button onclick="toggleDataset(2)" class="legend-btn active px-2 py-1 text-xs rounded-full border-2 transition-all" data-color="red" title="Xả Pin">
+                <span class="w-2 h-2 rounded-full bg-red-500 inline-block mr-1"></span>Xả
+            </button>
+            <button onclick="toggleDataset(3)" class="legend-btn active px-2 py-1 text-xs rounded-full border-2 transition-all" data-color="blue" title="Điện Năng Tiêu Thụ">
+                <span class="w-2 h-2 rounded-full bg-blue-500 inline-block mr-1"></span>Tải
+            </button>
+            <button onclick="toggleDataset(4)" class="legend-btn active px-2 py-1 text-xs rounded-full border-2 transition-all" data-color="purple" title="Điện Lưới EVN">
+                <span class="w-2 h-2 rounded-full bg-purple-500 inline-block mr-1"></span>EVN
+            </button>
+            <button onclick="toggleDataset(5)" class="legend-btn active px-2 py-1 text-xs rounded-full border-2 transition-all" data-color="cyan" title="Điện Dự Phòng">
+                <span class="w-2 h-2 rounded-full bg-cyan-500 inline-block mr-1"></span>Dự phòng
+            </button>
         </div>
-    </div>
-
-    <!-- Battery Charge/Discharge Chart -->
-    <div id="bat-section" class="bg-white dark:bg-slate-800 rounded-xl shadow-md p-3 sm:p-4 border border-slate-200 dark:border-slate-700">
-        <h2 class="text-sm sm:text-base font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
-            <i data-lucide="battery-charging" class="w-4 h-4 text-green-500"></i>
-            Nạp / Xả Pin
-        </h2>
-        <div class="chart-container">
-            <canvas id="batChart"></canvas>
-        </div>
-    </div>
-
-    <!-- Load Consumption Chart -->
-    <div id="load-section" class="bg-white dark:bg-slate-800 rounded-xl shadow-md p-3 sm:p-4 border border-slate-200 dark:border-slate-700">
-        <h2 class="text-sm sm:text-base font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
-            <i data-lucide="home" class="w-4 h-4 text-blue-500"></i>
-            Điện Năng Tiêu Thụ
-        </h2>
-        <div class="chart-container">
-            <canvas id="loadChart"></canvas>
-        </div>
-    </div>
-
-    <!-- Grid Usage Chart -->
-    <div id="grid-section" class="bg-white dark:bg-slate-800 rounded-xl shadow-md p-3 sm:p-4 border border-slate-200 dark:border-slate-700">
-        <h2 class="text-sm sm:text-base font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
-            <i data-lucide="zap" class="w-4 h-4 text-purple-500"></i>
-            Điện Lưới EVN
-        </h2>
-        <div class="chart-container">
-            <canvas id="gridChart"></canvas>
-        </div>
-    </div>
-
-    <!-- Essential Load Chart -->
-    <div id="essential-section" class="bg-white dark:bg-slate-800 rounded-xl shadow-md p-3 sm:p-4 border border-slate-200 dark:border-slate-700">
-        <h2 class="text-sm sm:text-base font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
-            <i data-lucide="plug" class="w-4 h-4 text-cyan-500"></i>
-            Công Suất Điện Dự Phòng
-        </h2>
-        <div class="chart-container">
-            <canvas id="essentialChart"></canvas>
+        <div class="chart-container" style="height: 50vh;">
+            <canvas id="combinedEnergyChart"></canvas>
         </div>
     </div>
 </div>
@@ -850,8 +827,8 @@
     <!-- SignalR Client Library -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="/css/index.css?v=12152" rel="stylesheet" />
-    <script src="/js/index.js?v=13032"></script>
+    <link href="/css/index.css?v=12203" rel="stylesheet" />
+    <script src="/js/index.js?v=13104"></script>
 
 </body>
 </html>
