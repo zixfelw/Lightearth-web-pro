@@ -999,13 +999,13 @@ document.addEventListener('DOMContentLoaded', function () {
         // PV - with blink effect
         updateValue('pv-power', `${data.pvTotalPower}W`);
         if (data.pv2Power) {
-            // Compact format without S1:/S2: labels
+            // Compact format without S1:/S2: labels - W to hơn, V nhỏ hơn
             updateValueHTML('pv-desc', `
-                <span class="font-bold text-[10px] sm:text-[11px]">${data.pv1Power}W</span> 
-                <span class="text-[9px] opacity-70">${data.pv1Voltage}V</span> 
+                <span class="font-black text-xs sm:text-sm">${data.pv1Power}W</span> 
+                <span class="text-[10px] sm:text-[11px] opacity-70">${data.pv1Voltage}V</span> 
                 <span class="opacity-50 mx-0.5">|</span> 
-                <span class="font-bold text-[10px] sm:text-[11px]">${data.pv2Power}W</span> 
-                <span class="text-[9px] opacity-70">${data.pv2Voltage}V</span>
+                <span class="font-black text-xs sm:text-sm">${data.pv2Power}W</span> 
+                <span class="text-[10px] sm:text-[11px] opacity-70">${data.pv2Voltage}V</span>
             `);
         } else {
             updateValue('pv-desc', `${data.pv1Voltage}V`);
