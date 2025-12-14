@@ -1085,6 +1085,11 @@ document.addEventListener('DOMContentLoaded', function () {
         // Update energy flow animation dots
         updateEnergyFlowAnimation(data);
         
+        // Auto-sync to Basic view if it's visible
+        if (typeof window.autoSyncBasicView === 'function') {
+            window.autoSyncBasicView();
+        }
+        
         // Update last refresh time with blink
         const now = new Date();
         const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
@@ -1750,6 +1755,130 @@ document.addEventListener('DOMContentLoaded', function () {
             buttons[index].classList.toggle('active', !meta.hidden);
         }
     };
+
+    // ========================================
+    // PRO/BASIC VIEW SWITCH - Version 13110
+    // ========================================
+    
+    // Switch between Pro and Basic Energy Flow views - exposed globally
+    window.switchEnergyFlowView = function(view) {
+        const proView = document.getElementById('energyFlowPro');
+        const basicView = document.getElementById('energyFlowBasic');
+        const proBtn = document.getElementById('proViewBtn');
+        const basicBtn = document.getElementById('basicViewBtn');
+        
+        if (!proView || !basicView) {
+            console.warn('Energy flow views not found');
+            return;
+        }
+        
+        if (view === 'basic') {
+            // Show Basic view (simple 3x2 grid)
+            proView.classList.add('hidden');
+            basicView.classList.remove('hidden');
+            
+            // Update button states
+            if (basicBtn) {
+                basicBtn.classList.remove('text-slate-500', 'dark:text-slate-400');
+                basicBtn.classList.add('bg-violet-500', 'text-white', 'shadow-sm');
+            }
+            if (proBtn) {
+                proBtn.classList.remove('bg-violet-500', 'text-white', 'shadow-sm');
+                proBtn.classList.add('text-slate-500', 'dark:text-slate-400');
+            }
+            
+            // Sync current data to Basic view
+            autoSyncBasicView();
+        } else {
+            // Show Pro view (animated flow diagram)
+            basicView.classList.add('hidden');
+            proView.classList.remove('hidden');
+            
+            // Update button states
+            if (proBtn) {
+                proBtn.classList.remove('text-slate-500', 'dark:text-slate-400');
+                proBtn.classList.add('bg-violet-500', 'text-white', 'shadow-sm');
+            }
+            if (basicBtn) {
+                basicBtn.classList.remove('bg-violet-500', 'text-white', 'shadow-sm');
+                basicBtn.classList.add('text-slate-500', 'dark:text-slate-400');
+            }
+        }
+        
+        // Save preference to localStorage
+        localStorage.setItem('energyFlowView', view);
+        console.log('Energy flow view switched to:', view);
+    };
+    
+    // Auto-sync data to Basic view elements
+    function autoSyncBasicView() {
+        // Get current values from Pro view (original IDs)
+        const pvPower = document.getElementById('pv-power')?.textContent || '--';
+        const gridPower = document.getElementById('grid-power')?.textContent || '--';
+        const gridVoltage = document.getElementById('grid-voltage')?.textContent || '--';
+        const batteryPercent = document.getElementById('battery-percent-icon')?.textContent || '--%';
+        const batteryPower = document.getElementById('battery-power')?.textContent || '--';
+        const essentialPower = document.getElementById('essential-power')?.textContent || '--';
+        const loadPower = document.getElementById('load-power')?.textContent || '--';
+        const deviceTemp = document.getElementById('device-temp')?.textContent || '--';
+        const inverterType = document.getElementById('inverter-type')?.textContent || '--';
+        
+        // Calculate battery status from power value
+        // Negative = discharging, Positive = charging
+        let batteryStatus = '--';
+        const powerValue = parseInt(batteryPower.replace(/[^\d-]/g, '')) || 0;
+        if (powerValue < 0) {
+            batteryStatus = 'Đang xả';
+        } else if (powerValue > 0) {
+            batteryStatus = 'Đang nạp';
+        } else {
+            batteryStatus = 'Chờ';
+        }
+        
+        // Update Basic view elements (IDs end with -basic)
+        const updateElement = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        };
+        
+        // Update all Basic view fields
+        updateElement('pv-power-basic', pvPower);
+        updateElement('pv-desc-basic', '');
+        updateElement('grid-power-basic', gridPower);
+        updateElement('grid-voltage-basic', gridVoltage);
+        updateElement('battery-percent-basic', batteryPercent);
+        updateElement('battery-power-basic', batteryPower);
+        updateElement('battery-status-basic', batteryStatus);
+        updateElement('essential-power-basic', essentialPower);
+        updateElement('load-power-basic', loadPower);
+        updateElement('device-temp-basic', deviceTemp);
+        updateElement('inverter-type-basic', inverterType);
+        
+        // Update battery fill bar
+        const batteryFillBasic = document.getElementById('battery-fill-basic');
+        if (batteryFillBasic) {
+            const percent = parseInt(batteryPercent) || 0;
+            batteryFillBasic.style.width = percent + '%';
+            
+            // Update color based on percentage
+            if (percent > 60) {
+                batteryFillBasic.className = 'absolute left-0 top-0 bottom-0 bg-green-500 transition-all duration-500';
+            } else if (percent > 30) {
+                batteryFillBasic.className = 'absolute left-0 top-0 bottom-0 bg-yellow-500 transition-all duration-500';
+            } else {
+                batteryFillBasic.className = 'absolute left-0 top-0 bottom-0 bg-red-500 transition-all duration-500';
+            }
+        }
+    }
+    
+    // Expose autoSyncBasicView globally for use in updateRealTimeDisplay
+    window.autoSyncBasicView = autoSyncBasicView;
+    
+    // Load saved view preference on page load - Default to Pro
+    const savedView = localStorage.getItem('energyFlowView') || 'pro';
+    setTimeout(() => {
+        window.switchEnergyFlowView(savedView);
+    }, 100);
 
     // Legacy function - kept for backward compatibility but not used
     function createChart(chartObj, canvasId, label, labels, data, borderColor, backgroundColor, options) {
