@@ -757,3 +757,212 @@ body:has(#mainHeader.header-hidden) #compactSearch {
         height: 300px;
     }
 }
+
+/* ========================================
+   ENERGY FLOW ANIMATION - Comet Style
+   ======================================== */
+
+.energy-dot {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    z-index: 50;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+}
+
+/* Comet tail - first trail */
+.energy-dot::before {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    opacity: 0.6;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Comet tail - second trail */
+.energy-dot::after {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    opacity: 0.35;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* PV Dot - Yellow/Orange */
+.energy-dot-pv {
+    background: #fbbf24;
+    box-shadow: 0 0 12px 4px rgba(251, 191, 36, 0.9), 0 0 25px 8px rgba(251, 191, 36, 0.5);
+    animation: pv-flow 2s linear infinite;
+}
+.energy-dot-pv::before {
+    background: #fbbf24;
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.7);
+    animation: pv-flow 2s linear infinite;
+    animation-delay: -0.12s;
+}
+.energy-dot-pv::after {
+    background: #fcd34d;
+    box-shadow: 0 0 6px rgba(252, 211, 77, 0.5);
+    animation: pv-flow 2s linear infinite;
+    animation-delay: -0.24s;
+}
+
+/* EVN Dot - Orange */
+.energy-dot-evn {
+    background: #fb923c;
+    box-shadow: 0 0 12px 4px rgba(251, 146, 60, 0.9), 0 0 25px 8px rgba(251, 146, 60, 0.5);
+    animation: evn-flow 2.4s linear infinite;
+    animation-delay: 0.6s;
+}
+.energy-dot-evn::before {
+    background: #fb923c;
+    box-shadow: 0 0 8px rgba(251, 146, 60, 0.7);
+    animation: evn-flow 2.4s linear infinite;
+    animation-delay: 0.48s;
+}
+.energy-dot-evn::after {
+    background: #fdba74;
+    box-shadow: 0 0 6px rgba(253, 186, 116, 0.5);
+    animation: evn-flow 2.4s linear infinite;
+    animation-delay: 0.36s;
+}
+
+/* Battery Dot */
+.energy-dot-battery {
+    background: #34d399;
+    box-shadow: 0 0 12px 4px rgba(52, 211, 153, 0.9), 0 0 25px 8px rgba(52, 211, 153, 0.5);
+}
+
+/* Battery Charging - Green flowing TO battery */
+.energy-dot-battery.charging {
+    animation: battery-charge 2.2s linear infinite;
+    animation-delay: 0.3s;
+}
+.energy-dot-battery.charging::before {
+    background: #34d399;
+    animation: battery-charge 2.2s linear infinite;
+    animation-delay: 0.18s;
+}
+.energy-dot-battery.charging::after {
+    background: #6ee7b7;
+    animation: battery-charge 2.2s linear infinite;
+    animation-delay: 0.06s;
+}
+
+/* Battery Discharging - Orange flowing FROM battery */
+.energy-dot-battery.discharging {
+    background: #f97316;
+    box-shadow: 0 0 12px 4px rgba(249, 115, 22, 0.9), 0 0 25px 8px rgba(249, 115, 22, 0.5);
+    animation: battery-discharge 2.2s linear infinite;
+    animation-delay: 0.4s;
+}
+.energy-dot-battery.discharging::before {
+    background: #f97316;
+    animation: battery-discharge 2.2s linear infinite;
+    animation-delay: 0.28s;
+}
+.energy-dot-battery.discharging::after {
+    background: #fdba74;
+    animation: battery-discharge 2.2s linear infinite;
+    animation-delay: 0.16s;
+}
+
+/* Essential Load Dot - Cyan */
+.energy-dot-essential {
+    background: #22d3ee;
+    box-shadow: 0 0 12px 4px rgba(34, 211, 238, 0.9), 0 0 25px 8px rgba(34, 211, 238, 0.5);
+    animation: essential-flow 1.6s linear infinite;
+    animation-delay: 0.5s;
+}
+.energy-dot-essential::before {
+    background: #22d3ee;
+    box-shadow: 0 0 8px rgba(34, 211, 238, 0.7);
+    animation: essential-flow 1.6s linear infinite;
+    animation-delay: 0.38s;
+}
+.energy-dot-essential::after {
+    background: #67e8f9;
+    box-shadow: 0 0 6px rgba(103, 232, 249, 0.5);
+    animation: essential-flow 1.6s linear infinite;
+    animation-delay: 0.26s;
+}
+
+/* Load Dot - Emerald */
+.energy-dot-load {
+    background: #10b981;
+    box-shadow: 0 0 12px 4px rgba(16, 185, 129, 0.9), 0 0 25px 8px rgba(16, 185, 129, 0.5);
+    animation: load-flow 2.3s linear infinite;
+    animation-delay: 0.8s;
+}
+.energy-dot-load::before {
+    background: #10b981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+    animation: load-flow 2.3s linear infinite;
+    animation-delay: 0.68s;
+}
+.energy-dot-load::after {
+    background: #6ee7b7;
+    box-shadow: 0 0 6px rgba(110, 231, 183, 0.5);
+    animation: load-flow 2.3s linear infinite;
+    animation-delay: 0.56s;
+}
+
+/* ========================================
+   KEYFRAME ANIMATIONS
+   ======================================== */
+
+/* PV Flow: down -> right -> down to inverter */
+@keyframes pv-flow {
+    0% { left: 16.67%; top: 0%; }
+    30% { left: 16.67%; top: 50%; }
+    60% { left: 50%; top: 50%; }
+    100% { left: 50%; top: 100%; }
+}
+
+/* EVN Flow: down -> left -> down to inverter */
+@keyframes evn-flow {
+    0% { left: 83.33%; top: 0%; }
+    30% { left: 83.33%; top: 50%; }
+    60% { left: 50%; top: 50%; }
+    100% { left: 50%; top: 100%; }
+}
+
+/* Battery Charge: from inverter -> left -> down to battery */
+@keyframes battery-charge {
+    0% { left: 50%; top: 0%; }
+    30% { left: 50%; top: 50%; }
+    60% { left: 16.67%; top: 50%; }
+    100% { left: 16.67%; top: 100%; }
+}
+
+/* Battery Discharge: from battery -> up -> right -> up to inverter */
+@keyframes battery-discharge {
+    0% { left: 16.67%; top: 100%; }
+    30% { left: 16.67%; top: 50%; }
+    60% { left: 50%; top: 50%; }
+    100% { left: 50%; top: 0%; }
+}
+
+/* Essential Flow: straight down from inverter */
+@keyframes essential-flow {
+    0% { left: 50%; top: 0%; }
+    100% { left: 50%; top: 100%; }
+}
+
+/* Load Flow: from inverter -> right -> down to load */
+@keyframes load-flow {
+    0% { left: 50%; top: 0%; }
+    30% { left: 50%; top: 50%; }
+    60% { left: 83.33%; top: 50%; }
+    100% { left: 83.33%; top: 100%; }
+}

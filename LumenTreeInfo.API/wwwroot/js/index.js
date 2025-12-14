@@ -999,14 +999,13 @@ document.addEventListener('DOMContentLoaded', function () {
         // PV - with blink effect
         updateValue('pv-power', `${data.pvTotalPower}W`);
         if (data.pv2Power) {
+            // Compact format without S1:/S2: labels
             updateValueHTML('pv-desc', `
-                <span class="hidden sm:inline text-amber-500">S1:</span> 
-                <span class="text-amber-400 font-bold text-[11px] sm:text-sm">${data.pv1Power}W</span> 
-                <span class="text-[9px] sm:text-xs text-gray-400">${data.pv1Voltage}V</span> 
-                <span class="text-gray-500 mx-0.5">|</span> 
-                <span class="hidden sm:inline text-amber-500">S2:</span> 
-                <span class="text-amber-400 font-bold text-[11px] sm:text-sm">${data.pv2Power}W</span> 
-                <span class="text-[9px] sm:text-xs text-gray-400">${data.pv2Voltage}V</span>
+                <span class="font-bold text-[10px] sm:text-[11px]">${data.pv1Power}W</span> 
+                <span class="text-[9px] opacity-70">${data.pv1Voltage}V</span> 
+                <span class="opacity-50 mx-0.5">|</span> 
+                <span class="font-bold text-[10px] sm:text-[11px]">${data.pv2Power}W</span> 
+                <span class="text-[9px] opacity-70">${data.pv2Voltage}V</span>
             `);
         } else {
             updateValue('pv-desc', `${data.pv1Voltage}V`);
@@ -1026,23 +1025,23 @@ document.addEventListener('DOMContentLoaded', function () {
         const batteryFill = document.getElementById('battery-fill');
         if (batteryFill) {
             batteryFill.style.width = `${batteryPercent}%`;
-            // Change color based on level: Red 0-20%, Yellow 21-50%, Green 51-100%
+            // Change color based on level: Red 0-20%, Yellow 21-50%, Emerald 51-100%
             if (batteryPercent <= 20) {
                 batteryFill.className = 'absolute left-0 top-0 bottom-0 bg-red-500 transition-all duration-500';
             } else if (batteryPercent <= 50) {
                 batteryFill.className = 'absolute left-0 top-0 bottom-0 bg-yellow-500 transition-all duration-500';
             } else {
-                batteryFill.className = 'absolute left-0 top-0 bottom-0 bg-green-500 transition-all duration-500';
+                batteryFill.className = 'absolute left-0 top-0 bottom-0 bg-emerald-500 transition-all duration-500';
             }
         }
         
         // Update battery status text - with blink
         if (data.batteryStatus === "Discharging") {
-            updateValueHTML('battery-status-text', `<span class="text-red-500">Đang xả</span>`);
+            updateValueHTML('battery-status-text', `<span class="text-orange-500">Đang xả</span>`);
         } else if (data.batteryStatus === "Charging") {
-            updateValueHTML('battery-status-text', `<span class="text-green-500">Đang sạc</span>`);
+            updateValueHTML('battery-status-text', `<span class="text-emerald-500">Đang sạc</span>`);
         } else {
-            updateValueHTML('battery-status-text', `<span class="text-slate-500">Chờ</span>`);
+            updateValueHTML('battery-status-text', `<span class="text-emerald-400">Chờ</span>`);
         }
         
         // Battery power - with blink
@@ -1073,6 +1072,9 @@ document.addEventListener('DOMContentLoaded', function () {
         updateFlowStatus('battery-flow', data.batteryValue !== 0);
         updateFlowStatus('essential-flow', data.essentialValue > 0);
         updateFlowStatus('load-flow', data.loadValue > 0);
+        
+        // Update energy flow animation dots
+        updateEnergyFlowAnimation(data);
         
         // Update last refresh time with blink
         const now = new Date();
@@ -1840,6 +1842,50 @@ document.addEventListener('DOMContentLoaded', function () {
                 flow.classList.add('inactive');
                 flow.classList.remove('active');
             }
+        }
+    }
+
+    // Energy Flow Animation - Control dots based on real-time data
+    function updateEnergyFlowAnimation(data) {
+        // PV Flow: PV > 0 -> show animation
+        const pvDot = document.getElementById('pv-flow-dot');
+        if (pvDot) {
+            pvDot.style.display = data.pvTotalPower > 0 ? 'block' : 'none';
+        }
+
+        // EVN Grid Flow: Grid > 20W -> show animation
+        const evnDot = document.getElementById('evn-flow-dot');
+        if (evnDot) {
+            evnDot.style.display = data.gridValue > 20 ? 'block' : 'none';
+        }
+
+        // Battery Flow: Charging -> inverter to battery, Discharging -> battery to inverter
+        const batteryDot = document.getElementById('battery-flow-dot');
+        if (batteryDot) {
+            if (data.batteryStatus === "Charging" && data.batteryValue > 0) {
+                batteryDot.style.display = 'block';
+                batteryDot.classList.remove('discharging');
+                batteryDot.classList.add('charging');
+            } else if (data.batteryStatus === "Discharging" && Math.abs(data.batteryValue) > 0) {
+                batteryDot.style.display = 'block';
+                batteryDot.classList.remove('charging');
+                batteryDot.classList.add('discharging');
+            } else {
+                batteryDot.style.display = 'none';
+                batteryDot.classList.remove('charging', 'discharging');
+            }
+        }
+
+        // Essential Load Flow: Essential > 0 -> show animation
+        const essentialDot = document.getElementById('essential-flow-dot');
+        if (essentialDot) {
+            essentialDot.style.display = data.essentialValue > 0 ? 'block' : 'none';
+        }
+
+        // Load Flow: Load > 0 -> show animation
+        const loadDot = document.getElementById('load-flow-dot');
+        if (loadDot) {
+            loadDot.style.display = data.loadValue > 0 ? 'block' : 'none';
         }
     }
 
