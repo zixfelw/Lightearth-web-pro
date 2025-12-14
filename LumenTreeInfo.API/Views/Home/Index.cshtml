@@ -34,13 +34,13 @@
         }
     </script>
     
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Lucide Icons - defer loading -->
+    <script src="https://unpkg.com/lucide@latest" defer></script>
     
-    <!-- Google Fonts -->
+    <!-- Google Fonts - optimized: only load 400,600,700 weights -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     
     <!-- Favicons -->
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
@@ -367,7 +367,7 @@
                 <div class="flow-item bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/30 rounded-xl p-2.5 sm:p-3 border border-amber-300 dark:border-amber-700">
                     <div class="flex flex-col items-center text-center">
                         <div class="w-10 h-10 sm:w-12 sm:h-12 mb-1.5 flex items-center justify-center">
-                            <img src="/icons/solar-panel.png" alt="Công suất PV" class="w-full h-full object-contain">
+                            <img loading="lazy" src="/icons/solar-panel.png" alt="Công suất PV" class="w-full h-full object-contain">
                         </div>
                         <div class="text-xs font-semibold text-amber-700 dark:text-amber-300 mb-1">Công suất PV</div>
                         <div class="text-lg sm:text-xl font-black text-amber-600 dark:text-amber-400" id="pv-power">--</div>
@@ -382,7 +382,7 @@
                 <div class="flow-item bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/30 dark:to-green-900/30 rounded-xl p-2.5 sm:p-3 border border-emerald-300 dark:border-emerald-700">
                     <div class="flex flex-col items-center text-center">
                         <div class="w-10 h-10 sm:w-12 sm:h-12 mb-1.5 flex items-center justify-center">
-                            <img src="/icons/evn-grid.png" alt="Lưới EVN" class="w-full h-full object-contain">
+                            <img loading="lazy" src="/icons/evn-grid.png" alt="Lưới EVN" class="w-full h-full object-contain">
                         </div>
                         <div class="text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Lưới EVN</div>
                         <div class="text-lg sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="grid-power">--</div>
@@ -417,7 +417,7 @@
                 <div class="flow-item w-[140px] sm:w-[160px] bg-gradient-to-br from-slate-100 to-gray-100 dark:from-slate-700 dark:to-gray-700 rounded-xl p-3 border-2 border-slate-400 dark:border-slate-500">
                     <div class="flex flex-col items-center text-center">
                         <div class="w-10 h-10 sm:w-12 sm:h-12 mb-1.5 flex items-center justify-center">
-                            <img src="/icons/inverter.png" alt="Biến Tần" class="w-full h-full object-contain">
+                            <img loading="lazy" src="/icons/inverter.png" alt="Biến Tần" class="w-full h-full object-contain">
                         </div>
                         <div class="text-sm font-bold text-slate-700 dark:text-slate-200">Biến Tần</div>
                         <div class="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-full" id="inverter-type">--</div>
@@ -470,7 +470,7 @@
                 <div class="flow-item bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-900/30 dark:to-blue-900/30 rounded-xl p-2.5 sm:p-3 border border-cyan-300 dark:border-cyan-700">
                     <div class="flex flex-col items-center text-center">
                         <div class="w-10 h-10 sm:w-12 sm:h-12 mb-2 flex items-center justify-center">
-                            <img src="/icons/backup.png" alt="Tải cổng load" class="w-full h-full object-contain">
+                            <img loading="lazy" src="/icons/backup.png" alt="Tải cổng load" class="w-full h-full object-contain">
                         </div>
                         <div class="text-xs font-semibold text-cyan-700 dark:text-cyan-300 mb-1">Tải cổng load</div>
                         <div class="text-base sm:text-lg font-black text-cyan-600 dark:text-cyan-400" id="essential-power">--</div>
@@ -481,7 +481,7 @@
                 <div class="flow-item bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/30 dark:to-green-900/30 rounded-xl p-2.5 sm:p-3 border border-emerald-300 dark:border-emerald-700">
                     <div class="flex flex-col items-center text-center">
                         <div class="w-10 h-10 sm:w-12 sm:h-12 mb-2 flex items-center justify-center">
-                            <img src="/icons/load.png" alt="Tải hòa lưới" class="w-full h-full object-contain">
+                            <img loading="lazy" src="/icons/load.png" alt="Tải hòa lưới" class="w-full h-full object-contain">
                         </div>
                         <div class="text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Tải hòa lưới</div>
                         <div class="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400" id="load-power">--</div>
@@ -847,11 +847,12 @@
     </script>
     
     
-    <!-- SignalR Client Library -->
-    <script src="https://unpkg.com/@@microsoft/signalr@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="/css/index.css?v=12152" rel="stylesheet" />
-    <script src="/js/index.js?v=13032"></script>
+    <!-- SignalR Client Library - use specific version for better caching -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js" defer></script>
+    <!-- Chart.js minified -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+    <link href="/css/index.css?v=12153" rel="stylesheet" />
+    <script src="/js/index.js?v=13033" defer></script>
 
 </body>
 </html>
