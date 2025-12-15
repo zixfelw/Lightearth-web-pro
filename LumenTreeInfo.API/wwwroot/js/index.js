@@ -665,6 +665,9 @@ document.addEventListener('DOMContentLoaded', function () {
             // Fetch SOC timeline from proxy
             fetchSOCFromProxy(deviceId, date, realtimeData.data?.batterySoc || 0);
             
+            // Fetch temperature min/max for the day
+            fetchTemperatureMinMax(deviceId, date);
+            
             // Try to fetch day data from main API (background, with short timeout)
             fetchDayDataInBackground(deviceId, date);
             
@@ -823,6 +826,40 @@ document.addEventListener('DOMContentLoaded', function () {
             updateValue('grid-total', 'N/A');
             updateValue('essential-total', 'N/A');
         }
+    }
+    
+    // Fetch Temperature Min/Max for the day (via proxy to avoid CORS)
+    function fetchTemperatureMinMax(deviceId, date) {
+        const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
+        
+        // Use proxy endpoint to avoid CORS issues
+        fetch(`/api/proxy/temperature/${deviceId}/${queryDate}`)
+            .then(response => {
+                if (!response.ok) throw new Error(`Temperature API error: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                console.log("Temperature min/max data received:", data);
+                
+                // Update UI with min/max temperature
+                const badge = document.getElementById('tempMinMaxBadge');
+                const minEl = document.getElementById('temp-min-value');
+                const maxEl = document.getElementById('temp-max-value');
+                
+                if (badge && data.min !== undefined && data.max !== undefined) {
+                    minEl.textContent = `${data.min.toFixed(1)}°C`;
+                    maxEl.textContent = `${data.max.toFixed(1)}°C`;
+                    badge.classList.remove('hidden');
+                    badge.classList.add('flex');
+                    console.log("Temperature badge updated:", data.min, data.max);
+                }
+            })
+            .catch(error => {
+                console.warn("Temperature API unavailable:", error.message);
+                // Hide the badge if API fails
+                const badge = document.getElementById('tempMinMaxBadge');
+                if (badge) badge.classList.add('hidden');
+            });
     }
     
     // Fetch SOC timeline data - tries API first, then uses current SOC from main response
@@ -1067,6 +1104,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Other values - with blink effect
         updateValue('device-temp', `${data.deviceTempValue}°C`);
+        updateValue('device-temp-info', `${data.deviceTempValue}°C`); // Also update header temp
         updateValue('essential-power', `${data.essentialValue}W`);
         updateValue('load-power', `${data.loadValue}W`);
 

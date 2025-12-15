@@ -103,6 +103,57 @@ public class DataProxyController : ControllerBase
     }
 
     /// <summary>
+    /// Gets temperature min/max data for a device on a specific date
+    /// Proxies request to lumentree.net API to avoid CORS issues
+    /// </summary>
+    /// <param name="deviceId">The device ID (e.g., P250801055)</param>
+    /// <param name="date">The date in format yyyy-MM-dd</param>
+    [HttpGet("temperature/{deviceId}/{date}")]
+    public async Task<IActionResult> GetTemperatureMinMax(string deviceId, string date)
+    {
+        if (string.IsNullOrEmpty(deviceId))
+        {
+            return BadRequest(new { error = "Device ID is required" });
+        }
+
+        try
+        {
+            using var httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(10);
+            
+            var apiUrl = $"https://lumentree.net/api/temperature/{deviceId}/{date}";
+            Log.Information("Fetching temperature min/max from {Url}", apiUrl);
+            
+            var response = await httpClient.GetAsync(apiUrl);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                Log.Information("Temperature data received: {Content}", content);
+                
+                // Return the JSON directly
+                return Content(content, "application/json");
+            }
+            else
+            {
+                Log.Warning("Temperature API returned {StatusCode}", response.StatusCode);
+                return StatusCode((int)response.StatusCode, new { 
+                    error = "Temperature API error",
+                    status = response.StatusCode.ToString()
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error fetching temperature for {DeviceId}", deviceId);
+            return StatusCode(500, new { 
+                error = "Failed to fetch temperature data", 
+                message = ex.Message 
+            });
+        }
+    }
+
+    /// <summary>
     /// Push data to the proxy endpoint (for testing and data forwarding)
     /// </summary>
     /// <param name="deviceId">The device ID (e.g., P250801055)</param>
