@@ -1360,3 +1360,251 @@ body:has(#mainHeader.header-hidden) #compactSearch {
     95% { left: 83.33%; top: 98%; opacity: 1; }
     100% { left: 83.33%; top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
 }
+
+/* ========================================
+   ENERGY FLOW ICON GLOW EFFECTS
+   Glow effect behind logos - slow animation
+   ======================================== */
+
+.icon-glow-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    margin-bottom: 6px;
+}
+
+@media (min-width: 640px) {
+    .icon-glow-container {
+        width: 56px;
+        height: 56px;
+    }
+}
+
+/* Logo/Image stays on top */
+.icon-glow-img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    position: relative;
+    z-index: 20;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+@media (min-width: 640px) {
+    .icon-glow-img {
+        width: 48px;
+        height: 48px;
+    }
+}
+
+/* Glow ring - positioned BEHIND the logo */
+.icon-glow-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 56px;
+    height: 56px;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+    opacity: 0;
+    z-index: 5;
+    animation: icon-ring-pulse 6s ease-out infinite;
+}
+
+.icon-glow-ring-2 {
+    width: 72px;
+    height: 72px;
+    animation-delay: 2s;
+}
+
+/* Inner glow aura BEHIND logo - the main glow effect */
+.icon-glow-aura {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    z-index: 1;
+    filter: blur(14px);
+    opacity: 0.65;
+    animation: icon-aura-pulse 5s ease-in-out infinite;
+}
+
+@media (min-width: 640px) {
+    .icon-glow-ring {
+        width: 64px;
+        height: 64px;
+    }
+    .icon-glow-ring-2 {
+        width: 88px;
+        height: 88px;
+    }
+    .icon-glow-aura {
+        width: 62px;
+        height: 62px;
+        filter: blur(18px);
+    }
+}
+
+@keyframes icon-ring-pulse {
+    0% { 
+        transform: translate(-50%, -50%) scale(0.7); 
+        opacity: 0.6; 
+    }
+    50% {
+        opacity: 0.3;
+    }
+    100% { 
+        transform: translate(-50%, -50%) scale(1.6); 
+        opacity: 0; 
+    }
+}
+
+@keyframes icon-aura-pulse {
+    0%, 100% { 
+        transform: translate(-50%, -50%) scale(0.85); 
+        opacity: 0.5; 
+    }
+    50% { 
+        transform: translate(-50%, -50%) scale(1.15); 
+        opacity: 0.85; 
+    }
+}
+
+/* ===== PV (Solar) - Amber/Orange glow ===== */
+.icon-glow-pv .icon-glow-ring {
+    border-color: rgba(251, 191, 36, 0.45);
+}
+.icon-glow-pv .icon-glow-ring-2 {
+    border-color: rgba(249, 115, 22, 0.3);
+}
+.icon-glow-pv .icon-glow-aura {
+    background: radial-gradient(circle, rgba(251, 191, 36, 0.9) 0%, rgba(249, 115, 22, 0.5) 40%, transparent 70%);
+}
+
+/* ===== EVN Grid - Emerald/Green glow ===== */
+.icon-glow-evn .icon-glow-ring {
+    border-color: rgba(16, 185, 129, 0.45);
+    animation-delay: 0.5s;
+}
+.icon-glow-evn .icon-glow-ring-2 {
+    border-color: rgba(5, 150, 105, 0.3);
+    animation-delay: 2.5s;
+}
+.icon-glow-evn .icon-glow-aura {
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.9) 0%, rgba(5, 150, 105, 0.5) 40%, transparent 70%);
+    animation-delay: 0.8s;
+}
+
+/* ===== Inverter - Violet/Purple glow ===== */
+.icon-glow-inverter .icon-glow-ring {
+    border-color: rgba(139, 92, 246, 0.45);
+    animation-delay: 1s;
+}
+.icon-glow-inverter .icon-glow-ring-2 {
+    border-color: rgba(6, 182, 212, 0.3);
+    animation-delay: 3s;
+}
+.icon-glow-inverter .icon-glow-aura {
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.9) 0%, rgba(6, 182, 212, 0.5) 40%, transparent 70%);
+    animation-delay: 1s;
+}
+
+/* ===== Battery - Green/Teal glow ===== */
+.icon-glow-battery .icon-glow-ring {
+    border-color: rgba(16, 185, 129, 0.45);
+    animation-delay: 0.3s;
+}
+.icon-glow-battery .icon-glow-ring-2 {
+    border-color: rgba(20, 184, 166, 0.3);
+    animation-delay: 2.3s;
+}
+.icon-glow-battery .icon-glow-aura {
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.9) 0%, rgba(20, 184, 166, 0.5) 40%, transparent 70%);
+    animation-delay: 0.5s;
+}
+.icon-glow-battery .battery-icon-wrapper {
+    display: flex;
+    align-items: center;
+    position: relative;
+    z-index: 20;
+    border-radius: 6px;
+}
+
+/* ===== Essential Load - Cyan/Blue glow ===== */
+.icon-glow-essential .icon-glow-ring {
+    border-color: rgba(6, 182, 212, 0.45);
+    animation-delay: 1.2s;
+}
+.icon-glow-essential .icon-glow-ring-2 {
+    border-color: rgba(59, 130, 246, 0.3);
+    animation-delay: 3.2s;
+}
+.icon-glow-essential .icon-glow-aura {
+    background: radial-gradient(circle, rgba(6, 182, 212, 0.9) 0%, rgba(59, 130, 246, 0.5) 40%, transparent 70%);
+    animation-delay: 1.5s;
+}
+
+/* ===== Load - Green/Emerald glow ===== */
+.icon-glow-load .icon-glow-ring {
+    border-color: rgba(16, 185, 129, 0.45);
+    animation-delay: 1.5s;
+}
+.icon-glow-load .icon-glow-ring-2 {
+    border-color: rgba(34, 197, 94, 0.3);
+    animation-delay: 3.5s;
+}
+.icon-glow-load .icon-glow-aura {
+    background: radial-gradient(circle, rgba(16, 185, 129, 0.9) 0%, rgba(34, 197, 94, 0.5) 40%, transparent 70%);
+    animation-delay: 2s;
+}
+
+/* ===== Dark mode - Enhanced glow behind logos ===== */
+.dark .icon-glow-aura {
+    opacity: 0.85;
+    animation: icon-aura-pulse-dark 5s ease-in-out infinite;
+}
+
+.dark .icon-glow-pv .icon-glow-aura {
+    animation-delay: 0s;
+}
+.dark .icon-glow-evn .icon-glow-aura {
+    animation-delay: 0.8s;
+}
+.dark .icon-glow-inverter .icon-glow-aura {
+    animation-delay: 1s;
+}
+.dark .icon-glow-battery .icon-glow-aura {
+    animation-delay: 0.5s;
+}
+.dark .icon-glow-essential .icon-glow-aura {
+    animation-delay: 1.5s;
+}
+.dark .icon-glow-load .icon-glow-aura {
+    animation-delay: 2s;
+}
+
+@keyframes icon-aura-pulse-dark {
+    0%, 100% { 
+        transform: translate(-50%, -50%) scale(0.9); 
+        opacity: 0.7; 
+    }
+    50% { 
+        transform: translate(-50%, -50%) scale(1.2); 
+        opacity: 1; 
+    }
+}
+
+/* Dark mode ring pulses even slower */
+.dark .icon-glow-ring {
+    animation-duration: 7s;
+}
+.dark .icon-glow-ring-2 {
+    animation-duration: 7s;
+}

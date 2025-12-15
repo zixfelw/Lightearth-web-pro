@@ -1869,6 +1869,51 @@ document.addEventListener('DOMContentLoaded', function () {
                 batteryFillBasic.className = 'absolute left-0 top-0 bottom-0 bg-red-500 transition-all duration-500';
             }
         }
+        
+        // Update battery power and status colors based on charging/discharging state
+        const batteryPowerBasic = document.getElementById('battery-power-basic');
+        const batteryStatusBasic = document.getElementById('battery-status-basic');
+        
+        if (batteryPowerBasic) {
+            // Remove old color classes
+            batteryPowerBasic.classList.remove(
+                'text-slate-700', 'dark:text-slate-300',
+                'text-emerald-500', 'dark:text-emerald-400',
+                'text-orange-500', 'dark:text-orange-400',
+                'text-red-500', 'dark:text-red-400'
+            );
+            
+            if (powerValue > 0) {
+                // Charging - Green color
+                batteryPowerBasic.classList.add('text-emerald-500', 'dark:text-emerald-400');
+            } else if (powerValue < 0) {
+                // Discharging - Orange/Red color
+                batteryPowerBasic.classList.add('text-orange-500', 'dark:text-orange-400');
+            } else {
+                // Idle - Default gray
+                batteryPowerBasic.classList.add('text-slate-700', 'dark:text-slate-300');
+            }
+        }
+        
+        if (batteryStatusBasic) {
+            // Remove old color classes
+            batteryStatusBasic.classList.remove(
+                'text-slate-500', 'dark:text-slate-400',
+                'text-emerald-500', 'dark:text-emerald-400',
+                'text-orange-500', 'dark:text-orange-400'
+            );
+            
+            if (powerValue > 0) {
+                // Charging - Green color
+                batteryStatusBasic.classList.add('text-emerald-500', 'dark:text-emerald-400');
+            } else if (powerValue < 0) {
+                // Discharging - Orange color
+                batteryStatusBasic.classList.add('text-orange-500', 'dark:text-orange-400');
+            } else {
+                // Idle - Default gray
+                batteryStatusBasic.classList.add('text-slate-500', 'dark:text-slate-400');
+            }
+        }
     }
     
     // Expose autoSyncBasicView globally for use in updateRealTimeDisplay
