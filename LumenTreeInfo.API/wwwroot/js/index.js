@@ -63,7 +63,8 @@ document.addEventListener('DOMContentLoaded', function () {
     let socDataReceived = false; // Track if we received real SOC data
     
     // Animation mode: true = reduced (1 particle only - default), false = normal (multiple particles)
-    let reducedAnimationMode = true;
+    // Load saved preference from localStorage, default to true (reduced) if not set
+    let reducedAnimationMode = localStorage.getItem('energyFlowAnimationMode') !== 'normal';
     
     // API URL Configuration - Support multiple sources
     const API_SOURCES = {
@@ -2252,10 +2253,22 @@ document.addEventListener('DOMContentLoaded', function () {
     window.toggleAnimationMode = function() {
         reducedAnimationMode = !reducedAnimationMode;
         
+        // Save preference to localStorage
+        localStorage.setItem('energyFlowAnimationMode', reducedAnimationMode ? 'reduced' : 'normal');
+        
         // Update button appearance
+        updateAnimationButtonUI();
+        
+        console.log('Animation mode:', reducedAnimationMode ? 'REDUCED (1 particle)' : 'NORMAL (multiple particles)');
+    };
+    
+    // Update animation button UI based on current mode
+    function updateAnimationButtonUI() {
         const btn = document.getElementById('toggleAnimationBtn');
         const btnText = document.getElementById('animationBtnText');
         const icon = document.getElementById('animationIcon');
+        
+        if (!btn || !btnText || !icon) return;
         
         if (reducedAnimationMode) {
             // Reduced mode active - button shows "Tăng hiệu ứng"
@@ -2274,9 +2287,10 @@ document.addEventListener('DOMContentLoaded', function () {
             btnText.textContent = 'Giảm hiệu ứng';
             icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>';
         }
-        
-        console.log('Animation mode:', reducedAnimationMode ? 'REDUCED (1 particle)' : 'NORMAL (multiple particles)');
-    };
+    }
+    
+    // Initialize animation button UI on page load (after function is defined)
+    updateAnimationButtonUI();
 
     function showLoading(show) {
         const loading = document.getElementById('loading');
