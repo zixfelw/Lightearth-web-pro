@@ -699,42 +699,46 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     
-    // Fetch SOC timeline - Try direct lumentree.net first, fallback to proxy
+    // Fetch SOC timeline - Use local backend proxy to lumentree.net (most accurate data)
     async function fetchSOCFromProxy(deviceId, date, currentSoc) {
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
-        const urls = getSocApiUrlWithFallback(deviceId, queryDate);
         
-        // Try direct lumentree.net first (most accurate data)
+        // Use local backend proxy to fetch directly from lumentree.net (bypass CORS)
+        const localProxyUrl = `/api/proxy/soc/${deviceId}/${queryDate}`;
+        
         try {
-            console.log("🎯 Fetching SOC from lumentree.net (direct):", urls.primary);
-            const response = await fetch(urls.primary);
+            console.log("🎯 Fetching SOC from lumentree.net via local proxy:", localProxyUrl);
+            const response = await fetch(localProxyUrl);
             
             if (response.ok) {
                 const data = await response.json();
-                console.log("✅ SOC data from lumentree.net:", data);
+                console.log("✅ SOC data from lumentree.net (via proxy):", data);
                 
                 if (data?.timeline && Array.isArray(data.timeline) && data.timeline.length > 0) {
                     loadSOCTimeline(data.timeline);
-                    return; // Success, no need for fallback
+                    return; // Success
                 }
+            } else {
+                console.warn("Local proxy SOC API error:", response.status);
             }
         } catch (error) {
-            console.warn("⚠️ Direct lumentree.net failed (likely CORS):", error.message);
+            console.warn("⚠️ Local proxy SOC failed:", error.message);
         }
         
-        // Fallback to proxy API
+        // Fallback to Cloudflare Workers proxy (may have different data)
         try {
-            console.log("📡 Fallback: Fetching SOC from proxy:", urls.fallback);
-            const response = await fetch(urls.fallback);
+            const fallbackUrl = `https://solar-proxy.applike098.workers.dev/api/soc/${deviceId}/${queryDate}`;
+            console.log("📡 Fallback: Fetching SOC from Cloudflare Workers:", fallbackUrl);
+            const response = await fetch(fallbackUrl);
             
             if (!response.ok) {
-                console.warn("SOC proxy API error:", response.status);
+                console.warn("Cloudflare SOC proxy API error:", response.status);
                 if (currentSoc > 0) initializeSOCWithCurrentValue(currentSoc);
                 return;
             }
             
             const data = await response.json();
-            console.log("SOC proxy data received:", data);
+            console.log("SOC data from Cloudflare Workers:", data);
             
             if (data?.timeline && Array.isArray(data.timeline) && data.timeline.length > 0) {
                 loadSOCTimeline(data.timeline);
@@ -742,7 +746,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 initializeSOCWithCurrentValue(currentSoc);
             }
         } catch (error) {
-            console.warn("SOC proxy fetch error:", error);
+            console.warn("Cloudflare SOC proxy fetch error:", error);
             if (currentSoc > 0) initializeSOCWithCurrentValue(currentSoc);
         }
     }

@@ -154,6 +154,62 @@ public class DataProxyController : ControllerBase
     }
 
     /// <summary>
+    /// Gets SOC timeline data directly from lumentree.net API
+    /// This bypasses Cloudflare to get the most accurate SOC data
+    /// </summary>
+    /// <param name="deviceId">The device ID (e.g., P250801055)</param>
+    /// <param name="date">The date in YYYY-MM-DD format</param>
+    [HttpGet("soc/{deviceId}/{date}")]
+    public async Task<IActionResult> GetSOCData(string deviceId, string date)
+    {
+        if (string.IsNullOrEmpty(deviceId))
+        {
+            return BadRequest(new { error = "Device ID is required" });
+        }
+
+        if (string.IsNullOrEmpty(date))
+        {
+            date = DateTime.Now.ToString("yyyy-MM-dd");
+        }
+
+        try
+        {
+            Log.Information("Fetching SOC data for {DeviceId} on {Date} from lumentree.net", deviceId, date);
+            
+            using var httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(30);
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 Chrome/131.0.0.0");
+            httpClient.DefaultRequestHeaders.Add("Referer", "https://lumentree.net/");
+            
+            var url = $"https://lumentree.net/api/soc/{deviceId}/{date}";
+            var response = await httpClient.GetAsync(url);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                Log.Warning("lumentree.net SOC API returned {StatusCode}", response.StatusCode);
+                return StatusCode((int)response.StatusCode, new { 
+                    error = "Failed to fetch SOC data from lumentree.net",
+                    statusCode = (int)response.StatusCode
+                });
+            }
+            
+            var jsonContent = await response.Content.ReadAsStringAsync();
+            Log.Information("SOC data received: {Length} bytes", jsonContent.Length);
+            
+            // Return the raw JSON from lumentree.net
+            return Content(jsonContent, "application/json");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error fetching SOC data for {DeviceId}", deviceId);
+            return StatusCode(500, new { 
+                error = "Failed to fetch SOC data", 
+                message = ex.Message 
+            });
+        }
+    }
+
+    /// <summary>
     /// Push data to the proxy endpoint (for testing and data forwarding)
     /// </summary>
     /// <param name="deviceId">The device ID (e.g., P250801055)</param>
