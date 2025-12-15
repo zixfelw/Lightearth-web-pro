@@ -855,6 +855,247 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 }
 
 /* ========================================
+   PREMIUM HERO LANDING PAGE
+   ======================================== */
+
+.hero-landing {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 40%, #312e81 70%, #1e1b4b 100%);
+    border-radius: 1.5rem;
+    margin-bottom: 1.5rem;
+    padding: 2rem 1rem;
+}
+
+@media (min-width: 640px) {
+    .hero-landing {
+        border-radius: 2rem;
+        padding: 2.5rem 1.5rem;
+    }
+}
+
+.hero-bg-gradient {
+    background: 
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(251, 191, 36, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse 60% 40% at 80% 60%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse 60% 40% at 20% 80%, rgba(6, 182, 212, 0.1) 0%, transparent 50%);
+}
+
+.hero-grid-pattern {
+    background-image: 
+        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+}
+
+/* Floating Elements */
+.hero-float-element {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.4;
+    animation: float 8s ease-in-out infinite;
+}
+
+.hero-float-1 {
+    width: 300px;
+    height: 300px;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    top: -10%;
+    left: -10%;
+    animation-delay: 0s;
+}
+
+.hero-float-2 {
+    width: 250px;
+    height: 250px;
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    bottom: -10%;
+    right: -5%;
+    animation-delay: -3s;
+}
+
+.hero-float-3 {
+    width: 200px;
+    height: 200px;
+    background: linear-gradient(135deg, #06b6d4, #0891b2);
+    top: 40%;
+    right: 10%;
+    animation-delay: -5s;
+}
+
+@keyframes float {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(20px, -20px) scale(1.05); }
+    50% { transform: translate(-10px, 20px) scale(0.95); }
+    75% { transform: translate(-20px, -10px) scale(1.02); }
+}
+
+/* Logo Container */
+.hero-logo-container {
+    position: relative;
+    display: inline-block;
+}
+
+.hero-logo-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 120px;
+    height: 120px;
+    border: 2px solid rgba(251, 191, 36, 0.3);
+    border-radius: 50%;
+    animation: ring-pulse 3s ease-out infinite;
+}
+
+.hero-logo-ring-2 {
+    width: 150px;
+    height: 150px;
+    border-color: rgba(139, 92, 246, 0.2);
+    animation-delay: 1s;
+}
+
+@keyframes ring-pulse {
+    0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.8; }
+    100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+}
+
+.hero-logo-pulse {
+    animation: logo-glow 3s ease-in-out infinite;
+}
+
+@keyframes logo-glow {
+    0%, 100% { box-shadow: 0 0 30px rgba(251, 191, 36, 0.3); }
+    50% { box-shadow: 0 0 50px rgba(251, 191, 36, 0.5), 0 0 80px rgba(251, 191, 36, 0.2); }
+}
+
+/* Title Animation */
+.hero-title {
+    animation: title-fade-in 1s ease-out;
+}
+
+@keyframes title-fade-in {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Input Card */
+.hero-input-card {
+    animation: card-slide-up 0.8s ease-out 0.3s both;
+}
+
+@keyframes card-slide-up {
+    from { opacity: 0; transform: translateY(40px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Date Buttons */
+.hero-date-btn {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    color: white;
+    transition: all 0.3s ease;
+}
+
+.hero-date-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(251, 191, 36, 0.5);
+    transform: scale(1.05);
+}
+
+.hero-date-btn:active {
+    transform: scale(0.95);
+}
+
+/* Submit Button */
+.hero-submit-btn {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #ea580c 100%);
+    color: #1e1b4b;
+    box-shadow: 
+        0 10px 40px rgba(251, 191, 36, 0.3),
+        0 0 0 0 rgba(251, 191, 36, 0.5);
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-submit-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+    transition: left 0.5s ease;
+}
+
+.hero-submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 
+        0 15px 50px rgba(251, 191, 36, 0.4),
+        0 0 0 4px rgba(251, 191, 36, 0.2);
+}
+
+.hero-submit-btn:hover::before {
+    left: 100%;
+}
+
+.hero-submit-btn:active {
+    transform: translateY(0);
+}
+
+/* Scroll Indicator */
+.hero-scroll-indicator {
+    animation: bounce-fade 2s ease-in-out infinite;
+}
+
+@keyframes bounce-fade {
+    0%, 100% { opacity: 0.5; transform: translateX(-50%) translateY(0); }
+    50% { opacity: 1; transform: translateX(-50%) translateY(5px); }
+}
+
+/* Date input styling for dark theme */
+.hero-landing input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.5;
+    cursor: pointer;
+}
+
+.hero-landing input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 0.8;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 640px) {
+    .hero-landing {
+        min-height: 85vh;
+        padding-top: 1rem;
+    }
+    
+    .hero-float-element {
+        filter: blur(40px);
+        opacity: 0.3;
+    }
+    
+    .hero-float-1 { width: 200px; height: 200px; }
+    .hero-float-2 { width: 150px; height: 150px; }
+    .hero-float-3 { width: 120px; height: 120px; }
+    
+    .hero-logo-ring { width: 100px; height: 100px; }
+    .hero-logo-ring-2 { width: 130px; height: 130px; }
+}
+
+/* Dark mode adjustments */
+.dark .hero-landing {
+    background: linear-gradient(135deg, #030712 0%, #0f172a 40%, #1e1b4b 70%, #0f172a 100%);
+}
+
+/* ========================================
    ENERGY FLOW ANIMATION - Comet Style
    ======================================== */
 
