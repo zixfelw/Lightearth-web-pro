@@ -1281,6 +1281,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const currentTime = Date.now();
         lastCellUpdateTime = currentTime;
 
+        // Find indices of max and min cells (only valid cells)
+        let maxCellIndex = -1;
+        let minCellIndex = -1;
+        cells.forEach((voltage, index) => {
+            if (voltage && voltage > 0) {
+                if (voltage === max) maxCellIndex = index;
+                if (voltage === min) minCellIndex = index;
+            }
+        });
+
         // Generate cell grid dynamically with blink effect and communication status
         const cellGrid = document.getElementById('cellGrid');
         if (cellGrid) {
@@ -1319,8 +1329,22 @@ document.addEventListener('DOMContentLoaded', function () {
                     // Add blink class if value changed
                     const blinkClass = hasChanged ? 'cell-blink' : '';
                     
+                    // Check if this cell is MAX or MIN
+                    const isMaxCell = index === maxCellIndex;
+                    const isMinCell = index === minCellIndex;
+                    const highlightClass = isMaxCell ? 'cell-max-highlight' : (isMinCell ? 'cell-min-highlight' : '');
+                    
+                    // Badge for max/min
+                    let badge = '';
+                    if (isMaxCell) {
+                        badge = '<span class="cell-badge cell-badge-max">▲ MAX</span>';
+                    } else if (isMinCell) {
+                        badge = '<span class="cell-badge cell-badge-min">▼ MIN</span>';
+                    }
+                    
                     gridHtml += `
-                        <div class="cell-item ${colorClass} ${blinkClass}">
+                        <div class="cell-item ${colorClass} ${blinkClass} ${highlightClass}">
+                            ${badge}
                             <span class="cell-label">Cell ${index + 1}</span>
                             <span class="cell-voltage">${voltage.toFixed(3)}V</span>
                         </div>
