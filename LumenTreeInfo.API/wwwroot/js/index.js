@@ -86,6 +86,26 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
     
+    // Lightearth API - Direct from lesvr.suntcn.com via Cloudflare Worker proxy
+    const LIGHTEARTH_API = {
+        base: 'https://lightearth.applike098.workers.dev',
+        bat: (deviceId, date) => `https://lightearth.applike098.workers.dev/api/bat/${deviceId}/${date}`,
+        pv: (deviceId, date) => `https://lightearth.applike098.workers.dev/api/pv/${deviceId}/${date}`,
+        other: (deviceId, date) => `https://lightearth.applike098.workers.dev/api/other/${deviceId}/${date}`,
+        month: (deviceId) => `https://lightearth.applike098.workers.dev/api/month/${deviceId}`,
+        year: (deviceId) => `https://lightearth.applike098.workers.dev/api/year/${deviceId}`,
+        historyYear: (deviceId) => `https://lightearth.applike098.workers.dev/api/history-year/${deviceId}`
+    };
+    
+    // Lightearth API cache - refresh every 10 minutes
+    let lightearthCache = {
+        data: null,
+        deviceId: null,
+        date: null,
+        timestamp: 0
+    };
+    const LIGHTEARTH_CACHE_TTL = 10 * 60 * 1000; // 10 minutes in milliseconds
+    
     // Default to Workers API (more stable)
     let currentApiSource = 'workers';
     
@@ -728,105 +748,168 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // Fetch day data in background (for summary stats: Năng lượng - Pin Lưu Trữ - Nguồn Điện)
+    // Primary: Lightearth API (lesvr.suntcn.com via Cloudflare Worker) - cached for 10 minutes
+    // Fallback: solar-proxy Workers API
     async function fetchDayDataInBackground(deviceId, date) {
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
+        const now = Date.now();
         
-        // Use Workers proxy API for day data (has summary stats)
-        const dayApiUrl = `https://solar-proxy.applike098.workers.dev/api/day/${deviceId}/${queryDate}`;
+        // Check cache - return cached data if still valid (within 10 minutes)
+        if (lightearthCache.data && 
+            lightearthCache.deviceId === deviceId && 
+            lightearthCache.date === queryDate &&
+            (now - lightearthCache.timestamp) < LIGHTEARTH_CACHE_TTL) {
+            
+            const cacheAge = Math.round((now - lightearthCache.timestamp) / 1000);
+            console.log(`📦 Using cached Lightearth data (age: ${cacheAge}s, next refresh in ${600 - cacheAge}s)`);
+            updateSummaryFromLightearthData(lightearthCache.data);
+            return;
+        }
         
         try {
-            console.log("📊 Fetching day data from:", dayApiUrl);
-            const response = await fetch(dayApiUrl);
+            // Use Lightearth API - fetch all 3 endpoints in parallel
+            console.log("📊 Fetching fresh data from Lightearth API...");
             
-            if (!response.ok) {
-                throw new Error(`Day data API error: ${response.status}`);
+            const [batResponse, pvResponse, otherResponse] = await Promise.all([
+                fetch(LIGHTEARTH_API.bat(deviceId, queryDate)),
+                fetch(LIGHTEARTH_API.pv(deviceId, queryDate)),
+                fetch(LIGHTEARTH_API.other(deviceId, queryDate))
+            ]);
+            
+            const [batData, pvData, otherData] = await Promise.all([
+                batResponse.json(),
+                pvResponse.json(),
+                otherResponse.json()
+            ]);
+            
+            console.log("✅ Lightearth data received:", { batData, pvData, otherData });
+            
+            // Check if data is valid (returnValue === 1)
+            if (batData.returnValue !== 1 || pvData.returnValue !== 1 || otherData.returnValue !== 1) {
+                throw new Error("Lightearth API returned invalid data");
             }
             
-            const data = await response.json();
-            console.log("✅ Day data received:", data);
+            // Cache the data
+            lightearthCache = {
+                data: { batData, pvData, otherData },
+                deviceId: deviceId,
+                date: queryDate,
+                timestamp: now
+            };
+            console.log("💾 Lightearth data cached (TTL: 10 minutes)");
             
-            if (data.error) {
-                throw new Error(data.error);
-            }
-            
-            // Update summary stats from day data summary
-            if (data.summary) {
-                const summary = data.summary;
-                // summary contains: pv_day, load_day, bat_day, grid_day, backup_day (in kWh)
-                updateValue('pv-total', (summary.pv_day || 0).toFixed(1) + ' kWh');
-                updateValue('load-total', (summary.load_day || 0).toFixed(1) + ' kWh');
-                updateValue('grid-total', (summary.grid_day || 0).toFixed(1) + ' kWh');
-                updateValue('essential-total', (summary.backup_day || 0).toFixed(1) + ' kWh');
-                
-                // For battery charge/discharge, use bat_raw.bats if available
-                if (data.bat_raw?.bats) {
-                    const batCharge = (data.bat_raw.bats[0]?.tableValue || 0) / 10;
-                    const batDischarge = (data.bat_raw.bats[1]?.tableValue || 0) / 10;
-                    updateValue('bat-charge', batCharge.toFixed(1) + ' kWh');
-                    updateValue('bat-discharge', batDischarge.toFixed(1) + ' kWh');
-                } else {
-                    // Fallback: show net battery (positive = charge, negative = discharge)
-                    const batNet = summary.bat_day || 0;
-                    if (batNet >= 0) {
-                        updateValue('bat-charge', batNet.toFixed(1) + ' kWh');
-                        updateValue('bat-discharge', '0.0 kWh');
-                    } else {
-                        updateValue('bat-charge', '0.0 kWh');
-                        updateValue('bat-discharge', Math.abs(batNet).toFixed(1) + ' kWh');
-                    }
-                }
-                
-                console.log("✅ Summary stats updated:", summary);
-            }
-            
-            // Update combined energy chart with raw data
-            if (data.pv_raw || data.bat_raw || data.other_raw) {
-                const chartData = {
-                    pv: { tableValueInfo: data.pv_raw?.pv?.tableValueInfo || [] },
-                    bat: { tableValueInfo: data.bat_raw?.tableValueInfo || [] },
-                    load: { tableValueInfo: data.other_raw?.homeload?.tableValueInfo || [] },
-                    grid: { tableValueInfo: data.other_raw?.grid?.tableValueInfo || [] },
-                    essentialLoad: { tableValueInfo: data.other_raw?.essentialLoad?.tableValueInfo || [] }
-                };
-                console.log("📊 Updating combined energy chart with day data");
-                updateCharts(chartData);
-            }
+            // Update UI
+            updateSummaryFromLightearthData(lightearthCache.data);
             
         } catch (error) {
-            console.warn("⚠️ Day data fetch failed:", error.message);
+            console.warn("⚠️ Lightearth API failed:", error.message);
             
-            // Fallback: Try Railway backend API
+            // Fallback: Try solar-proxy Workers API
             try {
-                console.log("📡 Fallback: Trying Railway backend...");
-                const fallbackResponse = await fetch(`/device/${deviceId}?date=${queryDate}`);
+                console.log("📡 Fallback: Trying solar-proxy Workers API...");
+                const dayApiUrl = `https://solar-proxy.applike098.workers.dev/api/day/${deviceId}/${queryDate}`;
+                const response = await fetch(dayApiUrl);
                 
-                if (fallbackResponse.ok) {
-                    const fallbackData = await fallbackResponse.json();
-                    if (!fallbackData.error && (fallbackData.pv || fallbackData.bat || fallbackData.load)) {
-                        updateValue('pv-total', ((fallbackData.pv?.tableValue || 0) / 10).toFixed(1) + ' kWh');
-                        const batCharge = fallbackData.bat?.chargeKwh ?? ((fallbackData.bat?.bats?.[0]?.tableValue || 0) / 10);
-                        const batDischarge = fallbackData.bat?.dischargeKwh ?? ((fallbackData.bat?.bats?.[1]?.tableValue || 0) / 10);
+                if (!response.ok) {
+                    throw new Error(`Day data API error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                console.log("✅ Day data received from solar-proxy:", data);
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Update summary stats from day data summary
+                if (data.summary) {
+                    const summary = data.summary;
+                    updateValue('pv-total', (summary.pv_day || 0).toFixed(1) + ' kWh');
+                    updateValue('load-total', (summary.load_day || 0).toFixed(1) + ' kWh');
+                    updateValue('grid-total', (summary.grid_day || 0).toFixed(1) + ' kWh');
+                    updateValue('essential-total', (summary.backup_day || 0).toFixed(1) + ' kWh');
+                    
+                    if (data.bat_raw?.bats) {
+                        const batCharge = (data.bat_raw.bats[0]?.tableValue || 0) / 10;
+                        const batDischarge = (data.bat_raw.bats[1]?.tableValue || 0) / 10;
                         updateValue('bat-charge', batCharge.toFixed(1) + ' kWh');
                         updateValue('bat-discharge', batDischarge.toFixed(1) + ' kWh');
-                        updateValue('load-total', ((fallbackData.load?.tableValue || 0) / 10).toFixed(1) + ' kWh');
-                        updateValue('grid-total', ((fallbackData.grid?.tableValue || 0) / 10).toFixed(1) + ' kWh');
-                        updateValue('essential-total', ((fallbackData.essentialLoad?.tableValue || 0) / 10).toFixed(1) + ' kWh');
-                        console.log("✅ Summary stats updated from Railway backend");
-                        return;
+                    } else {
+                        const batNet = summary.bat_day || 0;
+                        if (batNet >= 0) {
+                            updateValue('bat-charge', batNet.toFixed(1) + ' kWh');
+                            updateValue('bat-discharge', '0.0 kWh');
+                        } else {
+                            updateValue('bat-charge', '0.0 kWh');
+                            updateValue('bat-discharge', Math.abs(batNet).toFixed(1) + ' kWh');
+                        }
                     }
+                    
+                    console.log("✅ Summary stats updated from solar-proxy:", summary);
                 }
+                
+                // Update combined energy chart with raw data
+                if (data.pv_raw || data.bat_raw || data.other_raw) {
+                    const chartData = {
+                        pv: { tableValueInfo: data.pv_raw?.pv?.tableValueInfo || [] },
+                        bat: { tableValueInfo: data.bat_raw?.tableValueInfo || [] },
+                        load: { tableValueInfo: data.other_raw?.homeload?.tableValueInfo || [] },
+                        grid: { tableValueInfo: data.other_raw?.grid?.tableValueInfo || [] },
+                        essentialLoad: { tableValueInfo: data.other_raw?.essentialLoad?.tableValueInfo || [] }
+                    };
+                    console.log("📊 Updating combined energy chart with solar-proxy data");
+                    updateCharts(chartData);
+                }
+                
             } catch (fallbackError) {
-                console.warn("⚠️ Railway fallback also failed:", fallbackError.message);
+                console.warn("⚠️ Solar-proxy fallback also failed:", fallbackError.message);
+                
+                // All failed - show N/A
+                updateValue('pv-total', 'N/A');
+                updateValue('bat-charge', 'N/A');
+                updateValue('bat-discharge', 'N/A');
+                updateValue('load-total', 'N/A');
+                updateValue('grid-total', 'N/A');
+                updateValue('essential-total', 'N/A');
             }
-            
-            // All failed - show N/A
-            updateValue('pv-total', 'N/A');
-            updateValue('bat-charge', 'N/A');
-            updateValue('bat-discharge', 'N/A');
-            updateValue('load-total', 'N/A');
-            updateValue('grid-total', 'N/A');
-            updateValue('essential-total', 'N/A');
         }
+    }
+    
+    // Helper function to update summary stats from Lightearth data
+    function updateSummaryFromLightearthData(data) {
+        const { batData, pvData, otherData } = data;
+        
+        // Extract values (unit: 0.1 kWh, so divide by 10)
+        const batCharge = (batData.data?.bats?.[0]?.tableValue || 0) / 10;
+        const batDischarge = (batData.data?.bats?.[1]?.tableValue || 0) / 10;
+        const pvTotal = (pvData.data?.pv?.tableValue || 0) / 10;
+        const loadTotal = (otherData.data?.homeload?.tableValue || 0) / 10;
+        const gridTotal = (otherData.data?.grid?.tableValue || 0) / 10;
+        const essentialTotal = (otherData.data?.essentialLoad?.tableValue || 0) / 10;
+        
+        // Update summary stats
+        updateValue('pv-total', pvTotal.toFixed(1) + ' kWh');
+        updateValue('load-total', loadTotal.toFixed(1) + ' kWh');
+        updateValue('grid-total', gridTotal.toFixed(1) + ' kWh');
+        updateValue('essential-total', essentialTotal.toFixed(1) + ' kWh');
+        updateValue('bat-charge', batCharge.toFixed(1) + ' kWh');
+        updateValue('bat-discharge', batDischarge.toFixed(1) + ' kWh');
+        
+        console.log("✅ Summary stats updated from Lightearth:", {
+            pv: pvTotal, load: loadTotal, grid: gridTotal, 
+            essential: essentialTotal, batCharge, batDischarge
+        });
+        
+        // Update combined energy chart with raw data
+        const chartData = {
+            pv: { tableValueInfo: pvData.data?.pv?.tableValueInfo || [] },
+            bat: { tableValueInfo: batData.data?.tableValueInfo || [] },
+            load: { tableValueInfo: otherData.data?.homeload?.tableValueInfo || [] },
+            grid: { tableValueInfo: otherData.data?.grid?.tableValueInfo || [] },
+            essentialLoad: { tableValueInfo: otherData.data?.essentialLoad?.tableValueInfo || [] }
+        };
+        console.log("📊 Updating combined energy chart with Lightearth data");
+        updateCharts(chartData);
     }
     
     // Fetch Temperature Min/Max for the day (via proxy to avoid CORS)
