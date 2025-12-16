@@ -1927,14 +1927,14 @@ document.addEventListener('DOMContentLoaded', function () {
             proView.classList.add('hidden');
             basicView.classList.remove('hidden');
             
-            // Update button states
+            // Update button states - Basic is active (teal), Pro is inactive
             if (basicBtn) {
-                basicBtn.classList.remove('text-slate-500', 'dark:text-slate-400');
-                basicBtn.classList.add('bg-violet-500', 'text-white', 'shadow-sm');
+                basicBtn.classList.remove('text-slate-500', 'dark:text-slate-400', 'hover:text-slate-700', 'dark:hover:text-slate-200');
+                basicBtn.classList.add('bg-teal-500', 'text-white', 'shadow-sm');
             }
             if (proBtn) {
-                proBtn.classList.remove('bg-violet-500', 'text-white', 'shadow-sm');
-                proBtn.classList.add('text-slate-500', 'dark:text-slate-400');
+                proBtn.classList.remove('bg-teal-500', 'text-white', 'shadow-sm');
+                proBtn.classList.add('text-slate-600', 'dark:text-slate-300', 'hover:text-slate-800', 'dark:hover:text-slate-100');
             }
             
             // Sync current data to Basic view
@@ -1944,14 +1944,14 @@ document.addEventListener('DOMContentLoaded', function () {
             basicView.classList.add('hidden');
             proView.classList.remove('hidden');
             
-            // Update button states
+            // Update button states - Pro is active (teal), Basic is inactive
             if (proBtn) {
-                proBtn.classList.remove('text-slate-500', 'dark:text-slate-400');
-                proBtn.classList.add('bg-violet-500', 'text-white', 'shadow-sm');
+                proBtn.classList.remove('text-slate-600', 'dark:text-slate-300', 'hover:text-slate-800', 'dark:hover:text-slate-100');
+                proBtn.classList.add('bg-teal-500', 'text-white', 'shadow-sm');
             }
             if (basicBtn) {
-                basicBtn.classList.remove('bg-violet-500', 'text-white', 'shadow-sm');
-                basicBtn.classList.add('text-slate-500', 'dark:text-slate-400');
+                basicBtn.classList.remove('bg-teal-500', 'text-white', 'shadow-sm');
+                basicBtn.classList.add('text-slate-600', 'dark:text-slate-300', 'hover:text-slate-800', 'dark:hover:text-slate-100');
             }
         }
         
