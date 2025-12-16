@@ -922,7 +922,7 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 }
 
 .cell-badge-max {
-    background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-600));
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
     color: white;
     animation: badge-pulse-max 2s ease-in-out infinite;
 }
@@ -934,8 +934,8 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 }
 
 @keyframes badge-pulse-max {
-    0%, 100% { box-shadow: 0 2px 8px rgba(20, 184, 166, 0.4); }
-    50% { box-shadow: 0 4px 16px rgba(20, 184, 166, 0.7); }
+    0%, 100% { box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4); }
+    50% { box-shadow: 0 4px 16px rgba(59, 130, 246, 0.7); }
 }
 
 @keyframes badge-pulse-min {
@@ -944,7 +944,7 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 }
 
 .cell-max-highlight {
-    box-shadow: 0 0 0 2px var(--color-primary-500), 0 0 16px rgba(20, 184, 166, 0.5);
+    box-shadow: 0 0 0 2px #3b82f6, 0 0 16px rgba(59, 130, 246, 0.5);
     animation: cell-glow-max 2s ease-in-out infinite;
 }
 
@@ -954,8 +954,8 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 }
 
 @keyframes cell-glow-max {
-    0%, 100% { box-shadow: 0 0 0 2px var(--color-primary-500), 0 0 12px rgba(20, 184, 166, 0.4); }
-    50% { box-shadow: 0 0 0 3px var(--color-primary-500), 0 0 20px rgba(20, 184, 166, 0.7); }
+    0%, 100% { box-shadow: 0 0 0 2px #3b82f6, 0 0 12px rgba(59, 130, 246, 0.4); }
+    50% { box-shadow: 0 0 0 3px #3b82f6, 0 0 20px rgba(59, 130, 246, 0.7); }
 }
 
 @keyframes cell-glow-min {
