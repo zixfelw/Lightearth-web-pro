@@ -683,8 +683,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 initializeBatteryCellsWaiting();
             }
             
-            // Fetch SOC timeline from proxy
-            fetchSOCFromProxy(deviceId, date, realtimeData.data?.batterySoc || 0);
+            // Fetch SOC timeline from soc.applike098.workers.dev API (auto-reload every 8 minutes)
+            fetchSOCData(deviceId, date, { realtimeData });
             
             // Fetch temperature min/max for the day
             fetchTemperatureMinMax(deviceId, date);
@@ -950,7 +950,14 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
     
-    // Fetch SOC timeline data - tries API first, then uses current SOC from main response
+    // SOC API URL - Cloudflare Workers API (soc.applike098.workers.dev)
+    const SOC_API_BASE = 'https://soc.applike098.workers.dev/data';
+    
+    // SOC auto-reload interval (8 minutes = 480000ms)
+    let socAutoReloadInterval = null;
+    const SOC_AUTO_RELOAD_TIME = 8 * 60 * 1000; // 8 minutes
+    
+    // Fetch SOC timeline data from soc.applike098.workers.dev
     function fetchSOCData(deviceId, date, mainData) {
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
         
@@ -960,29 +967,135 @@ document.addEventListener('DOMContentLoaded', function () {
             initializeSOCWithCurrentValue(currentSoc);
         }
         
-        // Try to fetch historical SOC data from API
-        fetch(`/device/${deviceId}/soc?date=${queryDate}`)
+        // Use soc.applike098.workers.dev API
+        const socApiUrl = `${SOC_API_BASE}/${queryDate}`;
+        console.log(`📡 Fetching SOC data from: ${socApiUrl}`);
+        
+        fetch(socApiUrl)
             .then(response => {
                 if (!response.ok) throw new Error(`SOC API error: ${response.status}`);
                 return response.json();
             })
             .then(data => {
-                console.log("SOC timeline data received:", data);
+                console.log("✅ SOC timeline data received:", data);
                 
                 // Get timeline array from response
                 const timeline = data?.timeline;
                 if (timeline && Array.isArray(timeline) && timeline.length > 0) {
                     // Load all SOC data points from timeline
                     loadSOCTimeline(timeline);
-                    console.log(`Loaded ${timeline.length} SOC data points from Lumentree API`);
+                    console.log(`✅ Loaded ${timeline.length} SOC data points from soc.applike098.workers.dev`);
+                    
+                    // Update last fetch time display
+                    updateSOCLastFetchTime();
                 } else {
-                    console.warn("No SOC timeline data from API, using realtime data only");
+                    console.warn("⚠️ No SOC timeline data from API, trying fallback...");
+                    // Try fallback to local API
+                    fetchSOCDataFallback(deviceId, queryDate);
                 }
             })
             .catch(error => {
-                console.warn("SOC API unavailable, using realtime data:", error.message);
-                // SOC chart will be updated by SignalR realtime data
+                console.warn("❌ SOC API unavailable:", error.message);
+                // Try fallback to local API
+                fetchSOCDataFallback(deviceId, queryDate);
             });
+        
+        // Start auto-reload every 8 minutes
+        startSOCAutoReload(deviceId, queryDate);
+    }
+    
+    // Fallback to local API if Cloudflare Workers API fails
+    function fetchSOCDataFallback(deviceId, queryDate) {
+        console.log(`📡 Trying fallback SOC API: /device/${deviceId}/soc`);
+        
+        fetch(`/device/${deviceId}/soc?date=${queryDate}`)
+            .then(response => {
+                if (!response.ok) throw new Error(`Fallback SOC API error: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                const timeline = data?.timeline;
+                if (timeline && Array.isArray(timeline) && timeline.length > 0) {
+                    loadSOCTimeline(timeline);
+                    console.log(`✅ Loaded ${timeline.length} SOC data points from fallback API`);
+                    updateSOCLastFetchTime();
+                }
+            })
+            .catch(error => {
+                console.warn("❌ Fallback SOC API also unavailable:", error.message);
+            });
+    }
+    
+    // Start auto-reload SOC data every 8 minutes
+    function startSOCAutoReload(deviceId, date) {
+        // Clear existing interval
+        if (socAutoReloadInterval) {
+            clearInterval(socAutoReloadInterval);
+        }
+        
+        console.log(`🔄 SOC auto-reload started - every 8 minutes`);
+        
+        socAutoReloadInterval = setInterval(() => {
+            const currentDate = document.getElementById('dateInput')?.value || date;
+            console.log(`🔄 Auto-reloading SOC data...`);
+            
+            // Use the same API
+            const socApiUrl = `${SOC_API_BASE}/${currentDate}`;
+            
+            fetch(socApiUrl)
+                .then(response => {
+                    if (!response.ok) throw new Error(`SOC API error: ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    const timeline = data?.timeline;
+                    if (timeline && Array.isArray(timeline) && timeline.length > 0) {
+                        loadSOCTimeline(timeline);
+                        console.log(`✅ Auto-reload: Loaded ${timeline.length} SOC data points`);
+                        updateSOCLastFetchTime();
+                    }
+                })
+                .catch(error => {
+                    console.warn("❌ SOC auto-reload failed:", error.message);
+                });
+        }, SOC_AUTO_RELOAD_TIME);
+    }
+    
+    // Stop SOC auto-reload
+    function stopSOCAutoReload() {
+        if (socAutoReloadInterval) {
+            clearInterval(socAutoReloadInterval);
+            socAutoReloadInterval = null;
+            console.log("🛑 SOC auto-reload stopped");
+        }
+    }
+    
+    // Update last fetch time display
+    function updateSOCLastFetchTime() {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        
+        // Create or update the last fetch time element
+        let lastFetchEl = document.getElementById('soc-last-fetch');
+        if (!lastFetchEl) {
+            const socSection = document.getElementById('soc-section');
+            if (socSection) {
+                const headerDiv = socSection.querySelector('.flex.items-center.justify-between');
+                if (headerDiv) {
+                    const rightDiv = headerDiv.querySelector('.flex.items-center.gap-2');
+                    if (rightDiv) {
+                        lastFetchEl = document.createElement('span');
+                        lastFetchEl.id = 'soc-last-fetch';
+                        lastFetchEl.className = 'text-[9px] text-slate-400 dark:text-slate-500 ml-2';
+                        rightDiv.appendChild(lastFetchEl);
+                    }
+                }
+            }
+        }
+        if (lastFetchEl) {
+            lastFetchEl.textContent = `Cập nhật: ${timeStr}`;
+            lastFetchEl.title = `Tự động reload sau 8 phút`;
+        }
     }
     
     // Initialize SOC chart with current value when no historical data available
@@ -1006,16 +1119,23 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // Load SOC timeline data into chart
+    // API format: { t: "00:00", soc: 3, status: "Discharging", batteryPower: 430, pvPower: 0, loadPower: 1953, gridPower: 1629, temp: 37.4 }
     function loadSOCTimeline(timeline) {
         // Clear existing data
         socHistory = [];
         
-        // Add all data points from timeline
+        // Add all data points from timeline with full details
         timeline.forEach(item => {
             if (item.soc !== undefined && item.soc !== null && item.t) {
                 socHistory.push({
                     time: item.t,
                     soc: item.soc,
+                    status: item.status || 'Unknown',
+                    batteryPower: item.batteryPower || 0,
+                    pvPower: item.pvPower || 0,
+                    loadPower: item.loadPower || 0,
+                    gridPower: item.gridPower || 0,
+                    temp: item.temp || 0,
                     timestamp: Date.now()
                 });
             }
@@ -1024,7 +1144,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (socHistory.length > 0) {
             socDataReceived = true;
             updateSOCChartRealTime();
-            console.log(`SOC chart updated with ${socHistory.length} points`);
+            console.log(`✅ SOC chart updated with ${socHistory.length} points`);
         }
     }
 
@@ -1678,7 +1798,23 @@ document.addEventListener('DOMContentLoaded', function () {
                                     return '⏰ ' + context[0].label;
                                 },
                                 label: function(context) {
-                                    return '🔋 SOC: ' + context.parsed.y + '%';
+                                    const idx = context.dataIndex;
+                                    const item = socHistory[idx];
+                                    if (item && item.status) {
+                                        const lines = [
+                                            `🔋 SOC: ${context.parsed.y}%`,
+                                            `📊 ${item.status}`,
+                                            `⚡ Pin: ${item.batteryPower}W`,
+                                            `☀️ PV: ${item.pvPower}W`,
+                                            `🏠 Tải: ${item.loadPower}W`,
+                                            `🔌 Lưới: ${item.gridPower}W`
+                                        ];
+                                        if (item.temp > 0) {
+                                            lines.push(`🌡️ ${item.temp}°C`);
+                                        }
+                                        return lines;
+                                    }
+                                    return `🔋 SOC: ${context.parsed.y}%`;
                                 }
                             }
                         }
