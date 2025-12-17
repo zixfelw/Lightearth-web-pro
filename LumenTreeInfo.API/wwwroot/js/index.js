@@ -1,17 +1,15 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 12112 - SOC Chart: Initialize with current SOC, update via SignalR realtime
+ * Version: 12200 - SOC Chart V5 Clean
  * 
  * Features:
  * - Real-time data via SignalR
  * - Battery Cell monitoring (16 cells) with Day Max voltage
- * - SOC (State of Charge) Chart - DATA FROM lumentree.net/api/soc (timeline with 5-min intervals)
- * - Energy flow visualization with blink effect on value change
+ * - SOC Chart V5 - DATA FROM https://soc.applike098.workers.dev/data/today
+ * - External HTML Tooltip (zoom-proof)
+ * - Energy flow visualization
  * - Chart.js visualizations
  * - Mobile optimized interface
- * - Grouped summary cards (PV+Load, Pin Lưu Trữ, Grid+Điện Dự Phòng)
- * - Auto-hide hero section after data load
- * - Calculate savings button after edit button
  */
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -51,16 +49,11 @@ document.addEventListener('DOMContentLoaded', function () {
     configureChartDefaults();
 
     // Chart objects
-    let combinedEnergyChart, socChart;
+    let combinedEnergyChart;
 
     // SignalR connection
     let connection;
     let currentDeviceId = '';
-    
-    // SOC History for real-time chart - REAL DATA ONLY (no mock)
-    let socHistory = [];
-    const MAX_SOC_HISTORY = 1440; // 24 hours * 60 (1-min intervals)
-    let socDataReceived = false; // Track if we received real SOC data
     
     // Animation mode: true = reduced (1 particle only - default), false = normal (multiple particles)
     // Load saved preference from localStorage, default to true (reduced) if not set
@@ -312,11 +305,7 @@ document.addEventListener('DOMContentLoaded', function () {
             updateBatteryCellDisplay(data);
         });
 
-        // Handle SOC data
-        connection.on("ReceiveSOCData", function (data) {
-            console.log("Received SOC data:", data);
-            updateSOCChart(data);
-        });
+        // SOC data is now handled by fetchSOCData() - no SignalR needed
 
         connection.on("SubscriptionConfirmed", function (deviceId) {
             console.log(`Subscribed to device: ${deviceId}`);
@@ -489,13 +478,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 }
                 
-                // Update SOC
-                if (data.data.batterySoc !== undefined) {
-                    updateSOCFromRealtime(data.data.batterySoc);
-                }
-                
-                // NOTE: Chart data is loaded only once in fetchData()
-                // Do NOT call fetchDayDataInBackground here to avoid continuous chart reloading
+                // NOTE: SOC data is handled by fetchSOCData() from API
+                // Chart data is loaded only once in fetchData()
             }
             
             updateConnectionStatus('connected');
@@ -504,27 +488,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     
-    function updateSOCFromRealtime(soc) {
-        const now = new Date();
-        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        
-        if (socChart && socChart.data) {
-            const labels = socChart.data.labels;
-            if (labels.length === 0 || labels[labels.length - 1] !== timeStr) {
-                socChart.data.labels.push(timeStr);
-                socChart.data.datasets[0].data.push(soc);
-                
-                if (socChart.data.labels.length > 288) {
-                    socChart.data.labels.shift();
-                    socChart.data.datasets[0].data.shift();
-                }
-                
-                socChart.update('none');
-                console.log(`SOC updated: ${soc}% at ${timeStr} (${socChart.data.labels.length} points)`);
-            }
-        }
-    }
-
     connection.onclose(async () => {
         console.log("SignalR connection closed");
         updateConnectionStatus('disconnected');
@@ -588,7 +551,6 @@ document.addEventListener('DOMContentLoaded', function () {
             showElement('chart-section');
             showElement('realTimeFlow');
             showElement('batteryCellSection');
-            showElement('socChartSection');
             
             updateDeviceInfo({
                 deviceId: deviceId,
@@ -683,8 +645,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 initializeBatteryCellsWaiting();
             }
             
-            // Fetch SOC timeline from soc.applike098.workers.dev API (auto-reload every 8 minutes)
-            fetchSOCData(deviceId, date, { realtimeData });
+            // Fetch SOC data from soc.applike098.workers.dev API (auto-reload every 5 minutes)
+            fetchSOCData();
             
             // Fetch temperature min/max for the day
             fetchTemperatureMinMax(deviceId, date);
@@ -696,58 +658,6 @@ document.addEventListener('DOMContentLoaded', function () {
             console.error("Fast load failed:", error);
             showLoading(false);
             showError('Không thể tải dữ liệu. Vui lòng kiểm tra Device ID và thử lại.');
-        }
-    }
-    
-    // Fetch SOC timeline - Use local backend proxy to lumentree.net (most accurate data)
-    async function fetchSOCFromProxy(deviceId, date, currentSoc) {
-        const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
-        
-        // Use local backend proxy to fetch directly from lumentree.net (bypass CORS)
-        const localProxyUrl = `/api/proxy/soc/${deviceId}/${queryDate}`;
-        
-        try {
-            console.log("🎯 Fetching SOC from lumentree.net via local proxy:", localProxyUrl);
-            const response = await fetch(localProxyUrl);
-            
-            if (response.ok) {
-                const data = await response.json();
-                console.log("✅ SOC data from lumentree.net (via proxy):", data);
-                
-                if (data?.timeline && Array.isArray(data.timeline) && data.timeline.length > 0) {
-                    loadSOCTimeline(data.timeline);
-                    return; // Success
-                }
-            } else {
-                console.warn("Local proxy SOC API error:", response.status);
-            }
-        } catch (error) {
-            console.warn("⚠️ Local proxy SOC failed:", error.message);
-        }
-        
-        // Fallback to Cloudflare Workers proxy (may have different data)
-        try {
-            const fallbackUrl = `https://solar-proxy.applike098.workers.dev/api/soc/${deviceId}/${queryDate}`;
-            console.log("📡 Fallback: Fetching SOC from Cloudflare Workers:", fallbackUrl);
-            const response = await fetch(fallbackUrl);
-            
-            if (!response.ok) {
-                console.warn("Cloudflare SOC proxy API error:", response.status);
-                if (currentSoc > 0) initializeSOCWithCurrentValue(currentSoc);
-                return;
-            }
-            
-            const data = await response.json();
-            console.log("SOC data from Cloudflare Workers:", data);
-            
-            if (data?.timeline && Array.isArray(data.timeline) && data.timeline.length > 0) {
-                loadSOCTimeline(data.timeline);
-            } else if (currentSoc > 0) {
-                initializeSOCWithCurrentValue(currentSoc);
-            }
-        } catch (error) {
-            console.warn("Cloudflare SOC proxy fetch error:", error);
-            if (currentSoc > 0) initializeSOCWithCurrentValue(currentSoc);
         }
     }
     
@@ -950,202 +860,239 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
     
-    // SOC API URL - Cloudflare Workers API (soc.applike098.workers.dev)
-    const SOC_API_BASE = 'https://soc.applike098.workers.dev/data';
+    // ========================================
+    // SOC CHART V5 - Clean Implementation
+    // API: https://soc.applike098.workers.dev/data/today
+    // ========================================
     
-    // SOC auto-reload interval (8 minutes = 480000ms)
+    const SOC_API_URL = 'https://soc.applike098.workers.dev/data';
+    let socChartInstance = null;
+    let socData = [];
     let socAutoReloadInterval = null;
-    const SOC_AUTO_RELOAD_TIME = 8 * 60 * 1000; // 8 minutes
     
-    // Fetch SOC timeline data from soc.applike098.workers.dev
-    function fetchSOCData(deviceId, date, mainData) {
-        const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
+    // Fetch SOC data from API
+    async function fetchSOCData() {
+        const url = `${SOC_API_URL}/today`;
         
-        // First, initialize SOC chart with current value from main response
-        const currentSoc = mainData?.realtimeData?.data?.batterySoc || mainData?.batSoc?.tableValue || 0;
-        if (currentSoc > 0) {
-            initializeSOCWithCurrentValue(currentSoc);
-        }
-        
-        // Use soc.applike098.workers.dev API
-        const socApiUrl = `${SOC_API_BASE}/${queryDate}`;
-        console.log(`📡 Fetching SOC data from: ${socApiUrl}`);
-        
-        fetch(socApiUrl)
-            .then(response => {
-                if (!response.ok) throw new Error(`SOC API error: ${response.status}`);
-                return response.json();
-            })
-            .then(data => {
-                console.log("✅ SOC timeline data received:", data);
-                
-                // Get timeline array from response
-                const timeline = data?.timeline;
-                if (timeline && Array.isArray(timeline) && timeline.length > 0) {
-                    // Load all SOC data points from timeline
-                    loadSOCTimeline(timeline);
-                    console.log(`✅ Loaded ${timeline.length} SOC data points from soc.applike098.workers.dev`);
-                    
-                    // Update last fetch time display
-                    updateSOCLastFetchTime();
-                } else {
-                    console.warn("⚠️ No SOC timeline data from API, trying fallback...");
-                    // Try fallback to local API
-                    fetchSOCDataFallback(deviceId, queryDate);
-                }
-            })
-            .catch(error => {
-                console.warn("❌ SOC API unavailable:", error.message);
-                // Try fallback to local API
-                fetchSOCDataFallback(deviceId, queryDate);
-            });
-        
-        // Start auto-reload every 8 minutes
-        startSOCAutoReload(deviceId, queryDate);
-    }
-    
-    // Fallback to local API if Cloudflare Workers API fails
-    function fetchSOCDataFallback(deviceId, queryDate) {
-        console.log(`📡 Trying fallback SOC API: /device/${deviceId}/soc`);
-        
-        fetch(`/device/${deviceId}/soc?date=${queryDate}`)
-            .then(response => {
-                if (!response.ok) throw new Error(`Fallback SOC API error: ${response.status}`);
-                return response.json();
-            })
-            .then(data => {
-                const timeline = data?.timeline;
-                if (timeline && Array.isArray(timeline) && timeline.length > 0) {
-                    loadSOCTimeline(timeline);
-                    console.log(`✅ Loaded ${timeline.length} SOC data points from fallback API`);
-                    updateSOCLastFetchTime();
-                }
-            })
-            .catch(error => {
-                console.warn("❌ Fallback SOC API also unavailable:", error.message);
-            });
-    }
-    
-    // Start auto-reload SOC data every 8 minutes
-    function startSOCAutoReload(deviceId, date) {
-        // Clear existing interval
-        if (socAutoReloadInterval) {
-            clearInterval(socAutoReloadInterval);
-        }
-        
-        console.log(`🔄 SOC auto-reload started - every 8 minutes`);
-        
-        socAutoReloadInterval = setInterval(() => {
-            const currentDate = document.getElementById('dateInput')?.value || date;
-            console.log(`🔄 Auto-reloading SOC data...`);
+        try {
+            console.log(`📡 Fetching SOC data from: ${url}`);
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`SOC API error: ${response.status}`);
             
-            // Use the same API
-            const socApiUrl = `${SOC_API_BASE}/${currentDate}`;
+            const data = await response.json();
+            console.log(`✅ SOC data received: ${data.timeline?.length || 0} points`);
             
-            fetch(socApiUrl)
-                .then(response => {
-                    if (!response.ok) throw new Error(`SOC API error: ${response.status}`);
-                    return response.json();
-                })
-                .then(data => {
-                    const timeline = data?.timeline;
-                    if (timeline && Array.isArray(timeline) && timeline.length > 0) {
-                        loadSOCTimeline(timeline);
-                        console.log(`✅ Auto-reload: Loaded ${timeline.length} SOC data points`);
-                        updateSOCLastFetchTime();
-                    }
-                })
-                .catch(error => {
-                    console.warn("❌ SOC auto-reload failed:", error.message);
-                });
-        }, SOC_AUTO_RELOAD_TIME);
-    }
-    
-    // Stop SOC auto-reload
-    function stopSOCAutoReload() {
-        if (socAutoReloadInterval) {
-            clearInterval(socAutoReloadInterval);
-            socAutoReloadInterval = null;
-            console.log("🛑 SOC auto-reload stopped");
-        }
-    }
-    
-    // Update last fetch time display
-    function updateSOCLastFetchTime() {
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        
-        // Create or update the last fetch time element
-        let lastFetchEl = document.getElementById('soc-last-fetch');
-        if (!lastFetchEl) {
-            const socSection = document.getElementById('soc-section');
-            if (socSection) {
-                const headerDiv = socSection.querySelector('.flex.items-center.justify-between');
-                if (headerDiv) {
-                    const rightDiv = headerDiv.querySelector('.flex.items-center.gap-2');
-                    if (rightDiv) {
-                        lastFetchEl = document.createElement('span');
-                        lastFetchEl.id = 'soc-last-fetch';
-                        lastFetchEl.className = 'text-[9px] text-slate-400 dark:text-slate-500 ml-2';
-                        rightDiv.appendChild(lastFetchEl);
-                    }
-                }
+            if (data.timeline && Array.isArray(data.timeline) && data.timeline.length > 0) {
+                socData = data.timeline;
+                renderSOCChart();
+                updateSOCLastTime();
+                startSOCAutoReload();
             }
-        }
-        if (lastFetchEl) {
-            lastFetchEl.textContent = `Cập nhật: ${timeStr}`;
-            lastFetchEl.title = `Tự động reload sau 8 phút`;
+        } catch (error) {
+            console.warn('❌ SOC fetch error:', error.message);
         }
     }
     
-    // Initialize SOC chart with current value when no historical data available
-    function initializeSOCWithCurrentValue(currentSoc) {
-        if (currentSoc <= 0) return;
+    // Render SOC Chart with Chart.js and external tooltip
+    function renderSOCChart() {
+        const canvas = document.getElementById('socChart');
+        if (!canvas || socData.length === 0) return;
         
-        const now = new Date();
-        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        
-        // Only initialize if we don't have data yet
-        if (socHistory.length === 0) {
-            socHistory.push({
-                time: timeStr,
-                soc: currentSoc,
-                timestamp: now.getTime()
-            });
-            socDataReceived = true;
-            updateSOCChartRealTime();
-            console.log(`SOC chart initialized with current value: ${currentSoc}% at ${timeStr}`);
+        // Destroy existing chart
+        if (socChartInstance) {
+            socChartInstance.destroy();
+            socChartInstance = null;
         }
-    }
-    
-    // Load SOC timeline data into chart
-    // API format: { t: "00:00", soc: 3, status: "Discharging", batteryPower: 430, pvPower: 0, loadPower: 1953, gridPower: 1629, temp: 37.4 }
-    function loadSOCTimeline(timeline) {
-        // Clear existing data
-        socHistory = [];
         
-        // Add all data points from timeline with full details
-        timeline.forEach(item => {
-            if (item.soc !== undefined && item.soc !== null && item.t) {
-                socHistory.push({
-                    time: item.t,
-                    soc: item.soc,
-                    status: item.status || 'Unknown',
-                    batteryPower: item.batteryPower || 0,
-                    pvPower: item.pvPower || 0,
-                    loadPower: item.loadPower || 0,
-                    gridPower: item.gridPower || 0,
-                    temp: item.temp || 0,
-                    timestamp: Date.now()
-                });
+        // Prepare data
+        const labels = socData.map(d => d.t);
+        const values = socData.map(d => d.soc);
+        
+        // Calculate stats
+        const maxSOC = Math.max(...values);
+        const minSOC = Math.min(...values);
+        const currentSOC = values[values.length - 1];
+        const currentData = socData[socData.length - 1];
+        
+        // Update displays
+        const bigValue = document.getElementById('soc-big-value');
+        const maxEl = document.getElementById('soc-max');
+        const minEl = document.getElementById('soc-min');
+        
+        if (bigValue) bigValue.textContent = `${currentSOC}%`;
+        if (maxEl) maxEl.textContent = `${maxSOC}%`;
+        if (minEl) minEl.textContent = `${minSOC}%`;
+        updateSOCPowerCards(currentData);
+        
+        // Create gradient
+        const ctx = canvas.getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+        gradient.addColorStop(0, 'rgba(20, 184, 166, 0.4)');
+        gradient.addColorStop(1, 'rgba(20, 184, 166, 0.02)');
+        
+        // External tooltip handler - zoom proof
+        const externalTooltipHandler = (context) => {
+            const { chart, tooltip } = context;
+            const tooltipEl = document.getElementById('soc-tooltip');
+            
+            if (!tooltipEl) return;
+            
+            if (tooltip.opacity === 0) {
+                tooltipEl.classList.add('hidden');
+                updateSOCCurrentValues();
+                return;
+            }
+            
+            if (tooltip.dataPoints && tooltip.dataPoints.length > 0) {
+                const index = tooltip.dataPoints[0].dataIndex;
+                const item = socData[index];
+                
+                if (!item) return;
+                
+                // Update tooltip content
+                document.getElementById('soc-tooltip-time').textContent = `⏰ ${item.t}`;
+                document.getElementById('soc-tooltip-soc').textContent = `🔋 ${item.soc}%`;
+                
+                const statusText = item.status === 'Charging' ? '🔌 Đang sạc' : 
+                                  item.status === 'Discharging' ? '⚡ Đang xả' : '💤 Chờ';
+                const statusColor = item.status === 'Charging' ? 'text-green-400' : 
+                                   item.status === 'Discharging' ? 'text-orange-400' : 'text-slate-400';
+                document.getElementById('soc-tooltip-status').textContent = statusText;
+                document.getElementById('soc-tooltip-status').className = `text-xs mb-1 font-semibold ${statusColor}`;
+                
+                document.getElementById('soc-tooltip-battery').textContent = `⚡ ${item.batteryPower || 0}W`;
+                document.getElementById('soc-tooltip-pv').textContent = `☀️ ${item.pvPower || 0}W`;
+                document.getElementById('soc-tooltip-load').textContent = `🏠 ${item.loadPower || 0}W`;
+                document.getElementById('soc-tooltip-grid').textContent = `🔌 ${item.gridPower || 0}W`;
+                document.getElementById('soc-tooltip-temp').textContent = item.temp > 0 ? `🌡️ ${item.temp}°C` : '';
+                
+                updateSOCPowerCards(item);
+                
+                // Position using caretX/caretY (zoom-proof)
+                const chartArea = chart.chartArea;
+                let left = tooltip.caretX;
+                let top = tooltip.caretY - 10;
+                
+                // Adjust boundaries
+                if (left + 180 > chartArea.right) {
+                    left = left - 190;
+                } else {
+                    left = left + 15;
+                }
+                
+                if (top < chartArea.top) top = chartArea.top + 10;
+                
+                tooltipEl.style.left = `${left}px`;
+                tooltipEl.style.top = `${top}px`;
+                tooltipEl.classList.remove('hidden');
+            }
+        };
+        
+        socChartInstance = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'SOC (%)',
+                    data: values,
+                    borderColor: 'rgb(20, 184, 166)',
+                    backgroundColor: gradient,
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    pointHoverRadius: 8,
+                    pointHoverBackgroundColor: 'rgb(20, 184, 166)',
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        enabled: false,
+                        external: externalTooltipHandler,
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 100,
+                        grid: { color: 'rgba(148, 163, 184, 0.1)', drawBorder: false },
+                        ticks: {
+                            callback: v => `${v}%`,
+                            font: { size: 10 },
+                            color: 'rgba(148, 163, 184, 0.8)',
+                            stepSize: 25
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            font: { size: 9 },
+                            color: 'rgba(148, 163, 184, 0.7)',
+                            maxRotation: 0,
+                            autoSkip: true,
+                            maxTicksLimit: 8
+                        }
+                    }
+                },
+                interaction: { mode: 'index', intersect: false }
             }
         });
         
-        if (socHistory.length > 0) {
-            socDataReceived = true;
-            updateSOCChartRealTime();
-            console.log(`✅ SOC chart updated with ${socHistory.length} points`);
+        // Mouse leave handler
+        canvas.addEventListener('mouseleave', () => {
+            const tooltipEl = document.getElementById('soc-tooltip');
+            if (tooltipEl) tooltipEl.classList.add('hidden');
+            updateSOCCurrentValues();
+        });
+        
+        console.log('✅ SOC Chart rendered successfully');
+    }
+    
+    // Update power summary cards
+    function updateSOCPowerCards(item) {
+        if (!item) return;
+        const bat = document.getElementById('soc-battery-power');
+        const pv = document.getElementById('soc-pv-power');
+        const load = document.getElementById('soc-load-power');
+        const grid = document.getElementById('soc-grid-power');
+        
+        if (bat) bat.textContent = `${item.batteryPower || 0}W`;
+        if (pv) pv.textContent = `${item.pvPower || 0}W`;
+        if (load) load.textContent = `${item.loadPower || 0}W`;
+        if (grid) grid.textContent = `${item.gridPower || 0}W`;
+    }
+    
+    // Update current values (latest data point)
+    function updateSOCCurrentValues() {
+        if (socData.length === 0) return;
+        updateSOCPowerCards(socData[socData.length - 1]);
+    }
+    
+    // Update last fetch time
+    function updateSOCLastTime() {
+        const el = document.getElementById('soc-last-update');
+        if (el) {
+            const now = new Date();
+            el.textContent = `Cập nhật: ${now.toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'})}`;
         }
+    }
+    
+    // Start SOC auto-reload (every 5 minutes)
+    function startSOCAutoReload() {
+        if (socAutoReloadInterval) clearInterval(socAutoReloadInterval);
+        socAutoReloadInterval = setInterval(() => {
+            fetchSOCData();
+        }, 5 * 60 * 1000);
+        console.log('🔄 SOC auto-reload started (every 5 minutes)');
     }
 
     function showCompactSearchBar(deviceId, date) {
@@ -1186,7 +1133,6 @@ document.addEventListener('DOMContentLoaded', function () {
         showElement('chart-section');
         showElement('realTimeFlow');
         showElement('batteryCellSection'); // Always show, will display waiting message
-        showElement('socChartSection');
         
         // Reset cell data state for new device
         hasCellData = false;
@@ -1212,15 +1158,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Initialize battery cells with waiting message (no mock data)
         initializeBatteryCellsWaiting();
         
-        // Initialize SOC chart with waiting message
-        // SOC data will be loaded from fetchSOCData() called after this
-        initializeSOCChartWaiting();
-        
-        // Start SOC polling (every 5 minutes to get new data points)
-        const deviceId = document.getElementById('deviceId')?.value?.trim();
-        if (deviceId) {
-            startSOCPolling(deviceId);
-        }
+        // SOC chart is now handled by fetchSOCData() with auto-reload
     }
 
     function updateDeviceInfo(deviceInfo) {
@@ -1341,43 +1279,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
         updateValue('lastUpdateTime', `Cập nhật: ${timeStr}`);
         
-        // Update SOC history for real-time chart - PER MINUTE UPDATES
-        if (batteryPercent > 0) {
-            const now = new Date();
-            const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-            
-            // Check if we should add this data point (avoid duplicates within same minute)
-            const lastEntry = socHistory.length > 0 ? socHistory[socHistory.length - 1] : null;
-            const shouldAddPoint = !lastEntry || lastEntry.time !== timeStr;
-            
-            if (shouldAddPoint) {
-                // Mark that we received real SOC data
-                socDataReceived = true;
-                
-                // Add new data point
-                socHistory.push({
-                    time: timeStr,
-                    soc: batteryPercent,
-                    timestamp: now.getTime()
-                });
-                
-                // Keep only last MAX_SOC_HISTORY points (24 hours of per-minute data)
-                if (socHistory.length > MAX_SOC_HISTORY) {
-                    socHistory = socHistory.slice(-MAX_SOC_HISTORY);
-                }
-                
-                console.log(`SOC updated: ${batteryPercent}% at ${timeStr} (${socHistory.length} points)`);
-                
-                // Update SOC chart with real-time data
-                updateSOCChartRealTime();
-            } else {
-                // Update the current minute's value if it changed
-                if (lastEntry && lastEntry.soc !== batteryPercent) {
-                    lastEntry.soc = batteryPercent;
-                    updateSOCChartRealTime();
-                }
-            }
-        }
+        // SOC chart is updated from API via fetchSOCData() with auto-reload
     }
 
     // ========================================
@@ -1631,270 +1533,6 @@ document.addEventListener('DOMContentLoaded', function () {
         // Reset stats
         const cellCountBadge = document.getElementById('cellCountBadge');
         if (cellCountBadge) cellCountBadge.textContent = 'N/A';
-    }
-
-    // ========================================
-    // SOC CHART - DATA FROM LUMENTREE API
-    // ========================================
-    
-    // SOC polling interval (poll every 5 minutes to match API data interval)
-    let socPollingInterval = null;
-    
-    // Start polling SOC data every 5 minutes (to get new data points)
-    function startSOCPolling(deviceId) {
-        // Clear any existing interval
-        if (socPollingInterval) {
-            clearInterval(socPollingInterval);
-        }
-        
-        // Poll every 5 minutes (300 seconds) to get new SOC data
-        socPollingInterval = setInterval(() => {
-            const date = document.getElementById('dateInput')?.value;
-            fetchSOCData(deviceId, date);
-        }, 300000); // 5 minutes
-        
-        console.log("SOC polling started - every 5 minutes");
-    }
-    
-    // Stop SOC polling
-    function stopSOCPolling() {
-        if (socPollingInterval) {
-            clearInterval(socPollingInterval);
-            socPollingInterval = null;
-            console.log("SOC polling stopped");
-        }
-    }
-    
-    // Initialize SOC chart with waiting message - NO MOCK DATA
-    function initializeSOCChartWaiting() {
-        const ctx = document.getElementById('socChart');
-        if (!ctx) return;
-        
-        // Reset SOC data for new device
-        socHistory = [];
-        socDataReceived = false;
-        
-        // Stop any existing polling
-        stopSOCPolling();
-        
-        // Destroy existing chart if any
-        if (socChart) {
-            socChart.destroy();
-            socChart = null;
-        }
-        
-        // Show waiting message in chart container
-        const container = ctx.parentElement;
-        if (container) {
-            // Create waiting overlay
-            let waitingDiv = document.getElementById('soc-waiting');
-            if (!waitingDiv) {
-                waitingDiv = document.createElement('div');
-                waitingDiv.id = 'soc-waiting';
-                waitingDiv.className = 'absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-emerald-50/90 to-green-50/90 dark:from-emerald-900/40 dark:to-green-900/40 rounded-lg';
-                waitingDiv.innerHTML = `
-                    <div class="animate-pulse flex items-center gap-2 mb-2">
-                        <svg class="w-5 h-5 text-emerald-500 animate-spin" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <span class="text-emerald-600 dark:text-emerald-400 text-sm font-medium">Đang chờ dữ liệu SOC...</span>
-                    </div>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 text-center">Biểu đồ sẽ hiển thị khi nhận được dữ liệu real-time từ MQTT</p>
-                `;
-                container.style.position = 'relative';
-                container.appendChild(waitingDiv);
-            }
-        }
-        
-        // Reset stats display
-        updateSOCStats(0, 0, 0, 0);
-        
-        console.log("SOC chart initialized - waiting for real MQTT data (no mock data)");
-    }
-    
-    // Hide waiting message and show chart
-    function hideSOCWaitingMessage() {
-        const waitingDiv = document.getElementById('soc-waiting');
-        if (waitingDiv) {
-            waitingDiv.remove();
-        }
-    }
-    
-    // Update SOC chart with real-time data from SignalR - PER MINUTE
-    function updateSOCChartRealTime() {
-        const ctx = document.getElementById('socChart');
-        if (!ctx) return;
-        
-        if (socHistory.length === 0) return;
-        
-        // Hide waiting message when we have data
-        hideSOCWaitingMessage();
-        
-        const labels = socHistory.map(item => item.time);
-        const values = socHistory.map(item => item.soc);
-        
-        // Calculate current SOC stats
-        const currentSOC = values[values.length - 1];
-        const maxSOC = Math.max(...values);
-        const minSOC = Math.min(...values);
-        
-        if (socChart) {
-            // Update existing chart data
-            socChart.data.labels = labels;
-            socChart.data.datasets[0].data = values;
-            socChart.update('none'); // 'none' for no animation on update
-        } else {
-            // Create new chart with real data
-            socChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'SOC (%)',
-                        data: values,
-                        borderColor: 'rgb(34, 197, 94)',
-                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                        fill: true,
-                        tension: 0.3,
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        pointHoverRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    animation: false,
-                    layout: {
-                        padding: {
-                            left: 10,
-                            right: 30,
-                            top: 10,
-                            bottom: 5
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            enabled: true,
-                            mode: 'index',
-                            intersect: false,
-                            position: 'edgeAware',
-                            backgroundColor: 'rgba(30, 30, 30, 0.95)',
-                            titleColor: '#fff',
-                            bodyColor: '#fff',
-                            titleFont: { size: 13, weight: 'bold' },
-                            bodyFont: { size: 14 },
-                            padding: 12,
-                            cornerRadius: 8,
-                            displayColors: false,
-                            caretSize: 8,
-                            caretPadding: 10,
-                            callbacks: {
-                                title: function(context) {
-                                    return '⏰ ' + context[0].label;
-                                },
-                                label: function(context) {
-                                    const idx = context.dataIndex;
-                                    const item = socHistory[idx];
-                                    if (item && item.status) {
-                                        const lines = [
-                                            `🔋 SOC: ${context.parsed.y}%`,
-                                            `📊 ${item.status}`,
-                                            `⚡ Pin: ${item.batteryPower}W`,
-                                            `☀️ PV: ${item.pvPower}W`,
-                                            `🏠 Tải: ${item.loadPower}W`,
-                                            `🔌 Lưới: ${item.gridPower}W`
-                                        ];
-                                        if (item.temp > 0) {
-                                            lines.push(`🌡️ ${item.temp}°C`);
-                                        }
-                                        return lines;
-                                    }
-                                    return `🔋 SOC: ${context.parsed.y}%`;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            min: 0,
-                            max: 100,
-                            ticks: {
-                                callback: value => value + '%',
-                                stepSize: 20,
-                                font: { size: 10 }
-                            },
-                            grid: {
-                                color: 'rgba(200, 200, 200, 0.1)'
-                            },
-                            title: {
-                                display: true,
-                                text: 'Phần trăm (%)',
-                                font: { size: 11 }
-                            }
-                        },
-                        x: {
-                            ticks: {
-                                maxRotation: 0,
-                                autoSkip: true,
-                                autoSkipPadding: 30,
-                                font: { size: 10 }
-                            },
-                            grid: {
-                                display: false
-                            }
-                        }
-                    },
-                    interaction: {
-                        mode: 'index',
-                        axis: 'x',
-                        intersect: false
-                    },
-                    hover: {
-                        mode: 'index',
-                        intersect: false
-                    }
-                }
-            });
-        }
-        
-        // Update SOC stats display
-        updateSOCStats(currentSOC, maxSOC, minSOC, socHistory.length);
-    }
-    
-    // Update SOC statistics display
-    function updateSOCStats(current, max, min, dataPoints) {
-        const currentEl = document.getElementById('soc-current');
-        const maxEl = document.getElementById('soc-max');
-        const minEl = document.getElementById('soc-min');
-        const pointsEl = document.getElementById('soc-points');
-        
-        if (currentEl) currentEl.textContent = dataPoints > 0 ? `${current}%` : '--%';
-        if (maxEl) maxEl.textContent = dataPoints > 0 ? `${max}%` : '--%';
-        if (minEl) minEl.textContent = dataPoints > 0 ? `${min}%` : '--%';
-        if (pointsEl) pointsEl.textContent = dataPoints > 0 ? `${dataPoints}` : '0';
-    }
-    
-    // Legacy function for SignalR SOC data (if API sends history)
-    function updateSOCChart(data) {
-        if (!data || !data.history) return;
-
-        const ctx = document.getElementById('socChart');
-        if (!ctx) return;
-
-        // Convert API data to socHistory format
-        socHistory = data.history.map(item => ({
-            time: item.time,
-            soc: item.soc,
-            timestamp: Date.now()
-        }));
-        
-        socDataReceived = true;
-        updateSOCChartRealTime();
     }
 
     // ========================================
