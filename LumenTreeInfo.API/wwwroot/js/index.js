@@ -1557,7 +1557,7 @@ document.addEventListener('DOMContentLoaded', function () {
         updateCombinedEnergyChart(timeLabels, processedData, commonOptions);
     }
 
-    // Combined Energy Chart - All 6 datasets in one chart
+    // Combined Energy Chart - All 6 datasets in one chart - ENHANCED V2.0
     function updateCombinedEnergyChart(labels, processedData, options) {
         const ctx = document.getElementById('combinedEnergyChart');
         if (!ctx) {
@@ -1568,7 +1568,83 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log("📈 Creating combined chart with", labels.length, "labels");
         console.log("📈 PV data points:", processedData.pv?.length || 0);
 
+        // Calculate and update peak stats
+        updateEnergyChartPeakStats(labels, processedData);
+        
+        // Update date display
+        const dateEl = document.getElementById('energy-chart-date');
+        const dateInput = document.getElementById('dateInput');
+        if (dateEl && dateInput) {
+            dateEl.textContent = dateInput.value;
+        }
+
         if (combinedEnergyChart) combinedEnergyChart.destroy();
+
+        // Create gradients for each dataset
+        const context = ctx.getContext('2d');
+        const chartHeight = ctx.parentElement?.clientHeight || 300;
+        
+        const createGradient = (colorStart, colorEnd) => {
+            const gradient = context.createLinearGradient(0, 0, 0, chartHeight);
+            gradient.addColorStop(0, colorStart);
+            gradient.addColorStop(1, colorEnd);
+            return gradient;
+        };
+
+        // External tooltip handler
+        const externalTooltipHandler = (context) => {
+            const { chart, tooltip } = context;
+            const tooltipEl = document.getElementById('energy-tooltip');
+            
+            if (!tooltipEl) return;
+            
+            if (tooltip.opacity === 0) {
+                tooltipEl.classList.add('hidden');
+                return;
+            }
+            
+            if (tooltip.dataPoints && tooltip.dataPoints.length > 0) {
+                const time = tooltip.dataPoints[0].label;
+                document.getElementById('energy-tooltip-time').innerHTML = `<span class="text-white font-bold">⏰ ${time}</span>`;
+                
+                const contentEl = document.getElementById('energy-tooltip-content');
+                const colors = ['#f59e0b', '#22c55e', '#ef4444', '#3b82f6', '#a855f7', '#06b6d4'];
+                const icons = ['☀️', '🔋', '⚡', '🏠', '🔌', '🛡️'];
+                const labelNames = ['PV', 'Sạc', 'Xả', 'Tải', 'EVN', 'Dự phòng'];
+                
+                let html = '';
+                tooltip.dataPoints.forEach((point, idx) => {
+                    const value = point.parsed.y;
+                    const displayValue = value >= 1000 ? `${(value / 1000).toFixed(2)} kW` : `${value.toFixed(0)} W`;
+                    html += `<div class="flex items-center justify-between gap-3">
+                        <span class="flex items-center gap-1.5">
+                            <span class="w-2 h-2 rounded-full" style="background-color: ${colors[idx]}"></span>
+                            <span>${icons[idx]} ${labelNames[idx]}</span>
+                        </span>
+                        <span class="font-bold" style="color: ${colors[idx]}">${displayValue}</span>
+                    </div>`;
+                });
+                contentEl.innerHTML = html;
+                
+                // Position tooltip
+                const chartArea = chart.chartArea;
+                let left = tooltip.caretX;
+                let top = tooltip.caretY;
+                
+                if (left + 200 > chartArea.right) {
+                    left = left - 210;
+                } else {
+                    left = left + 15;
+                }
+                
+                if (top < chartArea.top + 50) top = chartArea.top + 50;
+                if (top + 200 > chartArea.bottom) top = chartArea.bottom - 200;
+                
+                tooltipEl.style.left = `${left}px`;
+                tooltipEl.style.top = `${top}px`;
+                tooltipEl.classList.remove('hidden');
+            }
+        };
 
         combinedEnergyChart = new Chart(ctx, {
             type: 'line',
@@ -1579,89 +1655,210 @@ document.addEventListener('DOMContentLoaded', function () {
                         label: 'Sản Lượng PV (W)',
                         data: processedData.pv,
                         borderColor: 'rgb(245, 158, 11)',
-                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.3
+                        backgroundColor: createGradient('rgba(245, 158, 11, 0.3)', 'rgba(245, 158, 11, 0.02)'),
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: 'rgb(245, 158, 11)',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2
                     },
                     {
                         label: 'Sạc Pin (W)',
                         data: processedData.batCharge,
                         borderColor: 'rgb(34, 197, 94)',
-                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.3
+                        backgroundColor: createGradient('rgba(34, 197, 94, 0.3)', 'rgba(34, 197, 94, 0.02)'),
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: 'rgb(34, 197, 94)',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2
                     },
                     {
                         label: 'Xả Pin (W)',
                         data: processedData.batDischarge,
                         borderColor: 'rgb(239, 68, 68)',
-                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.3
+                        backgroundColor: createGradient('rgba(239, 68, 68, 0.3)', 'rgba(239, 68, 68, 0.02)'),
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: 'rgb(239, 68, 68)',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2
                     },
                     {
                         label: 'Điện Tiêu Thụ (W)',
                         data: processedData.load,
                         borderColor: 'rgb(59, 130, 246)',
-                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.3
+                        backgroundColor: createGradient('rgba(59, 130, 246, 0.3)', 'rgba(59, 130, 246, 0.02)'),
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: 'rgb(59, 130, 246)',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2
                     },
                     {
                         label: 'Điện Lưới EVN (W)',
                         data: processedData.grid,
                         borderColor: 'rgb(168, 85, 247)',
-                        backgroundColor: 'rgba(168, 85, 247, 0.1)',
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.3
+                        backgroundColor: createGradient('rgba(168, 85, 247, 0.3)', 'rgba(168, 85, 247, 0.02)'),
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: 'rgb(168, 85, 247)',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2
                     },
                     {
                         label: 'Điện Dự Phòng (W)',
                         data: processedData.essentialLoad,
                         borderColor: 'rgb(6, 182, 212)',
-                        backgroundColor: 'rgba(6, 182, 212, 0.1)',
-                        borderWidth: 2,
-                        fill: false,
-                        tension: 0.3
+                        backgroundColor: createGradient('rgba(6, 182, 212, 0.3)', 'rgba(6, 182, 212, 0.02)'),
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: 'rgb(6, 182, 212)',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2
                     }
                 ]
             },
             options: {
-                ...options,
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 500 },
                 plugins: {
-                    ...options.plugins,
-                    legend: {
-                        display: false // We use custom legend buttons
-                    },
+                    legend: { display: false },
                     tooltip: {
+                        enabled: false,
+                        external: externalTooltipHandler,
                         mode: 'index',
-                        intersect: false,
-                        backgroundColor: 'rgba(30, 30, 30, 0.95)',
-                        titleFont: { size: 12, weight: 'bold' },
-                        bodyFont: { size: 11 },
-                        padding: 10,
-                        callbacks: {
-                            label: function(context) {
-                                let value = context.parsed.y;
-                                if (value >= 1000) {
-                                    return context.dataset.label + ': ' + (value / 1000).toFixed(2) + ' kW';
-                                }
-                                return context.dataset.label + ': ' + value.toFixed(0) + ' W';
-                            }
+                        intersect: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { 
+                            color: 'rgba(148, 163, 184, 0.1)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                if (value >= 1000) return (value / 1000).toFixed(1) + ' kW';
+                                return value + ' W';
+                            },
+                            font: { size: 10 },
+                            color: 'rgba(148, 163, 184, 0.8)',
+                            maxTicksLimit: 6
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            font: { size: 9 },
+                            color: 'rgba(148, 163, 184, 0.7)',
+                            maxRotation: 0,
+                            autoSkip: true,
+                            maxTicksLimit: 12
                         }
                     }
                 },
-                interaction: {
-                    mode: 'nearest',
-                    axis: 'x',
-                    intersect: false
+                interaction: { mode: 'index', intersect: false },
+                hover: { mode: 'index', intersect: false }
+            }
+        });
+        
+        // Mouse leave handler for tooltip
+        ctx.addEventListener('mouseleave', () => {
+            const tooltipEl = document.getElementById('energy-tooltip');
+            if (tooltipEl) tooltipEl.classList.add('hidden');
+        });
+    }
+    
+    // Update energy chart peak stats - Show max power + time
+    function updateEnergyChartPeakStats(labels, processedData) {
+        // Helper function to find peak value and its time
+        const findPeak = (data) => {
+            if (!data || data.length === 0) return { peak: 0, index: -1 };
+            let peak = 0;
+            let peakIndex = -1;
+            for (let i = 0; i < data.length; i++) {
+                const val = data[i];
+                if (val !== null && val !== undefined && val > peak) {
+                    peak = val;
+                    peakIndex = i;
                 }
             }
+            return { peak, index: peakIndex };
+        };
+        
+        // Get time from labels array
+        const getTimeFromIndex = (index) => {
+            if (index < 0 || !labels || index >= labels.length) return '--:--';
+            return labels[index] || '--:--';
+        };
+        
+        const formatPeak = (val) => {
+            if (val === 0) return '0 W';
+            if (val >= 1000) return `${(val / 1000).toFixed(1)} kW`;
+            return `${val.toFixed(0)} W`;
+        };
+        
+        // Find peak for each dataset
+        const pvPeak = findPeak(processedData.pv);
+        const chargePeak = findPeak(processedData.batCharge);
+        const dischargePeak = findPeak(processedData.batDischarge);
+        const loadPeak = findPeak(processedData.load);
+        const gridPeak = findPeak(processedData.grid);
+        const essentialPeak = findPeak(processedData.essentialLoad);
+        
+        // Update UI elements
+        const updateEl = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        };
+        
+        // Update peak values and times
+        updateEl('chart-pv-peak', formatPeak(pvPeak.peak));
+        updateEl('chart-pv-time', getTimeFromIndex(pvPeak.index));
+        
+        updateEl('chart-charge-peak', formatPeak(chargePeak.peak));
+        updateEl('chart-charge-time', getTimeFromIndex(chargePeak.index));
+        
+        updateEl('chart-discharge-peak', formatPeak(dischargePeak.peak));
+        updateEl('chart-discharge-time', getTimeFromIndex(dischargePeak.index));
+        
+        updateEl('chart-load-peak', formatPeak(loadPeak.peak));
+        updateEl('chart-load-time', getTimeFromIndex(loadPeak.index));
+        
+        updateEl('chart-grid-peak', formatPeak(gridPeak.peak));
+        updateEl('chart-grid-time', getTimeFromIndex(gridPeak.index));
+        
+        updateEl('chart-essential-peak', formatPeak(essentialPeak.peak));
+        updateEl('chart-essential-time', getTimeFromIndex(essentialPeak.index));
+        
+        console.log('📊 Peak stats updated:', { 
+            pv: `${formatPeak(pvPeak.peak)} @ ${getTimeFromIndex(pvPeak.index)}`,
+            charge: `${formatPeak(chargePeak.peak)} @ ${getTimeFromIndex(chargePeak.index)}`,
+            discharge: `${formatPeak(dischargePeak.peak)} @ ${getTimeFromIndex(dischargePeak.index)}`,
+            load: `${formatPeak(loadPeak.peak)} @ ${getTimeFromIndex(loadPeak.index)}`,
+            grid: `${formatPeak(gridPeak.peak)} @ ${getTimeFromIndex(gridPeak.index)}`,
+            essential: `${formatPeak(essentialPeak.peak)} @ ${getTimeFromIndex(essentialPeak.index)}`
         });
     }
     
@@ -1924,7 +2121,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function processBatteryDischargingData(data) {
         if (!data) return [];
-        return data.map(value => value > 0 ? value * -1 : 0);
+        // Return positive values for discharge (when battery value > 0 means discharging)
+        return data.map(value => value > 0 ? value : 0);
     }
 
     // ========================================
