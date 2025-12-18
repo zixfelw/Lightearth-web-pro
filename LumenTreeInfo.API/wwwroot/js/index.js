@@ -1935,6 +1935,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function autoSyncBasicView() {
         // Get current values from Pro view (original IDs)
         const pvPower = document.getElementById('pv-power')?.textContent || '--';
+        const pvDesc = document.getElementById('pv-desc')?.innerHTML || '--';
         const gridPower = document.getElementById('grid-power')?.textContent || '--';
         const gridVoltage = document.getElementById('grid-voltage')?.textContent || '--';
         const batteryPercent = document.getElementById('battery-percent-icon')?.textContent || '--%';
@@ -1962,9 +1963,14 @@ document.addEventListener('DOMContentLoaded', function () {
             if (el) el.textContent = value;
         };
         
+        const updateElementHTML = (id, html) => {
+            const el = document.getElementById(id);
+            if (el) el.innerHTML = html;
+        };
+        
         // Update all Basic view fields
         updateElement('pv-power-basic', pvPower);
-        updateElement('pv-desc-basic', '');
+        updateElementHTML('pv-desc-basic', pvDesc);
         updateElement('grid-power-basic', gridPower);
         updateElement('grid-voltage-basic', gridVoltage);
         updateElement('battery-percent-basic', batteryPercent);
