@@ -52,6 +52,10 @@
                         <span id="statusDot" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                         <span class="text-xs font-medium text-emerald-700 dark:text-emerald-400">Auto 2s</span>
                     </div>
+                    <a href="#" onclick="switchTo3DHome()" class="px-3 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 transition shadow-lg" title="Switch to 3D Home View">
+                        <span>🏠</span>
+                        <span>3D Home</span>
+                    </a>
                     <button id="settingsBtn" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600" title="Cài đặt">
                         <i data-lucide="settings" class="w-4 h-4 text-slate-600 dark:text-slate-300"></i>
                     </button>
@@ -786,6 +790,13 @@
             setDefaultSOCDate(); // Load today's SOC history
             startAutoRefresh();
         });
+        
+        // Switch to 3D Home view
+        function switchTo3DHome() {
+            const deviceId = document.getElementById('deviceId').value.trim();
+            window.location.href = `/3d-home.html?deviceId=${deviceId}`;
+            return false;
+        }
     </script>
 </body>
 </html>

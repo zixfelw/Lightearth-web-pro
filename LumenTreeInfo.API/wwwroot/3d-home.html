@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Home - Solar Monitor</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        body { 
+            zoom: 0.9;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            min-height: 100vh;
+        }
+        
+        /* 3D Scene Container */
+        .scene-3d {
+            perspective: 1200px;
+            perspective-origin: 50% 50%;
+        }
+        
+        /* 3D House with isometric view */
+        .house-3d {
+            width: 320px;
+            height: 320px;
+            position: relative;
+            transform-style: preserve-3d;
+            transform: rotateX(60deg) rotateZ(-45deg);
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: rotateX(60deg) rotateZ(-45deg) translateY(0px); }
+            50% { transform: rotateX(60deg) rotateZ(-45deg) translateY(-10px); }
+        }
+        
+        /* House walls */
+        .house-wall {
+            position: absolute;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            border: 2px solid rgba(59, 130, 246, 0.3);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+        }
+        
+        .wall-front {
+            width: 200px;
+            height: 150px;
+            transform: translateZ(100px);
+        }
+        
+        .wall-back {
+            width: 200px;
+            height: 150px;
+            transform: translateZ(-100px) rotateY(180deg);
+        }
+        
+        .wall-left {
+            width: 200px;
+            height: 150px;
+            transform: rotateY(-90deg) translateZ(100px);
+        }
+        
+        .wall-right {
+            width: 200px;
+            height: 150px;
+            transform: rotateY(90deg) translateZ(100px);
+        }
+        
+        /* Roof */
+        .roof {
+            width: 220px;
+            height: 220px;
+            background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+            transform: rotateX(45deg) translateY(-100px) translateZ(50px);
+            border: 2px solid rgba(239, 68, 68, 0.3);
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.3);
+        }
+        
+        /* Solar panels on roof */
+        .solar-panel {
+            position: absolute;
+            width: 60px;
+            height: 40px;
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 50%, #3b82f6 100%);
+            border: 1px solid #60a5fa;
+            box-shadow: 
+                inset 0 0 10px rgba(96, 165, 250, 0.3),
+                0 0 15px rgba(59, 130, 246, 0.4);
+            animation: solarGlow 2s ease-in-out infinite;
+        }
+        
+        @keyframes solarGlow {
+            0%, 100% { box-shadow: inset 0 0 10px rgba(96, 165, 250, 0.3), 0 0 15px rgba(59, 130, 246, 0.4); }
+            50% { box-shadow: inset 0 0 20px rgba(96, 165, 250, 0.6), 0 0 30px rgba(59, 130, 246, 0.7); }
+        }
+        
+        /* Energy Flow Particles */
+        .particle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            box-shadow: 0 0 10px #10b981, 0 0 20px #10b981;
+            animation: particleFlow 3s linear infinite;
+        }
+        
+        @keyframes particleFlow {
+            0% { opacity: 0; transform: translateY(0) scale(0); }
+            10% { opacity: 1; transform: translateY(-20px) scale(1); }
+            90% { opacity: 1; transform: translateY(-200px) scale(1); }
+            100% { opacity: 0; transform: translateY(-220px) scale(0); }
+        }
+        
+        /* Energy circle pulsing */
+        .energy-circle {
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); }
+            50% { transform: scale(1.05); box-shadow: 0 0 40px rgba(16, 185, 129, 0.6); }
+        }
+        
+        /* Power meter */
+        .power-meter {
+            background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%);
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .power-meter::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: shine 3s linear infinite;
+        }
+        
+        @keyframes shine {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        /* Smart device card */
+        .device-card {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            border: 2px solid #475569;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .device-card:hover {
+            transform: translateY(-5px) scale(1.02);
+            border-color: #06b6d4;
+            box-shadow: 0 10px 30px rgba(6, 182, 212, 0.3);
+        }
+        
+        .device-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #06b6d4 0%, #0ea5e9 100%);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+        }
+        
+        /* Battery indicator */
+        .battery-bar {
+            transition: width 0.5s ease;
+        }
+        
+        /* Glowing text */
+        .glow-text {
+            text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
+        }
+        
+        /* Grid lines effect */
+        .grid-bg {
+            background-image: 
+                linear-gradient(rgba(6, 182, 212, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(6, 182, 212, 0.1) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+        
+        /* Weather icon animation */
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .sun-icon {
+            animation: rotate 20s linear infinite;
+        }
+        
+        /* Energy flow path */
+        .flow-path {
+            stroke-dasharray: 10;
+            animation: flowDash 1s linear infinite;
+        }
+        
+        @keyframes flowDash {
+            to { stroke-dashoffset: -20; }
+        }
+        
+        /* Production badge */
+        .production-badge {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
+        }
+        
+        /* Temperature badge */
+        .temp-badge {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white">
+    
+    <!-- Header Navigation -->
+    <div class="fixed top-0 left-0 right-0 z-50 bg-slate-900/90 backdrop-blur-lg border-b border-slate-700">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <img src="/logo.png" alt="Logo" class="w-10 h-10 rounded-lg">
+                    <div>
+                        <h1 class="text-xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                            ⚡ 3D Home Energy
+                        </h1>
+                        <p class="text-xs text-slate-400">Real-time Monitoring</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-2">
+                    <a href="/dashboard.html?deviceId=P250801055" class="px-4 py-2 bg-violet-600 hover:bg-violet-700 rounded-lg text-sm font-semibold transition">
+                        📊 Dashboard Pro
+                    </a>
+                    <button id="settingsBtn" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 transition">
+                        <i data-lucide="settings" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Settings Panel -->
+            <div id="settingsPanel" class="hidden mt-3 pt-3 border-t border-slate-700">
+                <div class="flex gap-3">
+                    <div class="flex-grow">
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">Device ID</label>
+                        <input type="text" id="deviceId" value="P250801055" class="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-600 rounded-lg text-white">
+                    </div>
+                    <div class="flex-grow">
+                        <label class="block text-xs font-semibold text-slate-400 mb-1">API URL</label>
+                        <input type="text" id="apiUrl" value="https://solar-proxy.applike098.workers.dev/api/realtime" class="w-full px-3 py-2 text-sm bg-slate-800 border border-slate-600 rounded-lg text-white">
+                    </div>
+                    <div class="flex items-end">
+                        <button id="applyBtn" class="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg font-semibold text-sm transition">Apply</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container mx-auto px-4 py-4 mt-20 max-w-7xl">
+        
+        <!-- Production & Weather Info -->
+        <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="production-badge rounded-xl p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-900">Production Today</p>
+                        <p class="text-2xl font-black text-slate-900 glow-text" id="productionToday">21.4 kWh</p>
+                    </div>
+                    <div class="sun-icon text-4xl">☀️</div>
+                </div>
+            </div>
+            
+            <div class="temp-badge rounded-xl p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold text-white">Temperature</p>
+                        <p class="text-2xl font-black text-white glow-text" id="temperature">16°C</p>
+                    </div>
+                    <div class="text-4xl">🌡️</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 3D Scene Container -->
+        <div class="bg-slate-800/50 rounded-2xl p-6 mb-4 border-2 border-cyan-500/30 grid-bg">
+            <div class="text-center mb-4">
+                <h2 class="text-lg font-bold text-cyan-400 mb-1">Solar Power Now</h2>
+                <div class="inline-block">
+                    <div class="power-meter w-32 h-32 flex items-center justify-center energy-circle">
+                        <div class="text-center">
+                            <p class="text-3xl font-black text-white glow-text" id="solarPowerNow">10.3</p>
+                            <p class="text-xs text-slate-300">kW</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 3D House Scene -->
+            <div class="scene-3d flex justify-center items-center h-96 relative">
+                <div class="house-3d">
+                    <!-- House Walls -->
+                    <div class="house-wall wall-front"></div>
+                    <div class="house-wall wall-back"></div>
+                    <div class="house-wall wall-left"></div>
+                    <div class="house-wall wall-right"></div>
+                    
+                    <!-- Roof -->
+                    <div class="roof">
+                        <!-- Solar Panels on Roof -->
+                        <div class="solar-panel" style="top: 20px; left: 20px;"></div>
+                        <div class="solar-panel" style="top: 20px; left: 90px;"></div>
+                        <div class="solar-panel" style="top: 20px; left: 140px;"></div>
+                        <div class="solar-panel" style="top: 70px; left: 20px;"></div>
+                        <div class="solar-panel" style="top: 70px; left: 90px;"></div>
+                        <div class="solar-panel" style="top: 70px; left: 140px;"></div>
+                    </div>
+                    
+                    <!-- Window glow -->
+                    <div style="position: absolute; width: 30px; height: 40px; background: linear-gradient(135deg, #fbbf24, #f59e0b); transform: translateZ(101px) translateX(50px) translateY(60px); box-shadow: 0 0 20px #fbbf24;"></div>
+                    <div style="position: absolute; width: 30px; height: 40px; background: linear-gradient(135deg, #fbbf24, #f59e0b); transform: translateZ(101px) translateX(120px) translateY(60px); box-shadow: 0 0 20px #fbbf24;"></div>
+                </div>
+                
+                <!-- Energy Particles -->
+                <div id="particlesContainer" class="absolute inset-0 pointer-events-none"></div>
+            </div>
+            
+            <!-- Energy Flow Indicators -->
+            <div class="grid grid-cols-4 gap-4 mt-6">
+                <div class="text-center">
+                    <div class="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center mb-2 shadow-lg shadow-yellow-500/50">
+                        <span class="text-2xl">💡</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mb-1">House Load</p>
+                    <p class="text-lg font-bold text-white" id="houseLoad">6.35 kW</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center mb-2 shadow-lg shadow-green-500/50">
+                        <span class="text-2xl">🔋</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mb-1">Battery</p>
+                    <p class="text-lg font-bold text-white" id="batteryPower">1.95 kW</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center mb-2 shadow-lg shadow-blue-500/50">
+                        <span class="text-2xl">⚡</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mb-1">Grid</p>
+                    <p class="text-lg font-bold text-white" id="gridPower">0 kW</p>
+                </div>
+                
+                <div class="text-center">
+                    <div class="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center mb-2 shadow-lg shadow-purple-500/50">
+                        <span class="text-2xl">🔌</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mb-1">EV Charging</p>
+                    <p class="text-lg font-bold text-white" id="evCharging">1.95 kW</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Battery Status -->
+        <div class="bg-slate-800/50 rounded-2xl p-4 mb-4 border-2 border-green-500/30">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center">
+                        <i data-lucide="battery-charging" class="w-6 h-6 text-white"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-300">Battery Status</p>
+                        <p class="text-xs text-slate-400">State of Charge</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-3xl font-black text-green-400 glow-text" id="batterySoc">100%</p>
+                </div>
+            </div>
+            
+            <div class="bg-slate-900 rounded-full h-6 overflow-hidden border border-slate-700">
+                <div id="batteryBar" class="battery-bar h-full bg-gradient-to-r from-green-400 to-emerald-500 shadow-lg shadow-green-500/50" style="width: 100%"></div>
+            </div>
+        </div>
+        
+        <!-- Smart Home Devices -->
+        <div class="bg-slate-800/50 rounded-2xl p-4 border-2 border-cyan-500/30">
+            <h3 class="text-lg font-bold text-cyan-400 mb-4 flex items-center gap-2">
+                <i data-lucide="home" class="w-5 h-5"></i>
+                Smart Home Devices
+            </h3>
+            
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <!-- Boiler -->
+                <div class="device-card rounded-xl p-3">
+                    <div class="device-icon mx-auto mb-2">
+                        <span class="text-xl">🔥</span>
+                    </div>
+                    <p class="text-xs text-center text-slate-300 mb-1">Boiler</p>
+                    <p class="text-xs text-center text-slate-400 mb-1">Bathroom</p>
+                    <p class="text-center text-lg font-bold text-cyan-400">3.0W</p>
+                </div>
+                
+                <!-- Pool Cleaner -->
+                <div class="device-card rounded-xl p-3">
+                    <div class="device-icon mx-auto mb-2">
+                        <span class="text-xl">🏊</span>
+                    </div>
+                    <p class="text-xs text-center text-slate-300 mb-1">Pool</p>
+                    <p class="text-xs text-center text-slate-400 mb-1">Cleaner</p>
+                    <p class="text-center text-lg font-bold text-cyan-400">850W</p>
+                </div>
+                
+                <!-- Heat Pump -->
+                <div class="device-card rounded-xl p-3">
+                    <div class="device-icon mx-auto mb-2">
+                        <span class="text-xl">♨️</span>
+                    </div>
+                    <p class="text-xs text-center text-slate-300 mb-1">Heat</p>
+                    <p class="text-xs text-center text-slate-400 mb-1">Pump</p>
+                    <p class="text-center text-lg font-bold text-cyan-400">2.5kW</p>
+                </div>
+                
+                <!-- Dishwasher -->
+                <div class="device-card rounded-xl p-3">
+                    <div class="device-icon mx-auto mb-2">
+                        <span class="text-xl">🍽️</span>
+                    </div>
+                    <p class="text-xs text-center text-slate-300 mb-1">Dishwasher</p>
+                    <p class="text-xs text-center text-slate-400 mb-1">Kitchen</p>
+                    <p class="text-center text-lg font-bold text-cyan-400">2.0W</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Status Badge -->
+        <div class="mt-4 text-center">
+            <div class="inline-flex items-center gap-2 px-4 py-2 bg-green-500/20 border border-green-500 rounded-full">
+                <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                <span class="text-xs font-semibold text-green-400">Live - Auto refresh every 2s</span>
+            </div>
+        </div>
+        
+    </div>
+    
+    <script>
+        lucide.createIcons();
+        
+        // Configuration
+        const REFRESH_INTERVAL = 2000;
+        let refreshTimer = null;
+        
+        // Get URL params
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlDeviceId = urlParams.get('deviceId');
+        if (urlDeviceId) document.getElementById('deviceId').value = urlDeviceId;
+        
+        // Settings toggle
+        document.getElementById('settingsBtn').addEventListener('click', () => {
+            document.getElementById('settingsPanel').classList.toggle('hidden');
+        });
+        
+        document.getElementById('applyBtn').addEventListener('click', () => {
+            const deviceId = document.getElementById('deviceId').value.trim();
+            if (deviceId) {
+                const url = new URL(window.location);
+                url.searchParams.set('deviceId', deviceId);
+                window.history.pushState({}, '', url);
+                document.getElementById('settingsPanel').classList.add('hidden');
+                fetchData();
+            }
+        });
+        
+        // Create energy particles
+        function createParticles() {
+            const container = document.getElementById('particlesContainer');
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.animationDelay = Math.random() * 3 + 's';
+                particle.style.animationDuration = (2 + Math.random() * 2) + 's';
+                container.appendChild(particle);
+            }
+        }
+        
+        // Fetch and display data
+        async function fetchData() {
+            const deviceId = document.getElementById('deviceId').value.trim();
+            let baseUrl = document.getElementById('apiUrl').value.trim().replace(/\/+$/, '');
+            
+            if (!deviceId) return;
+            
+            const apiUrl = `${baseUrl}/${deviceId}`;
+            console.log('📡 Fetching 3D Home data:', apiUrl);
+            
+            try {
+                const res = await fetch(apiUrl);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                
+                const data = await res.json();
+                if (data.error) throw new Error(data.error);
+                
+                displayData(data);
+            } catch (err) {
+                console.error('Fetch error:', err);
+            }
+        }
+        
+        // Display data with animations
+        function displayData(data) {
+            const d = data.data || {};
+            
+            // Solar Power
+            const pvTotal = d.totalPvPower || (d.pv1Power || 0) + (d.pv2Power || 0);
+            updateValue('solarPowerNow', (pvTotal / 1000).toFixed(1));
+            
+            // Energy Flow
+            updateValue('houseLoad', ((d.homeLoad || 0) / 1000).toFixed(2) + ' kW');
+            updateValue('batteryPower', (Math.abs(d.batteryPower || 0) / 1000).toFixed(2) + ' kW');
+            updateValue('gridPower', (Math.abs(d.gridPowerFlow || 0) / 1000).toFixed(2) + ' kW');
+            updateValue('evCharging', ((d.acOutputPower || 0) / 1000).toFixed(2) + ' kW');
+            
+            // Battery
+            const soc = d.batterySoc || 0;
+            updateValue('batterySoc', soc + '%');
+            document.getElementById('batteryBar').style.width = soc + '%';
+            
+            // Temperature
+            updateValue('temperature', (d.temperature || 16) + '°C');
+            
+            console.log('✅ 3D Home data updated');
+        }
+        
+        function updateValue(id, value) {
+            const el = document.getElementById(id);
+            if (el) {
+                el.textContent = value;
+            }
+        }
+        
+        // Start auto refresh
+        function startAutoRefresh() {
+            console.log('🚀 3D Home auto refresh started');
+            createParticles();
+            fetchData();
+            refreshTimer = setInterval(fetchData, REFRESH_INTERVAL);
+        }
+        
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            startAutoRefresh();
+        });
+    </script>
+</body>
+</html>
