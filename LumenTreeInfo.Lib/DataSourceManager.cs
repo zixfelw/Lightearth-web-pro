@@ -247,6 +247,8 @@ public class DataSourceManager : IDisposable
     private async Task StartHealthCheckAsync()
     {
         Log.Information("Starting health check task...");
+        int mqttFailCount = 0;
+        const int maxMqttFailures = 3; // Switch to HA after 3 consecutive failures
 
         while (true)
         {
@@ -254,36 +256,60 @@ public class DataSourceManager : IDisposable
 
             try
             {
-                // Check if MQTT has timed out
-                if (_currentSource == DataSource.Mqtt && !IsMqttConnected)
+                // Check if MQTT has timed out or no data received
+                if (_currentSource == DataSource.Mqtt)
                 {
-                    Log.Warning("MQTT data timeout detected");
+                    if (!IsMqttConnected)
+                    {
+                        mqttFailCount++;
+                        Log.Warning($"MQTT data timeout detected (fail count: {mqttFailCount}/{maxMqttFailures})");
 
-                    // Try to reconnect MQTT first
-                    try
-                    {
-                        await _mqttMonitor.ConnectAsync();
-                        await _mqttMonitor.RequestDeviceInfoAsync(_deviceSn);
-                        Log.Information("MQTT reconnected successfully");
-                        continue;
+                        if (mqttFailCount >= maxMqttFailures)
+                        {
+                            Log.Warning("MQTT failed multiple times, checking Home Assistant...");
+                            
+                            // Fall back to Home Assistant
+                            if (_haClient != null)
+                            {
+                                Log.Information("Checking Home Assistant availability...");
+                                var haAvailable = await _haClient.CheckAvailabilityAsync();
+                                Log.Information($"Home Assistant available: {haAvailable}");
+                                
+                                if (haAvailable)
+                                {
+                                    SetDataSource(DataSource.HomeAssistant);
+                                    Log.Information("Switched to Home Assistant as backup");
+                                    _ = StartHaPollingAsync();
+                                    mqttFailCount = 0;
+                                    continue;
+                                }
+                            }
+                            
+                            // Try to reconnect MQTT
+                            try
+                            {
+                                Log.Information("Attempting MQTT reconnect...");
+                                await _mqttMonitor.ConnectAsync();
+                                await _mqttMonitor.RequestDeviceInfoAsync(_deviceSn);
+                            }
+                            catch (Exception ex)
+                            {
+                                Log.Warning($"MQTT reconnect failed: {ex.Message}");
+                            }
+                        }
                     }
-                    catch
+                    else
                     {
-                        Log.Warning("MQTT reconnect failed");
-                    }
-
-                    // Fall back to Home Assistant
-                    if (_haClient != null && await _haClient.CheckAvailabilityAsync())
-                    {
-                        SetDataSource(DataSource.HomeAssistant);
-                        _ = StartHaPollingAsync();
+                        mqttFailCount = 0; // Reset on success
                     }
                 }
-                // If using HA, try to switch back to MQTT
+                // If using HA, periodically try to switch back to MQTT
                 else if (_currentSource == DataSource.HomeAssistant)
                 {
+                    // Try MQTT every 60 seconds when on HA
                     try
                     {
+                        Log.Debug("Checking if MQTT is back online...");
                         await _mqttMonitor.ConnectAsync();
                         await _mqttMonitor.RequestDeviceInfoAsync(_deviceSn);
                         
@@ -293,12 +319,14 @@ public class DataSourceManager : IDisposable
                         if (IsMqttConnected)
                         {
                             SetDataSource(DataSource.Mqtt);
-                            Log.Information("Switched back to MQTT");
+                            Log.Information("MQTT recovered, switched back to MQTT");
+                            mqttFailCount = 0;
                         }
                     }
                     catch
                     {
-                        // Stay on HA
+                        // Stay on HA, that's fine
+                        Log.Debug("MQTT still unavailable, staying on Home Assistant");
                     }
                 }
             }
