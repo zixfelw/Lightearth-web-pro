@@ -65,21 +65,24 @@ document.addEventListener('DOMContentLoaded', function () {
     let reducedAnimationMode = localStorage.getItem('energyFlowAnimationMode') !== 'normal';
     
     // API URL Configuration - Support multiple sources
+    // Get current origin for local proxy API
+    const currentOrigin = window.location.origin;
+    
     const API_SOURCES = {
         workers: {
             name: 'Cloudflare Workers',
-            realtime: 'https://solar-proxy.applike098.workers.dev/api/realtime',
-            soc: 'https://solar-proxy.applike098.workers.dev/api/soc'
+            realtime: 'https://lightearth.applike098.workers.dev/api/realtime',
+            soc: 'https://lumentree.net/api/soc'
         },
         sandbox: {
-            name: 'Sandbox Novita',
-            realtime: 'https://7000-ivivi5yaau15busmciwnu-c81df28e.sandbox.novita.ai/api/proxy/realtime',
-            soc: 'https://solar-proxy.applike098.workers.dev/api/soc'
+            name: 'Sandbox Local',
+            realtime: `${currentOrigin}/api/proxy/realtime`,
+            soc: `${currentOrigin}/api/proxy/soc`
         },
         // Direct lumentree.net - most accurate but may have CORS issues
         lumentree: {
             name: 'Lumentree Direct',
-            realtime: 'https://solar-proxy.applike098.workers.dev/api/realtime', // Still use proxy for realtime
+            realtime: 'https://lightearth.applike098.workers.dev/api/realtime',
             soc: 'https://lumentree.net/api/soc'  // Direct for SOC (more accurate)
         }
     };
@@ -550,25 +553,10 @@ document.addEventListener('DOMContentLoaded', function () {
         fetchRealtimeFirst(deviceId, date);
     }
     
-    // Fast load: Realtime API first, then fetch historical data in background
+    // Fast load: Skip realtime API (blocked by Cloudflare), load directly from day data APIs
     async function fetchRealtimeFirst(deviceId, date) {
         try {
-            // Use configured API source (Workers or Sandbox)
-            const apiUrl = getRealtimeApiUrl(deviceId);
-            console.log(`🚀 Fast loading from ${API_SOURCES[currentApiSource].name}:`, apiUrl);
-            const realtimeResponse = await fetch(apiUrl);
-            
-            if (!realtimeResponse.ok) {
-                throw new Error(`Realtime API error: ${realtimeResponse.status}`);
-            }
-            
-            const realtimeData = await realtimeResponse.json();
-            
-            if (realtimeData.error) {
-                throw new Error(realtimeData.error);
-            }
-            
-            console.log("Realtime data loaded (fast):", realtimeData);
+            console.log(`🚀 Loading data for device: ${deviceId}, date: ${date || 'today'}`);
             
             // Show UI immediately
             showElement('deviceInfo');
@@ -584,103 +572,56 @@ document.addEventListener('DOMContentLoaded', function () {
                 remarkName: ''
             });
             
-            if (realtimeData.data) {
-                const displayData = {
-                    pvTotalPower: realtimeData.data.totalPvPower || 0,
-                    pv1Power: realtimeData.data.pv1Power || 0,
-                    pv2Power: realtimeData.data.pv2Power || 0,
-                    pv1Voltage: realtimeData.data.pv1Voltage || 0,
-                    pv2Voltage: realtimeData.data.pv2Voltage || 0,
-                    gridValue: realtimeData.data.gridPowerFlow || 0,
-                    gridVoltageValue: realtimeData.data.acInputVoltage || 0,
-                    batteryPercent: realtimeData.data.batterySoc || 0,
-                    batteryValue: realtimeData.data.batteryPower || 0,
-                    batteryVoltage: realtimeData.data.batteryVoltage || 0,
-                    batteryStatus: realtimeData.data.batteryStatus || 'Idle',
-                    deviceTempValue: realtimeData.data.temperature || 0,
-                    essentialValue: realtimeData.data.acOutputPower || 0,
-                    loadValue: realtimeData.data.homeLoad || 0,
-                    inverterAcOutPower: realtimeData.data.acOutputPower || 0
-                };
-                updateRealTimeDisplay(displayData);
-                
-                // Update battery cell voltages - Support both Object and Array format
-                if (realtimeData.cells && realtimeData.cells.cellVoltages) {
-                    console.log("Cell voltages data found:", realtimeData.cells);
-                    
-                    let cellVoltages = [];
-                    const rawVoltages = realtimeData.cells.cellVoltages;
-                    
-                    // Handle Array format from Workers API: [3.413, 3.379, ...]
-                    if (Array.isArray(rawVoltages)) {
-                        cellVoltages = rawVoltages;
-                        console.log("Cell voltages (Array format):", cellVoltages);
-                    } 
-                    // Handle Object format from Sandbox API: {"Cell 01": 3.223, ...}
-                    else if (typeof rawVoltages === 'object') {
-                        const cellNames = Object.keys(rawVoltages).sort((a, b) => 
-                            parseInt(a.replace(/\D/g, '')) - parseInt(b.replace(/\D/g, ''))
-                        );
-                        cellNames.forEach(cellName => {
-                            cellVoltages.push(rawVoltages[cellName]);
-                        });
-                        console.log("Cell voltages (Object format converted):", cellVoltages);
-                    }
-                    
-                    // Calculate stats if not provided by API
-                    const validVoltages = cellVoltages.filter(v => v > 0);
-                    const avgVoltage = realtimeData.cells.averageVoltage || 
-                        (validVoltages.length > 0 ? validVoltages.reduce((a, b) => a + b, 0) / validVoltages.length : 0);
-                    const maxVoltage = realtimeData.cells.maximumVoltage || Math.max(...validVoltages, 0);
-                    const minVoltage = realtimeData.cells.minimumVoltage || Math.min(...validVoltages.filter(v => v > 0), 0);
-                    
-                    const cellData = {
-                        cells: cellVoltages,
-                        maximumVoltage: maxVoltage,
-                        minimumVoltage: minVoltage,
-                        averageVoltage: avgVoltage,
-                        numberOfCells: realtimeData.cells.numberOfCells || cellVoltages.length
-                    };
-                    updateBatteryCellDisplay(cellData);
-                } else {
-                    console.log("No cell voltages data found. realtimeData structure:", realtimeData);
-                    if (realtimeData.data) {
-                        console.log("Available data keys:", Object.keys(realtimeData.data));
-                    }
-                    if (realtimeData.cells) {
-                        console.log("Available cells keys:", Object.keys(realtimeData.cells));
-                    }
-                }
-            }
+            // Set summary stats to "Đang tải..." while loading day data
+            updateValue('pv-total', 'Đang tải...');
+            updateValue('bat-charge', 'Đang tải...');
+            updateValue('bat-discharge', 'Đang tải...');
+            updateValue('load-total', 'Đang tải...');
+            updateValue('grid-total', 'Đang tải...');
+            updateValue('essential-total', 'Đang tải...');
             
-            // Set summary stats to "Chờ dữ liệu..." while loading day data
-            updateValue('pv-total', 'Chờ...');
-            updateValue('bat-charge', 'Chờ...');
-            updateValue('bat-discharge', 'Chờ...');
-            updateValue('load-total', 'Chờ...');
-            updateValue('grid-total', 'Chờ...');
-            updateValue('essential-total', 'Chờ...');
+            // Initialize realtime display as empty - will only show data when MQTT realtime arrives
+            // Use null values to indicate "no data" state
+            const initialDisplayData = {
+                pvTotalPower: null,
+                pv1Power: null,
+                pv2Power: null,
+                pv1Voltage: null,
+                pv2Voltage: null,
+                gridValue: null,
+                gridVoltageValue: null,
+                batteryPercent: null,
+                batteryValue: null,
+                batteryVoltage: null,
+                batteryStatus: 'Chờ dữ liệu',
+                deviceTempValue: null,
+                essentialValue: null,
+                loadValue: null,
+                inverterAcOutPower: null,
+                noRealtimeData: true  // Flag to indicate no realtime data
+            };
+            updateRealTimeDisplay(initialDisplayData);
             
             showCompactSearchBar(deviceId, date);
             showLoading(false);
             
-            // Only initialize waiting state if we DON'T have cell data yet
-            // (initializeBatteryCellsWaiting was resetting stats AFTER updateBatteryCellDisplay already set them)
+            // Initialize cells waiting state
             if (!hasCellData) {
                 initializeBatteryCellsWaiting();
             }
             
-            // Fetch SOC data from soc.applike098.workers.dev API (auto-reload every 5 minutes)
+            // Fetch SOC data - this works! 
             fetchSOCData();
             
             // Fetch temperature min/max for the day
             fetchTemperatureMinMax(deviceId, date);
             
-            // Try to fetch day data from main API (background, with short timeout)
-            fetchDayDataInBackground(deviceId, date);
+            // Fetch day data - this is the main data source now
+            // It will update both summary stats AND realtime display with latest values
+            await fetchDayDataInBackground(deviceId, date);
             
         } catch (error) {
-            console.error("Fast load failed:", error);
+            console.error("Data load failed:", error);
             showLoading(false);
             showError('Không thể tải dữ liệu. Vui lòng kiểm tra Device ID và thử lại.');
         }
@@ -849,6 +790,11 @@ document.addEventListener('DOMContentLoaded', function () {
         };
         console.log("📊 Updating combined energy chart with Lightearth data");
         updateCharts(chartData);
+        
+        // NOTE: Realtime display will NOT be updated from day data
+        // Only show real values when MQTT realtime data is available
+        // Day data is historical - not suitable for "Luồng năng lượng thời gian thực"
+        console.log("📊 Day data loaded - Realtime display will show empty until MQTT data arrives");
     }
     
     // Fetch Temperature Min/Max for the day (via proxy to avoid CORS)
@@ -1220,6 +1166,47 @@ document.addEventListener('DOMContentLoaded', function () {
     // ========================================
     
     function updateRealTimeDisplay(data) {
+        // Check if we have NO realtime data (all values are null)
+        const noData = data.noRealtimeData || (data.pvTotalPower === null && data.gridValue === null);
+        
+        if (noData) {
+            // Display empty state - no demo data
+            updateValue('pv-power', '--');
+            updateValueHTML('pv-desc', `<span class="text-slate-400">Chờ dữ liệu MQTT</span>`);
+            
+            updateValue('grid-power', '--');
+            updateValue('grid-voltage', '--');
+            
+            updateValue('battery-percent-icon', '--%');
+            updateValueHTML('battery-status-text', `<span class="text-slate-400">Chờ dữ liệu</span>`);
+            updateValueHTML('battery-power', `<span class="text-slate-400">--</span>`);
+            updateValue('batteryVoltageDisplay', '--');
+            
+            updateValue('device-temp', '--');
+            updateValue('device-temp-info', '--');
+            updateValue('essential-power', '--');
+            updateValue('load-power', '--');
+            updateValue('acout-power', '--');
+            
+            // Update battery fill to empty
+            const batteryFill = document.getElementById('battery-fill');
+            if (batteryFill) {
+                batteryFill.style.width = '0%';
+                batteryFill.className = 'absolute left-0 top-0 bottom-0 bg-slate-400 transition-all duration-500';
+            }
+            
+            // Disable all flow animations
+            updateFlowStatus('pv-flow', false);
+            updateFlowStatus('grid-flow', false);
+            updateFlowStatus('battery-flow', false);
+            updateFlowStatus('essential-flow', false);
+            updateFlowStatus('load-flow', false);
+            
+            console.log("Realtime display: No data - showing empty state");
+            return;
+        }
+        
+        // Normal update with actual data
         // PV - with blink effect
         updateValue('pv-power', `${data.pvTotalPower}W`);
         if (data.pv2Power) {
