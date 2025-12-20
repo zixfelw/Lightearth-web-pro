@@ -12,6 +12,9 @@
  * - Mobile optimized interface
  */
 
+// Global constants - defined outside DOMContentLoaded to avoid TDZ issues
+const SOC_API_URL = 'https://solar-proxy.applike098.workers.dev/api/soc';
+
 document.addEventListener('DOMContentLoaded', function () {
     // ========================================
     // INITIALIZATION
@@ -106,6 +109,9 @@ document.addEventListener('DOMContentLoaded', function () {
         timestamp: 0
     };
     const LIGHTEARTH_CACHE_TTL = 10 * 60 * 1000; // 10 minutes in milliseconds
+    
+    // SOC API - Use global SOC_API_URL constant
+    const SOC_API_BASE = SOC_API_URL;
     
     // Default to Workers API (more stable)
     let currentApiSource = 'workers';
@@ -610,8 +616,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 initializeBatteryCellsWaiting();
             }
             
-            // Fetch SOC data - this works! 
-            fetchSOCData();
+            // Fetch SOC data - wrap in try-catch to prevent blocking
+            try {
+                await fetchSOCData();
+            } catch (socErr) {
+                console.warn('SOC fetch error (non-blocking):', socErr);
+            }
             
             // Fetch temperature min/max for the day
             fetchTemperatureMinMax(deviceId, date);
@@ -836,7 +846,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // API: https://solar-proxy.applike098.workers.dev/api/soc/{deviceId}/{date}
     // ========================================
     
-    const SOC_API_BASE = 'https://solar-proxy.applike098.workers.dev/api/soc';
+    // SOC_API_BASE is defined at the top with other API constants
     let socChartInstance = null;
     let socData = [];
     let socAutoReloadInterval = null;
