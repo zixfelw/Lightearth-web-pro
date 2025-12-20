@@ -55,6 +55,11 @@ document.addEventListener('DOMContentLoaded', function () {
     let connection;
     let currentDeviceId = '';
     
+    // Connection status tracking
+    let mqttConnected = false;
+    let httpApiConnected = false;
+    let lastHttpApiUpdate = 0;
+    
     // Animation mode: true = reduced (1 particle only - default), false = normal (multiple particles)
     // Load saved preference from localStorage, default to true (reduced) if not set
     let reducedAnimationMode = localStorage.getItem('energyFlowAnimationMode') !== 'normal';
@@ -296,7 +301,7 @@ document.addEventListener('DOMContentLoaded', function () {
         connection.on("ReceiveRealTimeData", function (data) {
             console.log("Received real-time data:", data);
             updateRealTimeDisplay(data);
-            updateConnectionStatus('connected');
+            updateConnectionStatus('connected', 'mqtt');
         });
 
         // Handle battery cell data
@@ -309,21 +314,46 @@ document.addEventListener('DOMContentLoaded', function () {
 
         connection.on("SubscriptionConfirmed", function (deviceId) {
             console.log(`Subscribed to device: ${deviceId}`);
-            updateConnectionStatus('connected');
+            updateConnectionStatus('connected', 'mqtt');
         });
 
         startSignalRConnection();
     }
 
-    function updateConnectionStatus(status) {
+    function updateConnectionStatus(status, source = 'mqtt') {
         const indicator = document.getElementById('connectionIndicator');
         const text = document.getElementById('connectionText');
+        
+        // Track connection status by source
+        if (source === 'mqtt') {
+            mqttConnected = (status === 'connected');
+        } else if (source === 'http') {
+            httpApiConnected = (status === 'connected');
+            if (status === 'connected') {
+                lastHttpApiUpdate = Date.now();
+            }
+        }
+        
+        // Determine overall status - HTTP API takes priority if MQTT is down
+        let displayStatus = 'disconnected';
+        let displayText = 'Mất kết nối';
+        
+        if (mqttConnected) {
+            displayStatus = 'connected';
+            displayText = 'MQTT: Đã kết nối';
+        } else if (httpApiConnected) {
+            displayStatus = 'connected';
+            displayText = 'HTTP API: Đang hoạt động';
+        } else if (status === 'connecting') {
+            displayStatus = 'connecting';
+            displayText = 'Đang kết nối...';
+        }
 
         if (indicator) {
             indicator.className = 'w-2.5 h-2.5 rounded-full';
-            if (status === 'connected') {
+            if (displayStatus === 'connected') {
                 indicator.classList.add('status-connected');
-            } else if (status === 'connecting') {
+            } else if (displayStatus === 'connecting') {
                 indicator.classList.add('status-connecting');
             } else {
                 indicator.classList.add('status-disconnected');
@@ -331,22 +361,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         if (text) {
-            if (status === 'connected') {
-                text.textContent = 'Đã kết nối';
-            } else if (status === 'connecting') {
-                text.textContent = 'Đang kết nối...';
-            } else {
-                text.textContent = 'Mất kết nối';
-            }
+            text.textContent = displayText;
         }
     }
 
     async function startSignalRConnection() {
-        updateConnectionStatus('connecting');
+        updateConnectionStatus('connecting', 'mqtt');
         try {
             await connection.start();
             console.log("SignalR Connected");
-            updateConnectionStatus('connected');
+            updateConnectionStatus('connected', 'mqtt');
 
             let deviceToSubscribe = document.getElementById('deviceId')?.value?.trim();
             if (!deviceToSubscribe) {
@@ -358,7 +382,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         } catch (err) {
             console.error("SignalR Connection Error:", err);
-            updateConnectionStatus('disconnected');
+            updateConnectionStatus('disconnected', 'mqtt');
             setTimeout(startSignalRConnection, 5000);
         }
     }
@@ -482,15 +506,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Chart data is loaded only once in fetchData()
             }
             
-            updateConnectionStatus('connected');
+            updateConnectionStatus('connected', 'http');
         } catch (error) {
-            // Silent fail for polling
+            // Silent fail for polling - don't update status on error
+            // This allows HTTP API status to remain if it was previously working
         }
     }
     
     connection.onclose(async () => {
         console.log("SignalR connection closed");
-        updateConnectionStatus('disconnected');
+        updateConnectionStatus('disconnected', 'mqtt');
         await startSignalRConnection();
     });
 
