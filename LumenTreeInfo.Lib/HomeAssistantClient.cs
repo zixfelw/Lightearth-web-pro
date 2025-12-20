@@ -33,6 +33,8 @@ public class HomeAssistantClient : IDisposable
         _client = new RestClient(options);
         _client.AddDefaultHeader("Authorization", $"Bearer {_token}");
         _client.AddDefaultHeader("Content-Type", "application/json");
+        _client.AddDefaultHeader("ngrok-skip-browser-warning", "true");
+        _client.AddDefaultHeader("User-Agent", "LumenTreeInfo/1.0");
         
         Log.Information($"HomeAssistantClient initialized for {_baseUrl}");
     }
