@@ -56,6 +56,41 @@ public class Program
             return new LumentreeClient(cacheService);
         });
 
+        // Add DataSourceManager with MQTT + Home Assistant fallback support
+        builder.Services.AddSingleton<DataSourceManager>(serviceProvider => {
+            var config = builder.Configuration;
+            
+            // Read configuration
+            var deviceSn = config["DataSource:DefaultDeviceSn"] ?? "P250801055";
+            var userId = "webapp"; // Default user ID for MQTT connection
+            
+            // Home Assistant configuration
+            var haEnabled = config.GetValue<bool>("HomeAssistant:Enabled", false);
+            var haUrl = config["HomeAssistant:Url"];
+            var haToken = config["HomeAssistant:Token"];
+            
+            // Validate HA token
+            if (haToken == "YOUR_LONG_LIVED_ACCESS_TOKEN_HERE")
+            {
+                haToken = null; // Disable HA if token not configured
+                haEnabled = false;
+            }
+            
+            Log.Information($"DataSourceManager config: DeviceSN={deviceSn}, HA_Enabled={haEnabled}, HA_URL={haUrl}");
+            
+            if (haEnabled && !string.IsNullOrEmpty(haUrl) && !string.IsNullOrEmpty(haToken))
+            {
+                return new DataSourceManager(userId, deviceSn, haUrl, haToken);
+            }
+            else
+            {
+                return new DataSourceManager(userId, deviceSn);
+            }
+        });
+        
+        // Start DataSourceManager as hosted service
+        builder.Services.AddHostedService<DataSourceManagerHostedService>();
+
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.
