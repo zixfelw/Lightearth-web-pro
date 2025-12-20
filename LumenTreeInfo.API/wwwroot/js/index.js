@@ -862,17 +862,28 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // ========================================
     // SOC CHART V5 - Clean Implementation
-    // API: https://soc.applike098.workers.dev/data/today
+    // API: https://solar-proxy.applike098.workers.dev/api/soc/{deviceId}/{date}
     // ========================================
     
-    const SOC_API_URL = 'https://soc.applike098.workers.dev/data';
+    const SOC_API_BASE = 'https://solar-proxy.applike098.workers.dev/api/soc';
     let socChartInstance = null;
     let socData = [];
     let socAutoReloadInterval = null;
     
-    // Fetch SOC data from API
+    // Fetch SOC data from API - uses deviceId from input and date from dateInput
     async function fetchSOCData() {
-        const url = `${SOC_API_URL}/today`;
+        // Get deviceId from input or URL parameter
+        const deviceId = document.getElementById('deviceId')?.value?.trim() || urlParams.get('deviceId');
+        if (!deviceId) {
+            console.warn('❌ SOC fetch: No deviceId available');
+            return;
+        }
+        
+        // Get date from dateInput (format: YYYY-MM-DD), default to today
+        const dateInput = document.getElementById('dateInput')?.value;
+        const date = dateInput || new Date().toISOString().split('T')[0];
+        
+        const url = `${SOC_API_BASE}/${deviceId}/${date}`;
         
         try {
             console.log(`📡 Fetching SOC data from: ${url}`);
@@ -880,17 +891,44 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!response.ok) throw new Error(`SOC API error: ${response.status}`);
             
             const data = await response.json();
-            console.log(`✅ SOC data received: ${data.timeline?.length || 0} points`);
+            console.log(`✅ SOC data received: ${data.timeline?.length || 0} points for device ${deviceId} on ${date}`);
             
             if (data.timeline && Array.isArray(data.timeline) && data.timeline.length > 0) {
                 socData = data.timeline;
                 renderSOCChart();
                 updateSOCLastTime();
                 startSOCAutoReload();
+            } else {
+                console.warn('⚠️ SOC data empty or invalid for', deviceId, date);
+                // Show empty state
+                socData = [];
+                renderSOCChartEmpty();
             }
         } catch (error) {
             console.warn('❌ SOC fetch error:', error.message);
+            renderSOCChartEmpty();
         }
+    }
+    
+    // Render empty state for SOC chart
+    function renderSOCChartEmpty() {
+        const canvas = document.getElementById('socChart');
+        if (!canvas) return;
+        
+        // Destroy existing chart
+        if (socChartInstance) {
+            socChartInstance.destroy();
+            socChartInstance = null;
+        }
+        
+        // Update displays with empty values
+        const bigValue = document.getElementById('soc-big-value');
+        const maxEl = document.getElementById('soc-max');
+        const minEl = document.getElementById('soc-min');
+        
+        if (bigValue) bigValue.textContent = '--%';
+        if (maxEl) maxEl.textContent = '--%';
+        if (minEl) minEl.textContent = '--%';
     }
     
     // Render SOC Chart with Chart.js and external tooltip
@@ -922,7 +960,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (bigValue) bigValue.textContent = `${currentSOC}%`;
         if (maxEl) maxEl.textContent = `${maxSOC}%`;
         if (minEl) minEl.textContent = `${minSOC}%`;
-        updateSOCPowerCards(currentData);
         
         // Create gradient
         const ctx = canvas.getContext('2d');
@@ -965,8 +1002,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.getElementById('soc-tooltip-load').textContent = `🏠 ${item.loadPower || 0}W`;
                 document.getElementById('soc-tooltip-grid').textContent = `🔌 ${item.gridPower || 0}W`;
                 document.getElementById('soc-tooltip-temp').textContent = item.temp > 0 ? `🌡️ ${item.temp}°C` : '';
-                
-                updateSOCPowerCards(item);
                 
                 // Position using caretX/caretY (zoom-proof)
                 const chartArea = chart.chartArea;
@@ -1057,24 +1092,9 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log('✅ SOC Chart rendered successfully');
     }
     
-    // Update power summary cards
-    function updateSOCPowerCards(item) {
-        if (!item) return;
-        const bat = document.getElementById('soc-battery-power');
-        const pv = document.getElementById('soc-pv-power');
-        const load = document.getElementById('soc-load-power');
-        const grid = document.getElementById('soc-grid-power');
-        
-        if (bat) bat.textContent = `${item.batteryPower || 0}W`;
-        if (pv) pv.textContent = `${item.pvPower || 0}W`;
-        if (load) load.textContent = `${item.loadPower || 0}W`;
-        if (grid) grid.textContent = `${item.gridPower || 0}W`;
-    }
-    
-    // Update current values (latest data point)
+    // Update current values (latest data point) - no-op after removing power cards
     function updateSOCCurrentValues() {
-        if (socData.length === 0) return;
-        updateSOCPowerCards(socData[socData.length - 1]);
+        // Power cards removed - nothing to update
     }
     
     // Update last fetch time
