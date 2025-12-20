@@ -71,7 +71,7 @@
                     </div>
                     <div class="flex-grow">
                         <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Realtime API</label>
-                        <input type="text" id="apiUrl" value="https://solar-proxy.applike098.workers.dev/api/realtime" class="w-full px-3 py-2 text-sm border-2 border-slate-200 dark:border-slate-600 rounded-lg dark:bg-slate-700 dark:text-white">
+                        <input type="text" id="apiUrl" value="/api/realtime/all" class="w-full px-3 py-2 text-sm border-2 border-slate-200 dark:border-slate-600 rounded-lg dark:bg-slate-700 dark:text-white">
                     </div>
                     <div class="flex-grow">
                         <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">SOC History API</label>
@@ -453,9 +453,11 @@
             
             if (!deviceId) return;
 
-            // Build API URL - append deviceId to the base URL
-            const apiUrl = `${baseUrl}/${deviceId}`;
-            console.log('📡 Fetching:', apiUrl);
+            // Build API URL - local API doesn't need deviceId appended
+            // External proxy API needs deviceId appended
+            const isLocalApi = baseUrl.startsWith('/api/') || baseUrl.includes(window.location.host);
+            const apiUrl = isLocalApi ? baseUrl : `${baseUrl}/${deviceId}`;
+            console.log('📡 Fetching:', apiUrl, isLocalApi ? '(local)' : '(proxy)');
 
             try {
                 const res = await fetch(apiUrl);
@@ -476,14 +478,43 @@
             }
         }
 
-        // Display data
+        // Display data - Support both old proxy format and new HA format
         function displayData(data) {
-            const d = data.data || {};
-            const cells = data.cells || {};
+            // Detect format: new API has deviceData, old proxy has data
+            const isNewFormat = data.deviceData !== undefined;
+            
+            let d, cells;
+            if (isNewFormat) {
+                // New format from /api/realtime/all (HA fallback)
+                const dd = data.deviceData || {};
+                d = {
+                    totalPvPower: dd.pv?.totalPower || 0,
+                    pv1Power: dd.pv?.pv1Power || 0,
+                    pv2Power: dd.pv?.pv2Power || 0,
+                    pv1Voltage: dd.pv?.pv1Voltage || 0,
+                    batterySoc: dd.battery?.soc || 0,
+                    batteryPower: dd.battery?.power || 0,
+                    batteryVoltage: dd.battery?.voltage || 0,
+                    batteryStatus: dd.battery?.status || 'Idle',
+                    gridPowerFlow: dd.grid?.power || 0,
+                    acInputVoltage: dd.grid?.inputVoltage || 0,
+                    acOutputPower: dd.acOutput?.power || 0,
+                    homeLoad: dd.load?.power || 0,
+                    temperature: dd.system?.temperature || 0
+                };
+                cells = data.batteryCells || {};
+                console.log('📊 Using NEW format (HA)', d);
+            } else {
+                // Old format from proxy
+                d = data.data || {};
+                cells = data.cells || {};
+                console.log('📊 Using OLD format (Proxy)', d);
+            }
+            
             const now = getTimeString();
 
             // Header info
-            document.getElementById('deviceIdDisplay').textContent = data.device_id || document.getElementById('deviceId').value || '--';
+            document.getElementById('deviceIdDisplay').textContent = data.device_id || data.deviceData?.deviceId || document.getElementById('deviceId').value || '--';
             document.getElementById('deviceLocation').textContent = data.city || '--';
 
             // Update timestamps
