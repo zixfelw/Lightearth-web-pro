@@ -107,42 +107,42 @@ public class HomeAssistantClient : IDisposable
                 Timestamp = DateTime.Now
             };
 
+            // Sensor format: sensor.device_p250801055_xxx
+            var deviceSnLower = _deviceSn.ToLower();
+            
             // Map of HA entity IDs to device data properties
             var sensorMappings = new Dictionary<string, Action<string>>
             {
-                { $"sensor.lumentree_{_deviceSn.ToLower()}_pv_power", v => deviceData.TotalPvPower = ParseInt(v) },
-                { $"sensor.lumentree_{_deviceSn.ToLower()}_pv1_power", v => deviceData.Pv1Power = ParseInt(v) },
-                { $"sensor.lumentree_{_deviceSn.ToLower()}_pv2_power", v => deviceData.Pv2Power = ParseInt(v) },
-                { $"sensor.lumentree_{_deviceSn.ToLower()}_pv1_voltage", v => deviceData.Pv1Voltage = ParseInt(v) },
-                { $"sensor.lumentree_{_deviceSn.ToLower()}_pv2_voltage", v => deviceData.Pv2Voltage = ParseInt(v) },
-                { $"sensor.lumentree_{_deviceSn.ToLower()}_battery_soc", v => deviceData.BatteryChargePercentage = ParseInt(v) },
-                { $"sensor.lumentree_{_deviceSn.ToLower()}_battery_power", v => deviceData.BatteryPower = ParseInt(v) },
-                { $"sensor.lumentree_{_deviceSn.ToLower()}_battery_voltage", v => deviceData.BatteryVoltage = ParseDouble(v) },
-                { $"sensor.lumentree_{_deviceSn.ToLower()}_battery_current", v => deviceData.BatteryCurrent = ParseDouble(v) },
-                { $"sensor.lumentree_{_deviceSn.ToLower()}_grid_power", v => deviceData.GridPower = ParseInt(v) },
-                { $"sensor.lumentree_{_deviceSn.ToLower()}_load_power", v => deviceData.HomeLoad = ParseInt(v) },
-                { $"sensor.lumentree_{_deviceSn.ToLower()}_ac_output_power", v => deviceData.AcOutputPower = ParseInt(v) },
-                { $"sensor.lumentree_{_deviceSn.ToLower()}_ac_output_voltage", v => deviceData.AcOutputVoltage = ParseDouble(v) },
-                { $"sensor.lumentree_{_deviceSn.ToLower()}_ac_output_frequency", v => deviceData.AcOutputFrequency = ParseDouble(v) },
-                { $"sensor.lumentree_{_deviceSn.ToLower()}_ac_input_voltage", v => deviceData.AcInputVoltage = ParseDouble(v) },
-                { $"sensor.lumentree_{_deviceSn.ToLower()}_device_temperature", v => deviceData.TemperatureCelsius = ParseDouble(v) },
-                { $"sensor.lumentree_{_deviceSn.ToLower()}_battery_status", v => deviceData.BatteryStatus = v },
-                { $"sensor.lumentree_{_deviceSn.ToLower()}_grid_status", v => deviceData.GridStatus = v },
+                // Format: sensor.device_p250801055_xxx (actual HA format)
+                { $"sensor.device_{deviceSnLower}_pv_power", v => deviceData.TotalPvPower = ParseInt(v) },
+                { $"sensor.device_{deviceSnLower}_battery_soc", v => deviceData.BatteryChargePercentage = ParseInt(v) },
+                { $"sensor.device_{deviceSnLower}_battery_power", v => deviceData.BatteryPower = ParseInt(v) },
+                { $"sensor.device_{deviceSnLower}_battery_voltage", v => deviceData.BatteryVoltage = ParseDouble(v) },
+                { $"sensor.device_{deviceSnLower}_battery_current", v => deviceData.BatteryCurrent = ParseDouble(v) },
+                { $"sensor.device_{deviceSnLower}_battery_status", v => deviceData.BatteryStatus = v },
+                { $"sensor.device_{deviceSnLower}_grid_power", v => deviceData.GridPower = ParseInt(v) },
+                { $"sensor.device_{deviceSnLower}_grid_voltage", v => deviceData.AcInputVoltage = ParseDouble(v) },
+                { $"sensor.device_{deviceSnLower}_grid_status", v => deviceData.GridStatus = v },
+                { $"sensor.device_{deviceSnLower}_load_power", v => deviceData.HomeLoad = ParseInt(v) },
+                { $"sensor.device_{deviceSnLower}_total_load_power", v => deviceData.HomeLoad ??= ParseInt(v) },
+                { $"sensor.device_{deviceSnLower}_ac_output_power", v => deviceData.AcOutputPower = ParseInt(v) },
+                { $"sensor.device_{deviceSnLower}_ac_output_voltage", v => deviceData.AcOutputVoltage = ParseDouble(v) },
+                { $"sensor.device_{deviceSnLower}_ac_output_frequency", v => deviceData.AcOutputFrequency = ParseDouble(v) },
+                { $"sensor.device_{deviceSnLower}_ac_input_power", v => deviceData.AcInputPower = ParseInt(v) },
+                { $"sensor.device_{deviceSnLower}_ac_input_frequency", v => deviceData.AcInputFrequency = ParseDouble(v) },
+                { $"sensor.device_{deviceSnLower}_device_temperature", v => deviceData.TemperatureCelsius = ParseDouble(v) },
             };
 
-            // Also try without device SN prefix (depends on HA config)
+            // Alternative format: sensor.lumentree_xxx (fallback)
             var altMappings = new Dictionary<string, Action<string>>
             {
+                { $"sensor.lumentree_{deviceSnLower}_pv_power", v => deviceData.TotalPvPower ??= ParseInt(v) },
+                { $"sensor.lumentree_{deviceSnLower}_battery_soc", v => deviceData.BatteryChargePercentage ??= ParseInt(v) },
+                { $"sensor.lumentree_{deviceSnLower}_battery_power", v => deviceData.BatteryPower ??= ParseInt(v) },
+                { $"sensor.lumentree_{deviceSnLower}_grid_power", v => deviceData.GridPower ??= ParseInt(v) },
+                { $"sensor.lumentree_{deviceSnLower}_load_power", v => deviceData.HomeLoad ??= ParseInt(v) },
                 { "sensor.lumentree_pv_power", v => deviceData.TotalPvPower ??= ParseInt(v) },
-                { "sensor.lumentree_pv1_power", v => deviceData.Pv1Power ??= ParseInt(v) },
-                { "sensor.lumentree_pv2_power", v => deviceData.Pv2Power ??= ParseInt(v) },
                 { "sensor.lumentree_battery_soc", v => deviceData.BatteryChargePercentage ??= ParseInt(v) },
-                { "sensor.lumentree_battery_power", v => deviceData.BatteryPower ??= ParseInt(v) },
-                { "sensor.lumentree_battery_voltage", v => deviceData.BatteryVoltage ??= ParseDouble(v) },
-                { "sensor.lumentree_grid_power", v => deviceData.GridPower ??= ParseInt(v) },
-                { "sensor.lumentree_load_power", v => deviceData.HomeLoad ??= ParseInt(v) },
-                { "sensor.lumentree_ac_output_power", v => deviceData.AcOutputPower ??= ParseInt(v) },
-                { "sensor.lumentree_device_temperature", v => deviceData.TemperatureCelsius ??= ParseDouble(v) },
             };
 
             // Fetch all sensors concurrently
@@ -201,8 +201,10 @@ public class HomeAssistantClient : IDisposable
 
         try
         {
-            // Try to get battery cell info entity
-            var cellEntity = await GetEntityStateAsync($"sensor.lumentree_{_deviceSn.ToLower()}_battery_cell_info");
+            // Try to get battery cell info entity - format: sensor.device_p250801055_battery_cell_info
+            var deviceSnLower = _deviceSn.ToLower();
+            var cellEntity = await GetEntityStateAsync($"sensor.device_{deviceSnLower}_battery_cell_info");
+            cellEntity ??= await GetEntityStateAsync($"sensor.lumentree_{deviceSnLower}_battery_cell_info");
             cellEntity ??= await GetEntityStateAsync("sensor.lumentree_battery_cell_info");
 
             if (cellEntity?.Attributes != null)
