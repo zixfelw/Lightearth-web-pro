@@ -56,8 +56,8 @@ public class SolarInverterMonitor : IDisposable
     // MQTT connection parameters
     private string MqttHost => "lesvr.suntcn.com";
     private int MqttPort => 1886;
-    private string MqttUser => "appuser";
-    private string MqttPassword => "app666";
+    private string MqttUser => "lightearth";
+    private string MqttPassword => "le*20180530";
     private int DelaySec => 5;
 
     /// <summary>
