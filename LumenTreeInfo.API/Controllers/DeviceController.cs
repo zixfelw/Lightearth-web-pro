@@ -15,8 +15,12 @@ public class DeviceController : ControllerBase
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<DeviceController> _logger;
     
-    // Lumentree Cloud API base URL
-    private const string LUMENTREE_API_BASE = "https://lesvr.suntcn.com";
+    // Lumentree API URLs - try multiple sources
+    private static readonly string[] LUMENTREE_API_SOURCES = new[]
+    {
+        "https://lumentree.net",           // Official API
+        "https://lesvr.suntcn.com",        // Direct server
+    };
     
     public DeviceController(
         IHttpClientFactory httpClientFactory,
@@ -41,103 +45,112 @@ public class DeviceController : ControllerBase
         {
             var client = _httpClientFactory.CreateClient("LumentreeCloud");
             
-            // Call Lumentree Cloud API
-            var apiUrl = $"{LUMENTREE_API_BASE}/api/inverter/getInverterRuntime?serialNum={deviceId}";
-            _logger.LogInformation("Fetching realtime data for device {DeviceId} from {Url}", deviceId, apiUrl);
-            
-            var response = await client.GetAsync(apiUrl);
-            
-            if (!response.IsSuccessStatusCode)
+            // Try each API source until one works
+            foreach (var baseUrl in LUMENTREE_API_SOURCES)
             {
-                _logger.LogWarning("Lumentree API returned {StatusCode} for device {DeviceId}", response.StatusCode, deviceId);
-                return Ok(new
+                try
                 {
-                    success = false,
-                    message = $"Device {deviceId} not found or API error",
-                    statusCode = (int)response.StatusCode,
-                    timestamp = DateTime.Now
-                });
-            }
-
-            var content = await response.Content.ReadAsStringAsync();
-            var lumentreeData = JsonSerializer.Deserialize<LumentreeApiResponse>(content);
-
-            if (lumentreeData == null || lumentreeData.ReturnValue != 1)
-            {
-                return Ok(new
-                {
-                    success = false,
-                    message = "Invalid response from Lumentree API",
-                    deviceId = deviceId,
-                    timestamp = DateTime.Now
-                });
-            }
-
-            var data = lumentreeData.Data;
-            
-            // Transform to our standard format
-            return Ok(new
-            {
-                success = true,
-                source = "LumentreeCloud",
-                deviceId = deviceId,
-                deviceData = new
-                {
-                    deviceId = deviceId,
-                    timestamp = DateTime.Now,
-                    pv = new
+                    var apiUrl = $"{baseUrl}/api/inverter/getInverterRuntime?serialNum={deviceId}";
+                    _logger.LogInformation("Trying {Url} for device {DeviceId}", apiUrl, deviceId);
+                    
+                    var response = await client.GetAsync(apiUrl);
+                    
+                    if (!response.IsSuccessStatusCode)
                     {
-                        pv1Power = data?.Pv1Power,
-                        pv1Voltage = data?.Pv1Voltage,
-                        pv2Power = data?.Pv2Power,
-                        pv2Voltage = data?.Pv2Voltage,
-                        totalPower = (data?.Pv1Power ?? 0) + (data?.Pv2Power ?? 0)
-                    },
-                    battery = new
-                    {
-                        soc = data?.BatterySoc,
-                        power = data?.BatteryPower,
-                        voltage = data?.BatteryVoltage,
-                        current = data?.BatteryCurrent,
-                        status = GetBatteryStatus(data?.BatteryPower)
-                    },
-                    grid = new
-                    {
-                        power = data?.GridPower,
-                        status = GetGridStatus(data?.GridPower),
-                        inputVoltage = data?.AcInputVoltage,
-                        inputFrequency = data?.AcInputFrequency
-                    },
-                    acOutput = new
-                    {
-                        power = data?.AcOutputPower,
-                        voltage = data?.AcOutputVoltage,
-                        frequency = data?.AcOutputFrequency
-                    },
-                    load = new
-                    {
-                        power = data?.HomeLoad ?? data?.TotalLoadPower
-                    },
-                    system = new
-                    {
-                        temperature = data?.Temperature,
-                        workMode = data?.WorkMode,
-                        upsMode = data?.UpsMode
+                        _logger.LogWarning("API {BaseUrl} returned {StatusCode}", baseUrl, response.StatusCode);
+                        continue;
                     }
-                },
-                // Also include raw data for debugging
-                raw = data,
-                timestamp = DateTime.Now
-            });
-        }
-        catch (HttpRequestException ex)
-        {
-            _logger.LogError(ex, "Network error fetching data for device {DeviceId}", deviceId);
+
+                    var content = await response.Content.ReadAsStringAsync();
+                    
+                    // Check if response is HTML (blocked by Cloudflare)
+                    if (content.TrimStart().StartsWith("<!") || content.TrimStart().StartsWith("<html"))
+                    {
+                        _logger.LogWarning("API {BaseUrl} returned HTML (possibly blocked)", baseUrl);
+                        continue;
+                    }
+                    
+                    var lumentreeData = JsonSerializer.Deserialize<LumentreeApiResponse>(content);
+
+                    if (lumentreeData == null || lumentreeData.ReturnValue != 1)
+                    {
+                        _logger.LogWarning("API {BaseUrl} returned invalid data", baseUrl);
+                        continue;
+                    }
+
+                    var data = lumentreeData.Data;
+                    _logger.LogInformation("Successfully got data from {BaseUrl} for device {DeviceId}", baseUrl, deviceId);
+                    
+                    return Ok(new
+                    {
+                        success = true,
+                        source = baseUrl,
+                        deviceId = deviceId,
+                        deviceData = new
+                        {
+                            deviceId = deviceId,
+                            timestamp = DateTime.Now,
+                            pv = new
+                            {
+                                pv1Power = data?.Pv1Power,
+                                pv1Voltage = data?.Pv1Voltage,
+                                pv2Power = data?.Pv2Power,
+                                pv2Voltage = data?.Pv2Voltage,
+                                totalPower = (data?.Pv1Power ?? 0) + (data?.Pv2Power ?? 0)
+                            },
+                            battery = new
+                            {
+                                soc = data?.BatterySoc,
+                                power = data?.BatteryPower,
+                                voltage = data?.BatteryVoltage,
+                                current = data?.BatteryCurrent,
+                                status = GetBatteryStatus(data?.BatteryPower)
+                            },
+                            grid = new
+                            {
+                                power = data?.GridPower,
+                                status = GetGridStatus(data?.GridPower),
+                                inputVoltage = data?.AcInputVoltage,
+                                inputFrequency = data?.AcInputFrequency
+                            },
+                            acOutput = new
+                            {
+                                power = data?.AcOutputPower,
+                                voltage = data?.AcOutputVoltage,
+                                frequency = data?.AcOutputFrequency
+                            },
+                            load = new
+                            {
+                                power = data?.HomeLoad ?? data?.TotalLoadPower
+                            },
+                            system = new
+                            {
+                                temperature = data?.Temperature,
+                                workMode = data?.WorkMode,
+                                upsMode = data?.UpsMode
+                            }
+                        },
+                        raw = data,
+                        timestamp = DateTime.Now
+                    });
+                }
+                catch (TaskCanceledException)
+                {
+                    _logger.LogWarning("API {BaseUrl} timed out", baseUrl);
+                    continue;
+                }
+                catch (HttpRequestException ex)
+                {
+                    _logger.LogWarning("API {BaseUrl} network error: {Error}", baseUrl, ex.Message);
+                    continue;
+                }
+            }
+            
+            // All sources failed
             return Ok(new
             {
                 success = false,
-                message = "Network error connecting to Lumentree Cloud",
-                error = ex.Message,
+                message = "Could not connect to Lumentree API. All sources failed.",
                 deviceId = deviceId,
                 timestamp = DateTime.Now
             });
@@ -170,54 +183,56 @@ public class DeviceController : ControllerBase
         {
             var client = _httpClientFactory.CreateClient("LumentreeCloud");
             
-            // Call Lumentree Cloud API for battery cells
-            var apiUrl = $"{LUMENTREE_API_BASE}/api/inverter/getBatteryCellVol?serialNum={deviceId}";
-            _logger.LogInformation("Fetching battery cells for device {DeviceId}", deviceId);
-            
-            var response = await client.GetAsync(apiUrl);
-            
-            if (!response.IsSuccessStatusCode)
+            foreach (var baseUrl in LUMENTREE_API_SOURCES)
             {
-                return Ok(new
+                try
                 {
-                    success = false,
-                    message = $"Device {deviceId} not found or no cell data",
-                    deviceId = deviceId,
-                    timestamp = DateTime.Now
-                });
+                    var apiUrl = $"{baseUrl}/api/inverter/getBatteryCellVol?serialNum={deviceId}";
+                    _logger.LogInformation("Fetching battery cells for device {DeviceId} from {Url}", deviceId, apiUrl);
+                    
+                    var response = await client.GetAsync(apiUrl);
+                    
+                    if (!response.IsSuccessStatusCode) continue;
+
+                    var content = await response.Content.ReadAsStringAsync();
+                    
+                    if (content.TrimStart().StartsWith("<!") || content.TrimStart().StartsWith("<html"))
+                        continue;
+                    
+                    var cellResponse = JsonSerializer.Deserialize<LumentreeCellResponse>(content);
+
+                    if (cellResponse == null || cellResponse.ReturnValue != 1 || cellResponse.Data?.CellVoltages == null)
+                        continue;
+
+                    var voltages = cellResponse.Data.CellVoltages;
+                    var validVoltages = voltages.Where(v => v > 0).ToList();
+
+                    return Ok(new
+                    {
+                        success = true,
+                        source = baseUrl,
+                        deviceId = deviceId,
+                        batteryCells = new
+                        {
+                            numberOfCells = voltages.Count,
+                            averageVoltage = validVoltages.Any() ? Math.Round(validVoltages.Average(), 3) : 0,
+                            minimumVoltage = validVoltages.Any() ? Math.Round(validVoltages.Min(), 3) : 0,
+                            maximumVoltage = validVoltages.Any() ? Math.Round(validVoltages.Max(), 3) : 0,
+                            voltageDifference = validVoltages.Any() ? Math.Round(validVoltages.Max() - validVoltages.Min(), 3) : 0,
+                            cellVoltages = voltages
+                        },
+                        timestamp = DateTime.Now
+                    });
+                }
+                catch (TaskCanceledException) { continue; }
+                catch (HttpRequestException) { continue; }
             }
-
-            var content = await response.Content.ReadAsStringAsync();
-            var cellResponse = JsonSerializer.Deserialize<LumentreeCellResponse>(content);
-
-            if (cellResponse == null || cellResponse.ReturnValue != 1 || cellResponse.Data?.CellVoltages == null)
-            {
-                return Ok(new
-                {
-                    success = false,
-                    message = "No battery cell data available",
-                    deviceId = deviceId,
-                    timestamp = DateTime.Now
-                });
-            }
-
-            var voltages = cellResponse.Data.CellVoltages;
-            var validVoltages = voltages.Where(v => v > 0).ToList();
 
             return Ok(new
             {
-                success = true,
-                source = "LumentreeCloud",
+                success = false,
+                message = "No battery cell data available",
                 deviceId = deviceId,
-                batteryCells = new
-                {
-                    numberOfCells = voltages.Count,
-                    averageVoltage = validVoltages.Any() ? Math.Round(validVoltages.Average(), 3) : 0,
-                    minimumVoltage = validVoltages.Any() ? Math.Round(validVoltages.Min(), 3) : 0,
-                    maximumVoltage = validVoltages.Any() ? Math.Round(validVoltages.Max(), 3) : 0,
-                    voltageDifference = validVoltages.Any() ? Math.Round(validVoltages.Max() - validVoltages.Min(), 3) : 0,
-                    cellVoltages = voltages
-                },
                 timestamp = DateTime.Now
             });
         }
@@ -247,22 +262,130 @@ public class DeviceController : ControllerBase
 
         try
         {
-            // Fetch both realtime and cell data in parallel
-            var realtimeTask = GetRealtimeDataInternal(deviceId);
-            var cellsTask = GetBatteryCellsInternal(deviceId);
+            var client = _httpClientFactory.CreateClient("LumentreeCloud");
+            object? deviceData = null;
+            object? batteryCells = null;
+            string? successSource = null;
 
-            await Task.WhenAll(realtimeTask, cellsTask);
+            foreach (var baseUrl in LUMENTREE_API_SOURCES)
+            {
+                try
+                {
+                    // Get realtime data
+                    var realtimeUrl = $"{baseUrl}/api/inverter/getInverterRuntime?serialNum={deviceId}";
+                    var realtimeResponse = await client.GetAsync(realtimeUrl);
+                    
+                    if (!realtimeResponse.IsSuccessStatusCode) continue;
+                    
+                    var realtimeContent = await realtimeResponse.Content.ReadAsStringAsync();
+                    if (realtimeContent.TrimStart().StartsWith("<!")) continue;
+                    
+                    var lumentreeData = JsonSerializer.Deserialize<LumentreeApiResponse>(realtimeContent);
+                    if (lumentreeData?.ReturnValue != 1) continue;
 
-            var realtimeResult = await realtimeTask;
-            var cellsResult = await cellsTask;
+                    var data = lumentreeData.Data;
+                    successSource = baseUrl;
+                    
+                    deviceData = new
+                    {
+                        deviceId = deviceId,
+                        timestamp = DateTime.Now,
+                        pv = new
+                        {
+                            pv1Power = data?.Pv1Power,
+                            pv1Voltage = data?.Pv1Voltage,
+                            pv2Power = data?.Pv2Power,
+                            pv2Voltage = data?.Pv2Voltage,
+                            totalPower = (data?.Pv1Power ?? 0) + (data?.Pv2Power ?? 0)
+                        },
+                        battery = new
+                        {
+                            soc = data?.BatterySoc,
+                            power = data?.BatteryPower,
+                            voltage = data?.BatteryVoltage,
+                            current = data?.BatteryCurrent,
+                            status = GetBatteryStatus(data?.BatteryPower)
+                        },
+                        grid = new
+                        {
+                            power = data?.GridPower,
+                            status = GetGridStatus(data?.GridPower),
+                            inputVoltage = data?.AcInputVoltage,
+                            inputFrequency = data?.AcInputFrequency
+                        },
+                        acOutput = new
+                        {
+                            power = data?.AcOutputPower,
+                            voltage = data?.AcOutputVoltage,
+                            frequency = data?.AcOutputFrequency
+                        },
+                        load = new
+                        {
+                            power = data?.HomeLoad ?? data?.TotalLoadPower
+                        },
+                        system = new
+                        {
+                            temperature = data?.Temperature,
+                            workMode = data?.WorkMode
+                        }
+                    };
+
+                    // Try to get cell data from same source
+                    try
+                    {
+                        var cellUrl = $"{baseUrl}/api/inverter/getBatteryCellVol?serialNum={deviceId}";
+                        var cellResponse = await client.GetAsync(cellUrl);
+                        
+                        if (cellResponse.IsSuccessStatusCode)
+                        {
+                            var cellContent = await cellResponse.Content.ReadAsStringAsync();
+                            if (!cellContent.TrimStart().StartsWith("<!"))
+                            {
+                                var cellData = JsonSerializer.Deserialize<LumentreeCellResponse>(cellContent);
+                                if (cellData?.ReturnValue == 1 && cellData.Data?.CellVoltages != null)
+                                {
+                                    var voltages = cellData.Data.CellVoltages;
+                                    var validVoltages = voltages.Where(v => v > 0).ToList();
+                                    
+                                    batteryCells = new
+                                    {
+                                        numberOfCells = voltages.Count,
+                                        averageVoltage = validVoltages.Any() ? Math.Round(validVoltages.Average(), 3) : 0,
+                                        minimumVoltage = validVoltages.Any() ? Math.Round(validVoltages.Min(), 3) : 0,
+                                        maximumVoltage = validVoltages.Any() ? Math.Round(validVoltages.Max(), 3) : 0,
+                                        voltageDifference = validVoltages.Any() ? Math.Round(validVoltages.Max() - validVoltages.Min(), 3) : 0,
+                                        cellVoltages = voltages
+                                    };
+                                }
+                            }
+                        }
+                    }
+                    catch { /* Ignore cell data errors */ }
+
+                    break; // Got data, stop trying other sources
+                }
+                catch (TaskCanceledException) { continue; }
+                catch (HttpRequestException) { continue; }
+            }
+
+            if (deviceData == null)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    message = "Could not connect to Lumentree API",
+                    deviceId = deviceId,
+                    timestamp = DateTime.Now
+                });
+            }
 
             return Ok(new
             {
-                success = realtimeResult.Success,
-                source = "LumentreeCloud",
+                success = true,
+                source = successSource,
                 deviceId = deviceId,
-                deviceData = realtimeResult.DeviceData,
-                batteryCells = cellsResult.BatteryCells,
+                deviceData = deviceData,
+                batteryCells = batteryCells,
                 timestamp = DateTime.Now
             });
         }
@@ -293,20 +416,42 @@ public class DeviceController : ControllerBase
         try
         {
             var client = _httpClientFactory.CreateClient("LumentreeCloud");
-            var apiUrl = $"{LUMENTREE_API_BASE}/api/inverter/getInverterRuntime?serialNum={deviceId}";
             
-            var response = await client.GetAsync(apiUrl);
-            var content = await response.Content.ReadAsStringAsync();
-            var data = JsonSerializer.Deserialize<LumentreeApiResponse>(content);
+            foreach (var baseUrl in LUMENTREE_API_SOURCES)
+            {
+                try
+                {
+                    var apiUrl = $"{baseUrl}/api/inverter/getInverterRuntime?serialNum={deviceId}";
+                    var response = await client.GetAsync(apiUrl);
+                    var content = await response.Content.ReadAsStringAsync();
+                    
+                    if (content.TrimStart().StartsWith("<!")) continue;
+                    
+                    var data = JsonSerializer.Deserialize<LumentreeApiResponse>(content);
+                    var isValid = response.IsSuccessStatusCode && data?.ReturnValue == 1;
 
-            var isValid = response.IsSuccessStatusCode && data?.ReturnValue == 1;
+                    if (isValid)
+                    {
+                        return Ok(new
+                        {
+                            success = true,
+                            deviceId = deviceId,
+                            isValid = true,
+                            source = baseUrl,
+                            message = "Device found",
+                            timestamp = DateTime.Now
+                        });
+                    }
+                }
+                catch { continue; }
+            }
 
             return Ok(new
             {
                 success = true,
                 deviceId = deviceId,
-                isValid = isValid,
-                message = isValid ? "Device found" : "Device not found",
+                isValid = false,
+                message = "Device not found",
                 timestamp = DateTime.Now
             });
         }
@@ -323,108 +468,7 @@ public class DeviceController : ControllerBase
         }
     }
 
-    #region Private Helper Methods
-
-    private async Task<(bool Success, object? DeviceData)> GetRealtimeDataInternal(string deviceId)
-    {
-        try
-        {
-            var client = _httpClientFactory.CreateClient("LumentreeCloud");
-            var apiUrl = $"{LUMENTREE_API_BASE}/api/inverter/getInverterRuntime?serialNum={deviceId}";
-            
-            var response = await client.GetAsync(apiUrl);
-            if (!response.IsSuccessStatusCode) return (false, null);
-
-            var content = await response.Content.ReadAsStringAsync();
-            var lumentreeData = JsonSerializer.Deserialize<LumentreeApiResponse>(content);
-
-            if (lumentreeData?.ReturnValue != 1) return (false, null);
-
-            var data = lumentreeData.Data;
-            return (true, new
-            {
-                deviceId = deviceId,
-                timestamp = DateTime.Now,
-                pv = new
-                {
-                    pv1Power = data?.Pv1Power,
-                    pv1Voltage = data?.Pv1Voltage,
-                    pv2Power = data?.Pv2Power,
-                    pv2Voltage = data?.Pv2Voltage,
-                    totalPower = (data?.Pv1Power ?? 0) + (data?.Pv2Power ?? 0)
-                },
-                battery = new
-                {
-                    soc = data?.BatterySoc,
-                    power = data?.BatteryPower,
-                    voltage = data?.BatteryVoltage,
-                    current = data?.BatteryCurrent,
-                    status = GetBatteryStatus(data?.BatteryPower)
-                },
-                grid = new
-                {
-                    power = data?.GridPower,
-                    status = GetGridStatus(data?.GridPower),
-                    inputVoltage = data?.AcInputVoltage,
-                    inputFrequency = data?.AcInputFrequency
-                },
-                acOutput = new
-                {
-                    power = data?.AcOutputPower,
-                    voltage = data?.AcOutputVoltage,
-                    frequency = data?.AcOutputFrequency
-                },
-                load = new
-                {
-                    power = data?.HomeLoad ?? data?.TotalLoadPower
-                },
-                system = new
-                {
-                    temperature = data?.Temperature,
-                    workMode = data?.WorkMode
-                }
-            });
-        }
-        catch
-        {
-            return (false, null);
-        }
-    }
-
-    private async Task<(bool Success, object? BatteryCells)> GetBatteryCellsInternal(string deviceId)
-    {
-        try
-        {
-            var client = _httpClientFactory.CreateClient("LumentreeCloud");
-            var apiUrl = $"{LUMENTREE_API_BASE}/api/inverter/getBatteryCellVol?serialNum={deviceId}";
-            
-            var response = await client.GetAsync(apiUrl);
-            if (!response.IsSuccessStatusCode) return (false, null);
-
-            var content = await response.Content.ReadAsStringAsync();
-            var cellResponse = JsonSerializer.Deserialize<LumentreeCellResponse>(content);
-
-            if (cellResponse?.ReturnValue != 1 || cellResponse.Data?.CellVoltages == null) 
-                return (false, null);
-
-            var voltages = cellResponse.Data.CellVoltages;
-            var validVoltages = voltages.Where(v => v > 0).ToList();
-
-            return (true, new
-            {
-                numberOfCells = voltages.Count,
-                averageVoltage = validVoltages.Any() ? Math.Round(validVoltages.Average(), 3) : 0,
-                minimumVoltage = validVoltages.Any() ? Math.Round(validVoltages.Min(), 3) : 0,
-                maximumVoltage = validVoltages.Any() ? Math.Round(validVoltages.Max(), 3) : 0,
-                voltageDifference = validVoltages.Any() ? Math.Round(validVoltages.Max() - validVoltages.Min(), 3) : 0,
-                cellVoltages = voltages
-            });
-        }
-        catch
-        {
-            return (false, null);
-        }
-    }
+    #region Helper Methods
 
     private static string GetBatteryStatus(int? power)
     {
