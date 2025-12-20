@@ -40,6 +40,13 @@ public class Program
         // Add Memory Cache
         builder.Services.AddMemoryCache();
 
+        // Add HttpClientFactory for external API calls (Lumentree Cloud)
+        builder.Services.AddHttpClient("LumentreeCloud", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.Add("User-Agent", "LumenTreeInfo/1.0");
+        });
+
         // Add our custom caching service
         builder.Services.AddSingleton<ICacheService, MemoryCacheService>();
 
