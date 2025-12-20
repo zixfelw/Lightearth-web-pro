@@ -986,22 +986,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 if (!item) return;
                 
-                // Update tooltip content
+                // Update tooltip content - only time and SOC
                 document.getElementById('soc-tooltip-time').textContent = `⏰ ${item.t}`;
                 document.getElementById('soc-tooltip-soc').textContent = `🔋 ${item.soc}%`;
-                
-                const statusText = item.status === 'Charging' ? '🔌 Đang sạc' : 
-                                  item.status === 'Discharging' ? '⚡ Đang xả' : '💤 Chờ';
-                const statusColor = item.status === 'Charging' ? 'text-green-400' : 
-                                   item.status === 'Discharging' ? 'text-orange-400' : 'text-slate-400';
-                document.getElementById('soc-tooltip-status').textContent = statusText;
-                document.getElementById('soc-tooltip-status').className = `text-xs mb-1 font-semibold ${statusColor}`;
-                
-                document.getElementById('soc-tooltip-battery').textContent = `⚡ ${item.batteryPower || 0}W`;
-                document.getElementById('soc-tooltip-pv').textContent = `☀️ ${item.pvPower || 0}W`;
-                document.getElementById('soc-tooltip-load').textContent = `🏠 ${item.loadPower || 0}W`;
-                document.getElementById('soc-tooltip-grid').textContent = `🔌 ${item.gridPower || 0}W`;
-                document.getElementById('soc-tooltip-temp').textContent = item.temp > 0 ? `🌡️ ${item.temp}°C` : '';
                 
                 // Position using caretX/caretY (zoom-proof)
                 const chartArea = chart.chartArea;

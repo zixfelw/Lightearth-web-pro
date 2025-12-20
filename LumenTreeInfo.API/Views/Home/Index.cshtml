@@ -843,18 +843,10 @@
         <!-- Chart Container with External Tooltip -->
         <div class="chart-container relative" style="height: 200px;">
             <canvas id="socChart"></canvas>
-            <!-- External HTML Tooltip (zoom-proof) -->
-            <div id="soc-tooltip" class="hidden absolute z-50 bg-slate-900/95 text-white text-xs rounded-lg shadow-xl p-3 pointer-events-none min-w-[160px] backdrop-blur-sm border border-slate-700">
-                <div id="soc-tooltip-time" class="text-slate-300 mb-1 font-medium"></div>
-                <div id="soc-tooltip-soc" class="text-lg font-black text-teal-400 mb-1"></div>
-                <div id="soc-tooltip-status" class="text-xs mb-2 font-semibold"></div>
-                <div class="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
-                    <div id="soc-tooltip-battery" class="text-teal-300"></div>
-                    <div id="soc-tooltip-pv" class="text-amber-300"></div>
-                    <div id="soc-tooltip-load" class="text-blue-300"></div>
-                    <div id="soc-tooltip-grid" class="text-indigo-300"></div>
-                </div>
-                <div id="soc-tooltip-temp" class="text-[10px] text-orange-300 mt-1"></div>
+            <!-- External HTML Tooltip (zoom-proof) - Simplified: only time and SOC -->
+            <div id="soc-tooltip" class="hidden absolute z-50 bg-slate-900/95 text-white text-xs rounded-lg shadow-xl p-2.5 pointer-events-none backdrop-blur-sm border border-slate-700">
+                <div id="soc-tooltip-time" class="text-slate-300 text-xs font-medium"></div>
+                <div id="soc-tooltip-soc" class="text-xl font-black text-teal-400"></div>
             </div>
         </div>
         
