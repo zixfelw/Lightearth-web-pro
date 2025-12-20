@@ -1647,7 +1647,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 let html = '';
                 tooltip.dataPoints.forEach((point, idx) => {
                     const value = point.parsed.y;
-                    const displayValue = value >= 1000 ? `${(value / 1000).toFixed(2)} kW` : `${value.toFixed(0)} W`;
+                    // Always display in W (not kW)
+                    const displayValue = `${Math.round(value)} W`;
                     html += `<div class="flex items-center justify-between gap-3">
                         <span class="flex items-center gap-1.5">
                             <span class="w-2 h-2 rounded-full" style="background-color: ${colors[idx]}"></span>
@@ -1791,8 +1792,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         },
                         ticks: {
                             callback: function(value) {
-                                if (value >= 1000) return (value / 1000).toFixed(1) + ' kW';
-                                return value + ' W';
+                                // Always display in W (not kW)
+                                return Math.round(value) + ' W';
                             },
                             font: { size: 10 },
                             color: 'rgba(148, 163, 184, 0.8)',
@@ -1847,8 +1848,8 @@ document.addEventListener('DOMContentLoaded', function () {
         
         const formatPeak = (val) => {
             if (val === 0) return '0 W';
-            if (val >= 1000) return `${(val / 1000).toFixed(1)} kW`;
-            return `${val.toFixed(0)} W`;
+            // Always display in W (not kW)
+            return `${Math.round(val)} W`;
         };
         
         // Find peak for each dataset
