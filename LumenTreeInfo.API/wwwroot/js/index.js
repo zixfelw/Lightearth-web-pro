@@ -72,6 +72,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const currentOrigin = window.location.origin;
     
     const API_SOURCES = {
+        // Local API with Home Assistant fallback (default)
+        local: {
+            name: 'Local API (HA Fallback)',
+            realtime: `${currentOrigin}/api/realtime/all`,
+            soc: 'https://solar-proxy.applike098.workers.dev/api/soc',
+            isLocal: true  // Flag to indicate local API format
+        },
         workers: {
             name: 'Cloudflare Workers',
             realtime: 'https://lightearth.applike098.workers.dev/api/realtime',
@@ -113,11 +120,16 @@ document.addEventListener('DOMContentLoaded', function () {
     // SOC API - Use global SOC_API_URL constant
     const SOC_API_BASE = SOC_API_URL;
     
-    // Default to Workers API (more stable)
-    let currentApiSource = 'workers';
+    // Default to Local API with Home Assistant fallback
+    let currentApiSource = 'local';
     
     function getRealtimeApiUrl(deviceId) {
-        return `${API_SOURCES[currentApiSource].realtime}/${deviceId}`;
+        const source = API_SOURCES[currentApiSource];
+        // Local API doesn't need deviceId appended
+        if (source.isLocal) {
+            return source.realtime;
+        }
+        return `${source.realtime}/${deviceId}`;
     }
     
     function getSocApiUrl(deviceId, date) {
@@ -457,9 +469,35 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await response.json();
             if (data.error) return;
             
-            // Update displays with realtime data
-            if (data.data) {
-                const displayData = {
+            // Detect format: new HA API has deviceData, old proxy has data
+            const isNewFormat = data.deviceData !== undefined;
+            let displayData, cellsData;
+            
+            if (isNewFormat) {
+                // New format from /api/realtime/all (HA fallback)
+                const dd = data.deviceData || {};
+                displayData = {
+                    pvTotalPower: dd.pv?.totalPower || 0,
+                    pv1Power: dd.pv?.pv1Power || 0,
+                    pv2Power: dd.pv?.pv2Power || 0,
+                    pv1Voltage: dd.pv?.pv1Voltage || 0,
+                    pv2Voltage: dd.pv?.pv2Voltage || 0,
+                    gridValue: dd.grid?.power || 0,
+                    gridVoltageValue: dd.grid?.inputVoltage || 0,
+                    batteryPercent: dd.battery?.soc || 0,
+                    batteryValue: dd.battery?.power || 0,
+                    batteryVoltage: dd.battery?.voltage || 0,
+                    batteryStatus: dd.battery?.status || 'Idle',
+                    deviceTempValue: dd.system?.temperature || 0,
+                    essentialValue: dd.acOutput?.power || 0,
+                    loadValue: dd.load?.power || 0,
+                    inverterAcOutPower: dd.acOutput?.power || 0
+                };
+                cellsData = data.batteryCells;
+                console.log('📊 Using NEW format (HA)', displayData);
+            } else if (data.data) {
+                // Old format from proxy
+                displayData = {
                     pvTotalPower: data.data.totalPvPower || 0,
                     pv1Power: data.data.pv1Power || 0,
                     pv2Power: data.data.pv2Power || 0,
@@ -476,47 +514,54 @@ document.addEventListener('DOMContentLoaded', function () {
                     loadValue: data.data.homeLoad || 0,
                     inverterAcOutPower: data.data.acOutputPower || 0
                 };
-                updateRealTimeDisplay(displayData);
+                cellsData = data.cells;
+                console.log('📊 Using OLD format (Proxy)', displayData);
+            } else {
+                return; // No valid data
+            }
+            
+            // Update displays with realtime data
+            updateRealTimeDisplay(displayData);
+            
+            // Update battery cell voltages
+            if (cellsData && cellsData.cellVoltages) {
+                let cellVoltages = [];
+                const rawVoltages = cellsData.cellVoltages;
                 
-                // Update battery cell voltages - data is in data.cells.cellVoltages
-                if (data.cells && data.cells.cellVoltages) {
-                    let cellVoltages = [];
-                    const rawVoltages = data.cells.cellVoltages;
-                    
-                    // Handle Array format: [3.413, 3.379, ...]
-                    if (Array.isArray(rawVoltages)) {
-                        cellVoltages = rawVoltages;
-                    } 
-                    // Handle Object format: {"Cell 01": 3.223, ...}
-                    else if (typeof rawVoltages === 'object') {
-                        const cellNames = Object.keys(rawVoltages).sort((a, b) => 
-                            parseInt(a.replace(/\D/g, '')) - parseInt(b.replace(/\D/g, ''))
-                        );
-                        cellNames.forEach(cellName => {
-                            cellVoltages.push(rawVoltages[cellName]);
-                        });
-                    }
-                    
-                    if (cellVoltages.length > 0) {
-                        const validVoltages = cellVoltages.filter(v => v > 0);
-                        const cellData = {
-                            cells: cellVoltages,
-                            maximumVoltage: data.cells.maximumVoltage || Math.max(...validVoltages, 0),
-                            minimumVoltage: data.cells.minimumVoltage || Math.min(...validVoltages.filter(v => v > 0), 0),
-                            averageVoltage: data.cells.averageVoltage || (validVoltages.length > 0 ? validVoltages.reduce((a, b) => a + b, 0) / validVoltages.length : 0),
-                            numberOfCells: cellVoltages.length
-                        };
-                        updateBatteryCellDisplay(cellData);
-                        console.log(`📊 Cell voltages updated: ${cellVoltages.length} cells`);
-                    }
+                // Handle Array format: [3.413, 3.379, ...]
+                if (Array.isArray(rawVoltages)) {
+                    cellVoltages = rawVoltages;
+                } 
+                // Handle Object format: {"Cell 01": 3.223, ...}
+                else if (typeof rawVoltages === 'object') {
+                    const cellNames = Object.keys(rawVoltages).sort((a, b) => 
+                        parseInt(a.replace(/\D/g, '')) - parseInt(b.replace(/\D/g, ''))
+                    );
+                    cellNames.forEach(cellName => {
+                        cellVoltages.push(rawVoltages[cellName]);
+                    });
                 }
                 
-                // NOTE: SOC data is handled by fetchSOCData() from API
-                // Chart data is loaded only once in fetchData()
+                if (cellVoltages.length > 0) {
+                    const validVoltages = cellVoltages.filter(v => v > 0);
+                    const cellData = {
+                        cells: cellVoltages,
+                        maximumVoltage: cellsData.maximumVoltage || Math.max(...validVoltages, 0),
+                        minimumVoltage: cellsData.minimumVoltage || Math.min(...validVoltages.filter(v => v > 0), 0),
+                        averageVoltage: cellsData.averageVoltage || (validVoltages.length > 0 ? validVoltages.reduce((a, b) => a + b, 0) / validVoltages.length : 0),
+                        numberOfCells: cellVoltages.length
+                    };
+                    updateBatteryCellDisplay(cellData);
+                    console.log(`📊 Cell voltages updated: ${cellVoltages.length} cells`);
+                }
             }
+            
+            // NOTE: SOC data is handled by fetchSOCData() from API
+            // Chart data is loaded only once in fetchData()
             
             updateConnectionStatus('connected', 'http');
         } catch (error) {
+            console.error('Realtime fetch error:', error);
             // Silent fail for polling - don't update status on error
             // This allows HTTP API status to remain if it was previously working
         }
