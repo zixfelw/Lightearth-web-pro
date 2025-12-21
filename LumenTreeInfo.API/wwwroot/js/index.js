@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 12204 - Clean SOC chart update time
+ * Version: 12205 - Enhanced SOC chart touch responsiveness
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1308,9 +1308,66 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     }
                 },
-                interaction: { mode: 'index', intersect: false }
+                interaction: { 
+                    mode: 'index', 
+                    intersect: false,
+                    // Improve touch responsiveness
+                    axis: 'x'
+                },
+                // Improve hover/touch detection
+                hover: {
+                    mode: 'index',
+                    intersect: false,
+                    animationDuration: 0
+                },
+                // Better event handling
+                events: ['mousemove', 'mouseout', 'click', 'touchstart', 'touchmove', 'touchend']
             }
         });
+        
+        // Enhanced touch handling for mobile
+        let touchActive = false;
+        
+        const handleTouchMove = (e) => {
+            if (!touchActive) return;
+            e.preventDefault();
+            
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            
+            // Trigger Chart.js tooltip at touch position
+            const points = socChartInstance.getElementsAtEventForMode(
+                { x, y, type: 'touchmove' },
+                'index',
+                { intersect: false },
+                false
+            );
+            
+            if (points.length > 0) {
+                const index = points[0].index;
+                socChartInstance.tooltip.setActiveElements([{ datasetIndex: 0, index }], { x, y });
+                socChartInstance.update('none');
+            }
+        };
+        
+        const handleTouchStart = (e) => {
+            touchActive = true;
+            handleTouchMove(e);
+        };
+        
+        const handleTouchEnd = () => {
+            touchActive = false;
+            const tooltipEl = document.getElementById('soc-tooltip');
+            if (tooltipEl) tooltipEl.classList.add('hidden');
+            updateSOCCurrentValues();
+        };
+        
+        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+        canvas.addEventListener('touchend', handleTouchEnd);
+        canvas.addEventListener('touchcancel', handleTouchEnd);
         
         // Mouse leave handler
         canvas.addEventListener('mouseleave', () => {
@@ -1319,7 +1376,7 @@ document.addEventListener('DOMContentLoaded', function () {
             updateSOCCurrentValues();
         });
         
-        console.log('✅ SOC Chart rendered successfully');
+        console.log('✅ SOC Chart rendered with enhanced touch support');
     }
     
     // Update current values (latest data point) - no-op after removing power cards
