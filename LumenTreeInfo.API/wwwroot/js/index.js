@@ -812,6 +812,32 @@ document.addEventListener('DOMContentLoaded', function () {
             } catch (fallbackError) {
                 console.warn("⚠️ Solar-proxy fallback also failed:", fallbackError.message);
                 
+                // Final fallback: Try Home Assistant daily energy API
+                try {
+                    console.log("📡 Final fallback: Trying Home Assistant daily energy API...");
+                    const haEnergyUrl = `${currentOrigin}/api/realtime/daily-energy/${deviceId}`;
+                    const haResponse = await fetch(haEnergyUrl);
+                    
+                    if (haResponse.ok) {
+                        const haData = await haResponse.json();
+                        
+                        if (haData.success && haData.summary) {
+                            const summary = haData.summary;
+                            updateValue('pv-total', (summary.pv_day || 0).toFixed(1) + ' kWh');
+                            updateValue('load-total', (summary.total_load_day || summary.load_day || 0).toFixed(1) + ' kWh');
+                            updateValue('grid-total', (summary.grid_day || 0).toFixed(1) + ' kWh');
+                            updateValue('essential-total', (summary.essential_day || 0).toFixed(1) + ' kWh');
+                            updateValue('bat-charge', (summary.charge_day || 0).toFixed(1) + ' kWh');
+                            updateValue('bat-discharge', (summary.discharge_day || 0).toFixed(1) + ' kWh');
+                            
+                            console.log("✅ Daily energy updated from Home Assistant:", summary);
+                            return;
+                        }
+                    }
+                } catch (haError) {
+                    console.warn("⚠️ HA daily energy also failed:", haError.message);
+                }
+                
                 // All failed - show N/A
                 updateValue('pv-total', 'N/A');
                 updateValue('bat-charge', 'N/A');

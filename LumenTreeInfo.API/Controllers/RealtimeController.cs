@@ -616,6 +616,79 @@ public class RealtimeController : ControllerBase
     }
 
     /// <summary>
+    /// Get daily energy summary for a device from Home Assistant
+    /// Returns today's energy values: PV, charge, discharge, grid, load, essential
+    /// </summary>
+    /// <param name="deviceId">The device ID (e.g., P250801055)</param>
+    [HttpGet("daily-energy/{deviceId}")]
+    public async Task<IActionResult> GetDailyEnergy(string deviceId)
+    {
+        _logger.LogInformation("Fetching daily energy for device: {DeviceId}", deviceId);
+
+        if (_multiDeviceHaClient == null)
+        {
+            return Ok(new
+            {
+                success = false,
+                message = "Home Assistant client not configured",
+                deviceId = deviceId,
+                timestamp = DateTime.Now
+            });
+        }
+
+        try
+        {
+            // Check if device exists
+            var deviceExists = await _multiDeviceHaClient.DeviceExistsAsync(deviceId);
+            if (!deviceExists)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    message = $"Device {deviceId} not found in Home Assistant",
+                    deviceId = deviceId,
+                    timestamp = DateTime.Now
+                });
+            }
+
+            // Get daily energy data from HA
+            var dailyEnergy = await _multiDeviceHaClient.GetDailyEnergyAsync(deviceId);
+
+            if (dailyEnergy == null)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    message = $"No daily energy data for device {deviceId}",
+                    deviceId = deviceId,
+                    timestamp = DateTime.Now
+                });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                deviceId = deviceId.ToUpper(),
+                date = DateTime.Today.ToString("yyyy-MM-dd"),
+                dataSource = "HomeAssistant",
+                summary = dailyEnergy,
+                timestamp = DateTime.Now
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting daily energy for device {DeviceId}", deviceId);
+            return StatusCode(500, new
+            {
+                success = false,
+                message = ex.Message,
+                deviceId = deviceId,
+                timestamp = DateTime.Now
+            });
+        }
+    }
+
+    /// <summary>
     /// Get configuration info (for debugging)
     /// </summary>
     [HttpGet("config")]

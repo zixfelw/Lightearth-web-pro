@@ -346,6 +346,63 @@ public class MultiDeviceHomeAssistantClient : IDisposable
     }
 
     /// <summary>
+    /// Get daily energy summary for a device (today's totals)
+    /// </summary>
+    public async Task<DailyEnergySummary?> GetDailyEnergyAsync(string deviceSn)
+    {
+        if (!await CheckAvailabilityAsync())
+            return null;
+
+        try
+        {
+            var deviceSnLower = deviceSn.ToLower();
+            var summary = new DailyEnergySummary();
+
+            // Map of HA entity IDs to summary properties
+            var sensorMappings = new Dictionary<string, Action<double>>
+            {
+                { $"sensor.device_{deviceSnLower}_pv_today", v => summary.PvDay = v },
+                { $"sensor.device_{deviceSnLower}_charge_today", v => summary.ChargeDay = v },
+                { $"sensor.device_{deviceSnLower}_discharge_today", v => summary.DischargeDay = v },
+                { $"sensor.device_{deviceSnLower}_grid_in_today", v => summary.GridDay = v },
+                { $"sensor.device_{deviceSnLower}_load_today", v => summary.LoadDay = v },
+                { $"sensor.device_{deviceSnLower}_total_load_today", v => summary.TotalLoadDay = v },
+                { $"sensor.device_{deviceSnLower}_essential_today", v => summary.EssentialDay = v },
+            };
+
+            // Fetch all sensors concurrently
+            var tasks = sensorMappings.Select(async kv =>
+            {
+                var state = await GetEntityStateAsync(kv.Key);
+                if (state != null && !string.IsNullOrEmpty(state.State) && 
+                    state.State != "unavailable" && state.State != "unknown")
+                {
+                    if (double.TryParse(state.State, out var value))
+                    {
+                        kv.Value(value);
+                    }
+                }
+            });
+
+            await Task.WhenAll(tasks);
+
+            // Use LoadDay if TotalLoadDay is not available
+            if (summary.TotalLoadDay == 0 && summary.LoadDay > 0)
+            {
+                summary.TotalLoadDay = summary.LoadDay;
+            }
+
+            Log.Information($"HA Daily Energy for {deviceSn}: PV={summary.PvDay}kWh, Charge={summary.ChargeDay}kWh, Discharge={summary.DischargeDay}kWh, Grid={summary.GridDay}kWh, Load={summary.TotalLoadDay}kWh");
+            return summary;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Error getting daily energy for {deviceSn}: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Get battery cell data for a specific device
     /// </summary>
     public async Task<SolarInverterMonitor.BatteryCellData?> GetBatteryCellDataAsync(string deviceSn)
@@ -430,6 +487,37 @@ public class MultiDeviceHomeAssistantClient : IDisposable
     {
         _client?.Dispose();
     }
+}
+
+/// <summary>
+/// Daily energy summary from Home Assistant
+/// </summary>
+public class DailyEnergySummary
+{
+    [JsonPropertyName("pv_day")]
+    public double PvDay { get; set; }
+    
+    [JsonPropertyName("charge_day")]
+    public double ChargeDay { get; set; }
+    
+    [JsonPropertyName("discharge_day")]
+    public double DischargeDay { get; set; }
+    
+    [JsonPropertyName("grid_day")]
+    public double GridDay { get; set; }
+    
+    [JsonPropertyName("load_day")]
+    public double LoadDay { get; set; }
+    
+    [JsonPropertyName("total_load_day")]
+    public double TotalLoadDay { get; set; }
+    
+    [JsonPropertyName("essential_day")]
+    public double EssentialDay { get; set; }
+    
+    // Computed property for bat_day (charge - discharge)
+    [JsonPropertyName("bat_day")]
+    public double BatDay => ChargeDay - DischargeDay;
 }
 
 /// <summary>
