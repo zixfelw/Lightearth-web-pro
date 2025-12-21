@@ -774,7 +774,42 @@ public class HomeController : Controller
             
             Log.Information("Fetching SOC data for device {DeviceId} on {Date}", deviceId, queryDate);
             
-            // Try LEHT API first (primary source)
+            // Try Home Assistant first (best source for real-time data)
+            try
+            {
+                var haUrl = Environment.GetEnvironmentVariable("HomeAssistant__Url");
+                var haToken = Environment.GetEnvironmentVariable("HomeAssistant__Token");
+                
+                if (!string.IsNullOrEmpty(haUrl) && !string.IsNullOrEmpty(haToken))
+                {
+                    var haClient = new MultiDeviceHomeAssistantClient(haUrl, haToken);
+                    
+                    // Parse the date
+                    if (DateTime.TryParse(queryDate, out var targetDate))
+                    {
+                        var haHistory = await haClient.GetSocHistoryAsync(deviceId, targetDate);
+                        
+                        if (haHistory != null && haHistory.Count > 0)
+                        {
+                            Log.Information("Successfully fetched SOC data from Home Assistant for device {DeviceId}: {Count} points", 
+                                deviceId, haHistory.Count);
+                            
+                            return Json(new {
+                                deviceId = deviceId.ToUpper(),
+                                date = queryDate,
+                                dataSource = "HomeAssistant",
+                                timeline = haHistory
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Home Assistant failed for SOC data, trying LEHT API");
+            }
+            
+            // Try LEHT API second
             try
             {
                 var lehtClient = new LehtApiClient();

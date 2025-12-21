@@ -279,6 +279,73 @@ public class MultiDeviceHomeAssistantClient : IDisposable
     }
 
     /// <summary>
+    /// Get SOC history timeline for a specific device from Home Assistant
+    /// </summary>
+    public async Task<List<SocHistoryPoint>?> GetSocHistoryAsync(string deviceSn, DateTime date)
+    {
+        if (!await CheckAvailabilityAsync())
+            return null;
+
+        try
+        {
+            var deviceSnLower = deviceSn.ToLower();
+            var entityId = $"sensor.device_{deviceSnLower}_battery_soc";
+            
+            // Format date for HA API
+            var startTime = date.ToString("yyyy-MM-ddT00:00:00");
+            var endTime = date.AddDays(1).ToString("yyyy-MM-ddT00:00:00");
+            
+            var request = new RestRequest($"/api/history/period/{startTime}", Method.Get);
+            request.AddQueryParameter("filter_entity_id", entityId);
+            request.AddQueryParameter("end_time", endTime);
+            
+            var response = await _client.ExecuteAsync(request);
+            
+            if (!response.IsSuccessful || string.IsNullOrEmpty(response.Content))
+            {
+                Log.Warning($"Failed to get SOC history: {response.StatusCode}");
+                return null;
+            }
+
+            // HA returns array of arrays: [[{state, last_changed, ...}, ...]]
+            var historyArray = JsonSerializer.Deserialize<List<List<HaHistoryState>>>(response.Content);
+            
+            if (historyArray == null || historyArray.Count == 0 || historyArray[0].Count == 0)
+            {
+                Log.Warning($"No SOC history found for {deviceSn} on {date:yyyy-MM-dd}");
+                return null;
+            }
+
+            var timeline = new List<SocHistoryPoint>();
+            
+            foreach (var state in historyArray[0])
+            {
+                if (state.State != null && int.TryParse(state.State, out var soc))
+                {
+                    // Parse the timestamp
+                    if (DateTime.TryParse(state.LastChanged, out var timestamp))
+                    {
+                        timeline.Add(new SocHistoryPoint
+                        {
+                            Soc = soc,
+                            Timestamp = timestamp,
+                            Time = timestamp.ToString("HH:mm")
+                        });
+                    }
+                }
+            }
+
+            Log.Information($"Got {timeline.Count} SOC history points for {deviceSn} on {date:yyyy-MM-dd}");
+            return timeline;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Error getting SOC history for {deviceSn}: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Get battery cell data for a specific device
     /// </summary>
     public async Task<SolarInverterMonitor.BatteryCellData?> GetBatteryCellDataAsync(string deviceSn)
@@ -363,4 +430,40 @@ public class MultiDeviceHomeAssistantClient : IDisposable
     {
         _client?.Dispose();
     }
+}
+
+/// <summary>
+/// SOC history data point for timeline charts
+/// </summary>
+public class SocHistoryPoint
+{
+    [JsonPropertyName("soc")]
+    public int Soc { get; set; }
+    
+    [JsonPropertyName("timestamp")]
+    public DateTime Timestamp { get; set; }
+    
+    /// <summary>
+    /// Time in HH:mm format - named 't' for frontend compatibility
+    /// </summary>
+    [JsonPropertyName("t")]
+    public string Time { get; set; } = "";
+}
+
+/// <summary>
+/// HA History state response
+/// </summary>
+public class HaHistoryState
+{
+    [JsonPropertyName("entity_id")]
+    public string? EntityId { get; set; }
+    
+    [JsonPropertyName("state")]
+    public string? State { get; set; }
+    
+    [JsonPropertyName("last_changed")]
+    public string? LastChanged { get; set; }
+    
+    [JsonPropertyName("last_updated")]
+    public string? LastUpdated { get; set; }
 }

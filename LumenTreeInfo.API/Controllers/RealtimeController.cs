@@ -510,6 +510,112 @@ public class RealtimeController : ControllerBase
     }
 
     /// <summary>
+    /// Get SOC history timeline for a specific device from Home Assistant
+    /// Returns timeline data suitable for charts
+    /// </summary>
+    /// <param name="deviceId">The device ID (e.g., P250801055)</param>
+    /// <param name="date">Optional date in format yyyy-MM-dd (defaults to today)</param>
+    [HttpGet("soc-history/{deviceId}")]
+    public async Task<IActionResult> GetSocHistory(string deviceId, [FromQuery] string? date = null)
+    {
+        _logger.LogInformation("Fetching SOC history for device: {DeviceId}, date: {Date}", deviceId, date ?? "today");
+
+        if (_multiDeviceHaClient == null)
+        {
+            return Ok(new
+            {
+                success = false,
+                message = "Home Assistant client not configured",
+                deviceId = deviceId,
+                timestamp = DateTime.Now
+            });
+        }
+
+        try
+        {
+            // Check if device exists in Home Assistant
+            var deviceExists = await _multiDeviceHaClient.DeviceExistsAsync(deviceId);
+            
+            if (!deviceExists)
+            {
+                _logger.LogWarning("Device {DeviceId} not found in Home Assistant", deviceId);
+                return Ok(new
+                {
+                    success = false,
+                    message = $"Device {deviceId} not found in Home Assistant",
+                    deviceId = deviceId,
+                    timestamp = DateTime.Now
+                });
+            }
+
+            // Parse date or use today
+            DateTime targetDate;
+            if (string.IsNullOrEmpty(date))
+            {
+                targetDate = DateTime.Today;
+            }
+            else if (!DateTime.TryParse(date, out targetDate))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Invalid date format. Use yyyy-MM-dd",
+                    deviceId = deviceId
+                });
+            }
+
+            // Get SOC history from HA
+            var socHistory = await _multiDeviceHaClient.GetSocHistoryAsync(deviceId, targetDate);
+
+            if (socHistory == null || socHistory.Count == 0)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    message = $"No SOC history found for device {deviceId} on {targetDate:yyyy-MM-dd}",
+                    deviceId = deviceId,
+                    date = targetDate.ToString("yyyy-MM-dd"),
+                    timestamp = DateTime.Now
+                });
+            }
+
+            // Calculate statistics
+            var socValues = socHistory.Select(x => x.Soc).Where(s => s >= 0).ToList();
+            var minSoc = socValues.Any() ? socValues.Min() : 0;
+            var maxSoc = socValues.Any() ? socValues.Max() : 0;
+            var avgSoc = socValues.Any() ? Math.Round(socValues.Average(), 1) : 0;
+
+            return Ok(new
+            {
+                success = true,
+                deviceId = deviceId.ToUpper(),
+                date = targetDate.ToString("yyyy-MM-dd"),
+                timeline = socHistory,
+                statistics = new
+                {
+                    count = socHistory.Count,
+                    minSoc = minSoc,
+                    maxSoc = maxSoc,
+                    avgSoc = avgSoc,
+                    currentSoc = socHistory.LastOrDefault()?.Soc ?? 0
+                },
+                timestamp = DateTime.Now
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting SOC history for device {DeviceId}", deviceId);
+            return StatusCode(500, new
+            {
+                success = false,
+                message = ex.Message,
+                deviceId = deviceId,
+                timestamp = DateTime.Now
+            });
+        }
+    }
+
+    /// <summary>
     /// Get configuration info (for debugging)
     /// </summary>
     [HttpGet("config")]
