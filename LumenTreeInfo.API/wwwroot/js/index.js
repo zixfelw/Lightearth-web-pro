@@ -13,7 +13,10 @@
  */
 
 // Global constants - defined outside DOMContentLoaded to avoid TDZ issues
-const SOC_API_URL = 'https://solar-proxy.applike098.workers.dev/api/soc';
+// Primary: Railway SOC History API (Home Assistant data)
+// Fallback: solar-proxy Workers API
+const SOC_API_PRIMARY = window.location.origin + '/api/realtime/soc-history';
+const SOC_API_FALLBACK = 'https://solar-proxy.applike098.workers.dev/api/soc';
 
 document.addEventListener('DOMContentLoaded', function () {
     // ========================================
@@ -117,8 +120,9 @@ document.addEventListener('DOMContentLoaded', function () {
     };
     const LIGHTEARTH_CACHE_TTL = 10 * 60 * 1000; // 10 minutes in milliseconds
     
-    // SOC API - Use global SOC_API_URL constant
-    const SOC_API_BASE = SOC_API_URL;
+    // SOC API - Use Railway primary, fallback to solar-proxy
+    const SOC_API_RAILWAY = SOC_API_PRIMARY;
+    const SOC_API_WORKERS = SOC_API_FALLBACK;
     
     // Default to Local API with Home Assistant fallback
     let currentApiSource = 'local';
@@ -936,6 +940,8 @@ document.addEventListener('DOMContentLoaded', function () {
     let socAutoReloadInterval = null;
     
     // Fetch SOC data from API - uses deviceId from input and date from dateInput
+    // Primary: Railway SOC History API (from Home Assistant)
+    // Fallback: solar-proxy Workers API
     async function fetchSOCData() {
         // Get deviceId from input or URL parameter
         const deviceId = document.getElementById('deviceId')?.value?.trim() || urlParams.get('deviceId');
@@ -948,29 +954,59 @@ document.addEventListener('DOMContentLoaded', function () {
         const dateInput = document.getElementById('dateInput')?.value;
         const date = dateInput || new Date().toISOString().split('T')[0];
         
-        const url = `${SOC_API_BASE}/${deviceId}/${date}`;
+        // Primary: Railway SOC History API
+        const railwayUrl = `${SOC_API_RAILWAY}/${deviceId}?date=${date}`;
+        // Fallback: solar-proxy Workers API
+        const workersUrl = `${SOC_API_WORKERS}/${deviceId}/${date}`;
         
+        let data = null;
+        let source = '';
+        
+        // Try Railway API first (Home Assistant data)
         try {
-            console.log(`📡 Fetching SOC data from: ${url}`);
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`SOC API error: ${response.status}`);
-            
-            const data = await response.json();
-            console.log(`✅ SOC data received: ${data.timeline?.length || 0} points for device ${deviceId} on ${date}`);
-            
-            if (data.timeline && Array.isArray(data.timeline) && data.timeline.length > 0) {
-                socData = data.timeline;
-                renderSOCChart();
-                updateSOCLastTime();
-                startSOCAutoReload();
-            } else {
-                console.warn('⚠️ SOC data empty or invalid for', deviceId, date);
-                // Show empty state
-                socData = [];
-                renderSOCChartEmpty();
+            console.log(`📡 [SOC] Trying Railway API: ${railwayUrl}`);
+            const response = await fetch(railwayUrl);
+            if (response.ok) {
+                data = await response.json();
+                if (data.success && data.timeline && data.timeline.length > 0) {
+                    source = 'Railway (Home Assistant)';
+                    console.log(`✅ [SOC] Railway API success: ${data.timeline.length} points`);
+                } else {
+                    data = null; // Reset to try fallback
+                    console.warn(`⚠️ [SOC] Railway API returned no data for ${deviceId}`);
+                }
             }
         } catch (error) {
-            console.warn('❌ SOC fetch error:', error.message);
+            console.warn(`⚠️ [SOC] Railway API failed: ${error.message}`);
+        }
+        
+        // Fallback to solar-proxy Workers API
+        if (!data) {
+            try {
+                console.log(`📡 [SOC] Fallback to Workers API: ${workersUrl}`);
+                const response = await fetch(workersUrl);
+                if (response.ok) {
+                    data = await response.json();
+                    if (data.timeline && data.timeline.length > 0) {
+                        source = 'Workers (Lumentree)';
+                        console.log(`✅ [SOC] Workers API success: ${data.timeline.length} points`);
+                    }
+                }
+            } catch (error) {
+                console.warn(`❌ [SOC] Workers API also failed: ${error.message}`);
+            }
+        }
+        
+        // Process data
+        if (data && data.timeline && Array.isArray(data.timeline) && data.timeline.length > 0) {
+            socData = data.timeline;
+            renderSOCChart();
+            updateSOCLastTime(source);
+            startSOCAutoReload();
+            console.log(`✅ [SOC] Chart rendered with ${socData.length} points from ${source}`);
+        } else {
+            console.warn(`⚠️ [SOC] No data available for ${deviceId} on ${date}`);
+            socData = [];
             renderSOCChartEmpty();
         }
     }
@@ -1149,12 +1185,13 @@ document.addEventListener('DOMContentLoaded', function () {
         // Power cards removed - nothing to update
     }
     
-    // Update last fetch time
-    function updateSOCLastTime() {
+    // Update last fetch time with source info
+    function updateSOCLastTime(source = '') {
         const el = document.getElementById('soc-last-update');
         if (el) {
             const now = new Date();
-            el.textContent = `Cập nhật: ${now.toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'})}`;
+            const timeStr = now.toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'});
+            el.textContent = source ? `${timeStr} (${source})` : `Cập nhật: ${timeStr}`;
         }
     }
     
