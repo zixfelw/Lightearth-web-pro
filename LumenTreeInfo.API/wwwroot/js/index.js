@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 12212 - Fix timezone UTC to Vietnam (GMT+7) for history
+ * Version: 12213 - Clean up energy chart footer, bigger date text
  * 
  * Features:
  * - Real-time data via SignalR
