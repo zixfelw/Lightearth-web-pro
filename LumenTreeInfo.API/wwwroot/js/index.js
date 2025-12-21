@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 12211 - Fix HA history parsing (double values, skip unknown)
+ * Version: 12212 - Fix timezone UTC to Vietnam (GMT+7) for history
  * 
  * Features:
  * - Real-time data via SignalR

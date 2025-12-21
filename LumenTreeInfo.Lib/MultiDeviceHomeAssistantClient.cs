@@ -318,18 +318,25 @@ public class MultiDeviceHomeAssistantClient : IDisposable
 
             var timeline = new List<SocHistoryPoint>();
             
+            // Vietnam timezone for display
+            var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+            
             foreach (var state in historyArray[0])
             {
                 if (state.State != null && int.TryParse(state.State, out var soc))
                 {
-                    // Parse the timestamp
+                    // Parse the timestamp and convert to Vietnam timezone
                     if (DateTime.TryParse(state.LastChanged, out var timestamp))
                     {
+                        // HA returns UTC, convert to Vietnam time
+                        var utcTime = timestamp.Kind == DateTimeKind.Utc ? timestamp : timestamp.ToUniversalTime();
+                        var vietnamTime = TimeZoneInfo.ConvertTimeFromUtc(utcTime, vietnamTz);
+                        
                         timeline.Add(new SocHistoryPoint
                         {
                             Soc = soc,
-                            Timestamp = timestamp,
-                            Time = timestamp.ToString("HH:mm")
+                            Timestamp = vietnamTime,
+                            Time = vietnamTime.ToString("HH:mm")
                         });
                     }
                 }
@@ -458,6 +465,9 @@ public class MultiDeviceHomeAssistantClient : IDisposable
 
             var timeline = new List<PowerHistoryPoint>();
             int lastPv = 0, lastBat = 0, lastGrid = 0, lastLoad = 0;
+            
+            // Vietnam timezone for display
+            var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
 
             foreach (var time in allTimes)
             {
@@ -467,10 +477,13 @@ public class MultiDeviceHomeAssistantClient : IDisposable
                 if (gridHistory.TryGetValue(time, out var grid)) lastGrid = grid;
                 if (loadHistory.TryGetValue(time, out var load)) lastLoad = load;
 
+                // Convert UTC time to Vietnam timezone for display
+                var vietnamTime = TimeZoneInfo.ConvertTimeFromUtc(time, vietnamTz);
+                
                 timeline.Add(new PowerHistoryPoint
                 {
-                    Timestamp = time,
-                    Time = time.ToString("HH:mm"),
+                    Timestamp = vietnamTime,
+                    Time = vietnamTime.ToString("HH:mm"),
                     PvPower = lastPv,
                     BatteryPower = lastBat,
                     GridPower = lastGrid,
