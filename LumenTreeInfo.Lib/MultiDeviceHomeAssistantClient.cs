@@ -292,8 +292,9 @@ public class MultiDeviceHomeAssistantClient : IDisposable
             var entityId = $"sensor.device_{deviceSnLower}_battery_soc";
             
             // Format date for HA API - use Vietnam timezone (GMT+7)
-            var startTime = date.ToString("yyyy-MM-ddT00:00:00+07:00");
-            var endTime = date.AddDays(1).ToString("yyyy-MM-ddT00:00:00+07:00");
+            // URL encode the + sign as %2B to prevent issues
+            var startTime = date.ToString("yyyy-MM-ddT00:00:00") + "%2B07:00";
+            var endTime = date.AddDays(1).ToString("yyyy-MM-ddT00:00:00") + "%2B07:00";
             
             var request = new RestRequest($"/api/history/period/{startTime}", Method.Get);
             request.AddQueryParameter("filter_entity_id", entityId);
@@ -366,13 +367,13 @@ public class MultiDeviceHomeAssistantClient : IDisposable
             var totalLoadEntity = $"sensor.device_{deviceSnLower}_total_load_power";
             
             // Format date for HA API - use Vietnam timezone (GMT+7)
-            // HA stores timestamps in UTC but we query by local date
-            var startTime = date.ToString("yyyy-MM-ddT00:00:00+07:00");
-            var endTime = date.AddDays(1).ToString("yyyy-MM-ddT00:00:00+07:00");
+            // URL encode the + sign as %2B to prevent issues
+            var startTime = date.ToString("yyyy-MM-ddT00:00:00") + "%2B07:00";
+            var endTime = date.AddDays(1).ToString("yyyy-MM-ddT00:00:00") + "%2B07:00";
             
             // Fetch all power histories (include both load and total_load)
             var entities = new[] { pvEntity, batteryEntity, gridEntity, loadEntity, totalLoadEntity };
-            Log.Information($"Fetching power history for entities: {string.Join(", ", entities)}");
+            Log.Information($"Fetching power history for entities: {string.Join(", ", entities)}, start: {startTime}");
             
             var request = new RestRequest($"/api/history/period/{startTime}", Method.Get);
             request.AddQueryParameter("filter_entity_id", string.Join(",", entities));

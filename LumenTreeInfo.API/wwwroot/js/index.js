@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 12208 - Fix HA history timezone query (GMT+7)
+ * Version: 12209 - Fix URL encode %2B for timezone in HA history
  * 
  * Features:
  * - Real-time data via SignalR
