@@ -22,6 +22,11 @@ public class MultiDeviceHomeAssistantClient : IDisposable
     private HashSet<string> _knownDevices = new(StringComparer.OrdinalIgnoreCase);
     private DateTime _lastDeviceScan = DateTime.MinValue;
     private readonly TimeSpan _deviceScanInterval = TimeSpan.FromMinutes(5);
+    
+    // Cache all states to reduce API calls
+    private Dictionary<string, HaEntityState> _statesCache = new(StringComparer.OrdinalIgnoreCase);
+    private DateTime _lastStatesRefresh = DateTime.MinValue;
+    private readonly TimeSpan _statesRefreshInterval = TimeSpan.FromSeconds(10);
 
     public MultiDeviceHomeAssistantClient(string baseUrl, string token)
     {
@@ -160,41 +165,56 @@ public class MultiDeviceHomeAssistantClient : IDisposable
     }
 
     /// <summary>
-    /// Get entity state from Home Assistant
+    /// Refresh all states cache from Home Assistant (single API call)
     /// </summary>
-    public async Task<HaEntityState?> GetEntityStateAsync(string entityId)
+    private async Task RefreshStatesCacheAsync()
     {
+        if (DateTime.Now - _lastStatesRefresh < _statesRefreshInterval && _statesCache.Count > 0)
+            return;
+
         try
         {
-            var request = new RestRequest($"/api/states/{entityId}", Method.Get);
-            var response = await _client.ExecuteAsync<HaEntityState>(request);
+            var request = new RestRequest("/api/states", Method.Get);
+            var response = await _client.ExecuteAsync(request);
             
-            if (response.IsSuccessful && response.Data != null)
-                return response.Data;
-            
-            return null;
+            if (response.IsSuccessful && !string.IsNullOrEmpty(response.Content))
+            {
+                var states = JsonSerializer.Deserialize<List<HaEntityState>>(response.Content);
+                if (states != null)
+                {
+                    _statesCache = states
+                        .Where(s => s.EntityId != null)
+                        .ToDictionary(s => s.EntityId!, s => s, StringComparer.OrdinalIgnoreCase);
+                    _lastStatesRefresh = DateTime.Now;
+                    Log.Debug($"States cache refreshed: {_statesCache.Count} entities");
+                }
+            }
         }
         catch (Exception ex)
         {
-            Log.Debug($"Error getting entity {entityId}: {ex.Message}");
-            return null;
+            Log.Warning($"Error refreshing states cache: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// Get device data for a specific device ID
+    /// Get entity state from cache (refreshes cache if needed)
+    /// </summary>
+    public async Task<HaEntityState?> GetEntityStateAsync(string entityId)
+    {
+        await RefreshStatesCacheAsync();
+        return _statesCache.TryGetValue(entityId, out var state) ? state : null;
+    }
+
+    /// <summary>
+    /// Get device data for a specific device ID (uses cached states)
     /// </summary>
     public async Task<SolarInverterMonitor.DeviceData?> GetDeviceDataAsync(string deviceSn)
     {
         if (!await CheckAvailabilityAsync())
             return null;
 
-        // Check if device exists
-        if (!await DeviceExistsAsync(deviceSn))
-        {
-            Log.Warning($"Device {deviceSn} not found in Home Assistant");
-            return null;
-        }
+        // Refresh states cache first (single API call)
+        await RefreshStatesCacheAsync();
 
         try
         {
@@ -233,11 +253,13 @@ public class MultiDeviceHomeAssistantClient : IDisposable
                 { $"sensor.device_{deviceSnLower}_pv2_voltage", v => deviceData.Pv2Voltage = ParseDouble(v) },
             };
 
-            // Fetch all sensors concurrently
-            var tasks = sensorMappings.Select(async kv =>
+            // Process from cache (no API calls)
+            foreach (var kv in sensorMappings)
             {
-                var state = await GetEntityStateAsync(kv.Key);
-                if (state != null && !string.IsNullOrEmpty(state.State) && state.State != "unavailable" && state.State != "unknown")
+                if (_statesCache.TryGetValue(kv.Key, out var state) && 
+                    !string.IsNullOrEmpty(state.State) && 
+                    state.State != "unavailable" && 
+                    state.State != "unknown")
                 {
                     try
                     {
@@ -248,9 +270,7 @@ public class MultiDeviceHomeAssistantClient : IDisposable
                         Log.Debug($"Error parsing {kv.Key}: {ex.Message}");
                     }
                 }
-            });
-
-            await Task.WhenAll(tasks);
+            }
 
             // Set derived values
             if (deviceData.BatteryPower.HasValue)
@@ -502,12 +522,15 @@ public class MultiDeviceHomeAssistantClient : IDisposable
     }
 
     /// <summary>
-    /// Get daily energy summary for a device (today's totals)
+    /// Get daily energy summary for a device (today's totals) - uses cached states
     /// </summary>
     public async Task<DailyEnergySummary?> GetDailyEnergyAsync(string deviceSn)
     {
         if (!await CheckAvailabilityAsync())
             return null;
+
+        // Refresh states cache first
+        await RefreshStatesCacheAsync();
 
         try
         {
@@ -526,11 +549,11 @@ public class MultiDeviceHomeAssistantClient : IDisposable
                 { $"sensor.device_{deviceSnLower}_essential_today", v => summary.EssentialDay = v },
             };
 
-            // Fetch all sensors concurrently
-            var tasks = sensorMappings.Select(async kv =>
+            // Process from cache (no API calls)
+            foreach (var kv in sensorMappings)
             {
-                var state = await GetEntityStateAsync(kv.Key);
-                if (state != null && !string.IsNullOrEmpty(state.State) && 
+                if (_statesCache.TryGetValue(kv.Key, out var state) && 
+                    !string.IsNullOrEmpty(state.State) && 
                     state.State != "unavailable" && state.State != "unknown")
                 {
                     if (double.TryParse(state.State, out var value))
@@ -538,9 +561,7 @@ public class MultiDeviceHomeAssistantClient : IDisposable
                         kv.Value(value);
                     }
                 }
-            });
-
-            await Task.WhenAll(tasks);
+            }
 
             // Use LoadDay if TotalLoadDay is not available
             if (summary.TotalLoadDay == 0 && summary.LoadDay > 0)
@@ -548,7 +569,7 @@ public class MultiDeviceHomeAssistantClient : IDisposable
                 summary.TotalLoadDay = summary.LoadDay;
             }
 
-            Log.Information($"HA Daily Energy for {deviceSn}: PV={summary.PvDay}kWh, Charge={summary.ChargeDay}kWh, Discharge={summary.DischargeDay}kWh, Grid={summary.GridDay}kWh, Load={summary.TotalLoadDay}kWh");
+            Log.Debug($"HA Daily Energy for {deviceSn}: PV={summary.PvDay}kWh, Load={summary.TotalLoadDay}kWh");
             return summary;
         }
         catch (Exception ex)

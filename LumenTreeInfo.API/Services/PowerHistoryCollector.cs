@@ -99,16 +99,14 @@ public class PowerHistoryCollector : BackgroundService
                         return list;
                     });
                 
-                _logger.LogDebug("Collected power data for {DeviceId}: PV={Pv}W, Bat={Bat}W, Grid={Grid}W, Load={Load}W",
-                    deviceId, point.PvPower, point.BatteryPower, point.GridPower, point.LoadPower);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Error collecting data for device {DeviceId}", deviceId);
+                _logger.LogDebug("Error collecting data for device {DeviceId}: {Error}", deviceId, ex.Message);
             }
         }
         
-        _logger.LogInformation("Power data collected for {Count} devices", devices.Count);
+        _logger.LogDebug("Power data collected for {Count} devices", devices.Count);
     }
 
     private void CleanupOldData()
