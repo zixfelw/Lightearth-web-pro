@@ -6,12 +6,14 @@ namespace LumenTreeInfo.API.Controllers;
 
 /// <summary>
 /// API Controller for Realtime data with MQTT + Home Assistant fallback support
+/// Supports multiple devices from Home Assistant
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
 public class RealtimeController : ControllerBase
 {
     private readonly DataSourceManager? _dataSourceManager;
+    private readonly MultiDeviceHomeAssistantClient? _multiDeviceHaClient;
     private readonly IHubContext<DeviceHub> _hubContext;
     private readonly ILogger<RealtimeController> _logger;
     private readonly IConfiguration _configuration;
@@ -20,12 +22,14 @@ public class RealtimeController : ControllerBase
         IHubContext<DeviceHub> hubContext,
         ILogger<RealtimeController> logger,
         IConfiguration configuration,
-        DataSourceManager? dataSourceManager = null)
+        DataSourceManager? dataSourceManager = null,
+        MultiDeviceHomeAssistantClient? multiDeviceHaClient = null)
     {
         _hubContext = hubContext;
         _logger = logger;
         _configuration = configuration;
         _dataSourceManager = dataSourceManager;
+        _multiDeviceHaClient = multiDeviceHaClient;
     }
 
     /// <summary>
@@ -313,6 +317,171 @@ public class RealtimeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting all realtime data");
+            return StatusCode(500, new
+            {
+                success = false,
+                message = ex.Message,
+                timestamp = DateTime.Now
+            });
+        }
+    }
+
+    /// <summary>
+    /// Get realtime data for a specific device ID from Home Assistant
+    /// </summary>
+    [HttpGet("device/{deviceId}")]
+    public async Task<IActionResult> GetDeviceById(string deviceId)
+    {
+        _logger.LogInformation("Fetching data for device: {DeviceId}", deviceId);
+
+        if (_multiDeviceHaClient == null)
+        {
+            return Ok(new
+            {
+                success = false,
+                message = "Home Assistant client not configured",
+                deviceId = deviceId,
+                timestamp = DateTime.Now
+            });
+        }
+
+        try
+        {
+            // Check if device exists in Home Assistant
+            var deviceExists = await _multiDeviceHaClient.DeviceExistsAsync(deviceId);
+            
+            if (!deviceExists)
+            {
+                _logger.LogWarning("Device {DeviceId} not found in Home Assistant", deviceId);
+                return Ok(new
+                {
+                    success = false,
+                    message = $"Device {deviceId} not found in Home Assistant. Please add it first.",
+                    deviceId = deviceId,
+                    knownDevices = _multiDeviceHaClient.KnownDevices.ToList(),
+                    timestamp = DateTime.Now
+                });
+            }
+
+            // Get device data
+            var deviceData = await _multiDeviceHaClient.GetDeviceDataAsync(deviceId);
+            var cellData = await _multiDeviceHaClient.GetBatteryCellDataAsync(deviceId);
+
+            if (deviceData == null)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    message = $"No data available for device {deviceId}",
+                    deviceId = deviceId,
+                    timestamp = DateTime.Now
+                });
+            }
+
+            return Ok(new
+            {
+                success = true,
+                source = "HomeAssistant",
+                deviceData = new
+                {
+                    deviceId = deviceData.DeviceId,
+                    timestamp = deviceData.Timestamp,
+                    pv = new
+                    {
+                        pv1Power = deviceData.Pv1Power,
+                        pv1Voltage = deviceData.Pv1Voltage,
+                        pv2Power = deviceData.Pv2Power,
+                        pv2Voltage = deviceData.Pv2Voltage,
+                        totalPower = deviceData.TotalPvPower
+                    },
+                    battery = new
+                    {
+                        soc = deviceData.BatteryChargePercentage,
+                        power = deviceData.BatteryPower,
+                        voltage = deviceData.BatteryVoltage,
+                        current = deviceData.BatteryCurrent,
+                        status = deviceData.BatteryStatus
+                    },
+                    grid = new
+                    {
+                        power = deviceData.GridPower,
+                        status = deviceData.GridStatus,
+                        inputVoltage = deviceData.AcInputVoltage,
+                        inputFrequency = deviceData.AcInputFrequency
+                    },
+                    acOutput = new
+                    {
+                        power = deviceData.AcOutputPower,
+                        voltage = deviceData.AcOutputVoltage,
+                        frequency = deviceData.AcOutputFrequency
+                    },
+                    load = new
+                    {
+                        power = deviceData.HomeLoad
+                    },
+                    system = new
+                    {
+                        temperature = deviceData.TemperatureCelsius,
+                        workMode = deviceData.WorkMode,
+                        upsMode = deviceData.UpsMode
+                    }
+                },
+                batteryCells = cellData != null ? new
+                {
+                    numberOfCells = cellData.NumberOfCells,
+                    averageVoltage = Math.Round(cellData.AverageVoltage, 3),
+                    minimumVoltage = Math.Round(cellData.MinimumVoltage, 3),
+                    maximumVoltage = Math.Round(cellData.MaximumVoltage, 3),
+                    voltageDifference = Math.Round(cellData.VoltageDifference, 3),
+                    cellVoltages = cellData.CellVoltages
+                } : null,
+                timestamp = DateTime.Now
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting data for device {DeviceId}", deviceId);
+            return StatusCode(500, new
+            {
+                success = false,
+                message = ex.Message,
+                deviceId = deviceId,
+                timestamp = DateTime.Now
+            });
+        }
+    }
+
+    /// <summary>
+    /// Get list of all known devices in Home Assistant
+    /// </summary>
+    [HttpGet("devices")]
+    public async Task<IActionResult> GetKnownDevices()
+    {
+        if (_multiDeviceHaClient == null)
+        {
+            return Ok(new
+            {
+                success = false,
+                message = "Home Assistant client not configured",
+                timestamp = DateTime.Now
+            });
+        }
+
+        try
+        {
+            var devices = await _multiDeviceHaClient.ScanDevicesAsync();
+            
+            return Ok(new
+            {
+                success = true,
+                devices = devices.ToList(),
+                count = devices.Count,
+                timestamp = DateTime.Now
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error scanning devices");
             return StatusCode(500, new
             {
                 success = false,

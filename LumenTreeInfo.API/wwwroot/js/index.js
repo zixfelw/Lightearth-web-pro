@@ -125,9 +125,10 @@ document.addEventListener('DOMContentLoaded', function () {
     
     function getRealtimeApiUrl(deviceId) {
         const source = API_SOURCES[currentApiSource];
-        // Local API doesn't need deviceId appended
+        // Local API - use device-specific endpoint for multi-device support
         if (source.isLocal) {
-            return source.realtime;
+            // Use new endpoint: /api/realtime/device/{deviceId}
+            return `${currentOrigin}/api/realtime/device/${deviceId}`;
         }
         return `${source.realtime}/${deviceId}`;
     }
@@ -468,6 +469,18 @@ document.addEventListener('DOMContentLoaded', function () {
             
             const data = await response.json();
             if (data.error) return;
+            
+            // Check if device not found in Home Assistant
+            if (data.success === false) {
+                console.warn(`⚠️ Device ${deviceId} not found:`, data.message);
+                // Show error message to user
+                updateRealTimeDisplay({
+                    noRealtimeData: true,
+                    deviceNotFound: true,
+                    errorMessage: data.message || `Device ${deviceId} not found in Home Assistant`
+                });
+                return;
+            }
             
             // Detect format: new HA API has deviceData, old proxy has data
             const isNewFormat = data.deviceData !== undefined;
@@ -1221,6 +1234,30 @@ document.addEventListener('DOMContentLoaded', function () {
     // ========================================
     
     function updateRealTimeDisplay(data) {
+        // Check if device not found in Home Assistant
+        if (data.deviceNotFound) {
+            updateValue('pv-power', 'N/A');
+            updateValueHTML('pv-desc', `<span class="text-red-400 text-xs">Thiết bị không tồn tại trong HA</span>`);
+            
+            updateValue('grid-power', 'N/A');
+            updateValue('grid-voltage', 'N/A');
+            
+            updateValue('battery-percent-icon', 'N/A');
+            updateValueHTML('battery-status-text', `<span class="text-red-400">Không tìm thấy</span>`);
+            updateValueHTML('battery-power', `<span class="text-red-400">--</span>`);
+            updateValue('batteryVoltageDisplay', '--');
+            
+            updateValue('device-temp', 'N/A');
+            updateValue('device-temp-info', '--');
+            updateValue('essential-power', 'N/A');
+            updateValue('load-power', 'N/A');
+            updateValue('acout-power', 'N/A');
+            
+            // Show error message
+            console.error(`❌ Device not found: ${data.errorMessage}`);
+            return;
+        }
+        
         // Check if we have NO realtime data (all values are null)
         const noData = data.noRealtimeData || (data.pvTotalPower === null && data.gridValue === null);
         

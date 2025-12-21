@@ -95,6 +95,23 @@ public class Program
             }
         });
         
+        // Add MultiDeviceHomeAssistantClient for multi-device support
+        builder.Services.AddSingleton<MultiDeviceHomeAssistantClient>(serviceProvider => {
+            var config = builder.Configuration;
+            
+            var haUrl = config["HomeAssistant:Url"];
+            var haToken = config["HomeAssistant:Token"];
+            
+            if (string.IsNullOrEmpty(haUrl) || string.IsNullOrEmpty(haToken) || haToken == "YOUR_LONG_LIVED_ACCESS_TOKEN_HERE")
+            {
+                Log.Warning("MultiDeviceHomeAssistantClient not configured - missing URL or Token");
+                return null!;
+            }
+            
+            Log.Information($"MultiDeviceHomeAssistantClient configured for {haUrl}");
+            return new MultiDeviceHomeAssistantClient(haUrl, haToken);
+        });
+        
         // Start DataSourceManager as hosted service
         builder.Services.AddHostedService<DataSourceManagerHostedService>();
 
