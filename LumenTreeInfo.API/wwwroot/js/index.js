@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 12210 - Simplify HA history date format (no timezone needed)
+ * Version: 12211 - Fix HA history parsing (double values, skip unknown)
  * 
  * Features:
  * - Real-time data via SignalR

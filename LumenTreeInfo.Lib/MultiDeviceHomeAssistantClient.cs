@@ -411,6 +411,7 @@ public class MultiDeviceHomeAssistantClient : IDisposable
             {
                 if (entityHistory == null || entityHistory.Count == 0) continue;
                 
+                // First item contains entity_id (minimal_response format)
                 var entityId = entityHistory[0]?.EntityId?.ToLower() ?? "";
                 
                 Dictionary<DateTime, int>? targetDict = null;
@@ -419,16 +420,23 @@ public class MultiDeviceHomeAssistantClient : IDisposable
                 else if (entityId.Contains("grid_power")) targetDict = gridHistory;
                 else if (entityId.Contains("total_load_power") || entityId.Contains("load_power")) targetDict = loadHistory;
                 
-                Log.Debug($"Processing entity: {entityId}, points: {entityHistory.Count}, target: {(targetDict != null ? "found" : "null")}");
+                Log.Information($"Processing entity: {entityId}, points: {entityHistory.Count}, matched: {(targetDict != null)}");
                 
                 if (targetDict == null) continue;
 
                 foreach (var state in entityHistory)
                 {
-                    if (state.State != null && DateTime.TryParse(state.LastChanged, out var timestamp))
+                    // Skip "unknown" or "unavailable" states
+                    if (string.IsNullOrEmpty(state.State) || state.State == "unknown" || state.State == "unavailable") 
+                        continue;
+                        
+                    if (DateTime.TryParse(state.LastChanged, out var timestamp))
                     {
-                        if (int.TryParse(state.State, out var power))
+                        // Parse as double first (HA returns values like "2607.0")
+                        if (double.TryParse(state.State, out var powerDouble))
                         {
+                            var power = (int)Math.Round(powerDouble);
+                            
                             // Round to nearest 5 minutes
                             var roundedTime = new DateTime(
                                 timestamp.Year, timestamp.Month, timestamp.Day,
