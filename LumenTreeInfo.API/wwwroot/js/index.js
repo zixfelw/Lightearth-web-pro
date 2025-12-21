@@ -436,20 +436,35 @@ document.addEventListener('DOMContentLoaded', function () {
     // REALTIME POLLING (2 seconds interval)
     // ========================================
     
+    // Separate polling intervals for realtime data and battery cells
+    let cellPollingInterval = null;
+    const REALTIME_POLL_INTERVAL = 3000; // 3 seconds for realtime data
+    const CELL_POLL_INTERVAL = 15000; // 15 seconds for battery cell data
+    
     function startRealtimePolling(deviceId) {
         if (realtimePollingInterval) {
             clearInterval(realtimePollingInterval);
         }
+        if (cellPollingInterval) {
+            clearInterval(cellPollingInterval);
+        }
         
-        console.log(`Starting realtime polling for device: ${deviceId}`);
+        console.log(`Starting realtime polling for device: ${deviceId} (${REALTIME_POLL_INTERVAL/1000}s interval)`);
+        console.log(`Starting cell polling for device: ${deviceId} (${CELL_POLL_INTERVAL/1000}s interval)`);
         
         // Fetch immediately
-        fetchRealtimeData(deviceId);
+        fetchRealtimeData(deviceId, false); // Don't fetch cells
+        fetchBatteryCellData(deviceId); // Fetch cells separately
         
-        // Then poll every 2 seconds
+        // Poll realtime data every 3 seconds (without cells)
         realtimePollingInterval = setInterval(() => {
-            fetchRealtimeData(deviceId);
-        }, 2000);
+            fetchRealtimeData(deviceId, false);
+        }, REALTIME_POLL_INTERVAL);
+        
+        // Poll battery cell data every 15 seconds
+        cellPollingInterval = setInterval(() => {
+            fetchBatteryCellData(deviceId);
+        }, CELL_POLL_INTERVAL);
     }
     
     function stopRealtimePolling() {
@@ -457,13 +472,17 @@ document.addEventListener('DOMContentLoaded', function () {
             clearInterval(realtimePollingInterval);
             realtimePollingInterval = null;
         }
+        if (cellPollingInterval) {
+            clearInterval(cellPollingInterval);
+            cellPollingInterval = null;
+        }
     }
     
-    async function fetchRealtimeData(deviceId) {
+    async function fetchRealtimeData(deviceId, includeCells = true) {
         try {
             // Use configured API source (Workers or Sandbox)
             const apiUrl = getRealtimeApiUrl(deviceId);
-            console.log(`📡 Fetching from ${API_SOURCES[currentApiSource].name}:`, apiUrl);
+            console.log(`📡 Fetching realtime from ${API_SOURCES[currentApiSource].name}:`, apiUrl);
             const response = await fetch(apiUrl);
             if (!response.ok) return;
             
@@ -536,37 +555,10 @@ document.addEventListener('DOMContentLoaded', function () {
             // Update displays with realtime data
             updateRealTimeDisplay(displayData);
             
-            // Update battery cell voltages
-            if (cellsData && cellsData.cellVoltages) {
-                let cellVoltages = [];
-                const rawVoltages = cellsData.cellVoltages;
-                
-                // Handle Array format: [3.413, 3.379, ...]
-                if (Array.isArray(rawVoltages)) {
-                    cellVoltages = rawVoltages;
-                } 
-                // Handle Object format: {"Cell 01": 3.223, ...}
-                else if (typeof rawVoltages === 'object') {
-                    const cellNames = Object.keys(rawVoltages).sort((a, b) => 
-                        parseInt(a.replace(/\D/g, '')) - parseInt(b.replace(/\D/g, ''))
-                    );
-                    cellNames.forEach(cellName => {
-                        cellVoltages.push(rawVoltages[cellName]);
-                    });
-                }
-                
-                if (cellVoltages.length > 0) {
-                    const validVoltages = cellVoltages.filter(v => v > 0);
-                    const cellData = {
-                        cells: cellVoltages,
-                        maximumVoltage: cellsData.maximumVoltage || Math.max(...validVoltages, 0),
-                        minimumVoltage: cellsData.minimumVoltage || Math.min(...validVoltages.filter(v => v > 0), 0),
-                        averageVoltage: cellsData.averageVoltage || (validVoltages.length > 0 ? validVoltages.reduce((a, b) => a + b, 0) / validVoltages.length : 0),
-                        numberOfCells: cellVoltages.length
-                    };
-                    updateBatteryCellDisplay(cellData);
-                    console.log(`📊 Cell voltages updated: ${cellVoltages.length} cells`);
-                }
+            // Update battery cell voltages only if includeCells is true
+            // Cell data is now fetched separately every 15 seconds
+            if (includeCells && cellsData && cellsData.cellVoltages) {
+                processCellData(cellsData);
             }
             
             // NOTE: SOC data is handled by fetchSOCData() from API
@@ -585,6 +577,69 @@ document.addEventListener('DOMContentLoaded', function () {
         updateConnectionStatus('disconnected', 'mqtt');
         await startSignalRConnection();
     });
+
+    // ========================================
+    // BATTERY CELL DATA FETCHING (15 seconds interval)
+    // ========================================
+    
+    async function fetchBatteryCellData(deviceId) {
+        try {
+            // Use the same API endpoint but only process cell data
+            const apiUrl = getRealtimeApiUrl(deviceId);
+            console.log(`🔋 Fetching battery cells for ${deviceId}`);
+            const response = await fetch(apiUrl);
+            if (!response.ok) return;
+            
+            const data = await response.json();
+            if (data.error || data.success === false) return;
+            
+            // Get cell data from response
+            let cellsData = null;
+            if (data.deviceData !== undefined) {
+                cellsData = data.batteryCells;
+            } else if (data.data) {
+                cellsData = data.cells;
+            }
+            
+            if (cellsData && cellsData.cellVoltages) {
+                processCellData(cellsData);
+            }
+        } catch (error) {
+            console.error('Battery cell fetch error:', error);
+        }
+    }
+    
+    function processCellData(cellsData) {
+        let cellVoltages = [];
+        const rawVoltages = cellsData.cellVoltages;
+        
+        // Handle Array format: [3.413, 3.379, ...]
+        if (Array.isArray(rawVoltages)) {
+            cellVoltages = rawVoltages;
+        } 
+        // Handle Object format: {"Cell 01": 3.223, ...}
+        else if (typeof rawVoltages === 'object') {
+            const cellNames = Object.keys(rawVoltages).sort((a, b) => 
+                parseInt(a.replace(/\D/g, '')) - parseInt(b.replace(/\D/g, ''))
+            );
+            cellNames.forEach(cellName => {
+                cellVoltages.push(rawVoltages[cellName]);
+            });
+        }
+        
+        if (cellVoltages.length > 0) {
+            const validVoltages = cellVoltages.filter(v => v > 0);
+            const cellData = {
+                cells: cellVoltages,
+                maximumVoltage: cellsData.maximumVoltage || Math.max(...validVoltages, 0),
+                minimumVoltage: cellsData.minimumVoltage || Math.min(...validVoltages.filter(v => v > 0), 0),
+                averageVoltage: cellsData.averageVoltage || (validVoltages.length > 0 ? validVoltages.reduce((a, b) => a + b, 0) / validVoltages.length : 0),
+                numberOfCells: cellVoltages.length
+            };
+            updateBatteryCellDisplay(cellData);
+            console.log(`🔋 Cell voltages updated: ${cellVoltages.length} cells`);
+        }
+    }
 
     // ========================================
     // DATA FETCHING
