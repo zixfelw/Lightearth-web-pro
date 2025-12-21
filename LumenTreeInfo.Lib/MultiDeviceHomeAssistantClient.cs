@@ -291,9 +291,9 @@ public class MultiDeviceHomeAssistantClient : IDisposable
             var deviceSnLower = deviceSn.ToLower();
             var entityId = $"sensor.device_{deviceSnLower}_battery_soc";
             
-            // Format date for HA API
-            var startTime = date.ToString("yyyy-MM-ddT00:00:00");
-            var endTime = date.AddDays(1).ToString("yyyy-MM-ddT00:00:00");
+            // Format date for HA API - use Vietnam timezone (GMT+7)
+            var startTime = date.ToString("yyyy-MM-ddT00:00:00+07:00");
+            var endTime = date.AddDays(1).ToString("yyyy-MM-ddT00:00:00+07:00");
             
             var request = new RestRequest($"/api/history/period/{startTime}", Method.Get);
             request.AddQueryParameter("filter_entity_id", entityId);
@@ -365,9 +365,10 @@ public class MultiDeviceHomeAssistantClient : IDisposable
             var loadEntity = $"sensor.device_{deviceSnLower}_load_power";
             var totalLoadEntity = $"sensor.device_{deviceSnLower}_total_load_power";
             
-            // Format date for HA API
-            var startTime = date.ToString("yyyy-MM-ddT00:00:00");
-            var endTime = date.AddDays(1).ToString("yyyy-MM-ddT00:00:00");
+            // Format date for HA API - use Vietnam timezone (GMT+7)
+            // HA stores timestamps in UTC but we query by local date
+            var startTime = date.ToString("yyyy-MM-ddT00:00:00+07:00");
+            var endTime = date.AddDays(1).ToString("yyyy-MM-ddT00:00:00+07:00");
             
             // Fetch all power histories (include both load and total_load)
             var entities = new[] { pvEntity, batteryEntity, gridEntity, loadEntity, totalLoadEntity };

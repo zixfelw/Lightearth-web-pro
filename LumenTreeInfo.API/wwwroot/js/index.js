@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 12207 - Add power history clear endpoint
+ * Version: 12208 - Fix HA history timezone query (GMT+7)
  * 
  * Features:
  * - Real-time data via SignalR
