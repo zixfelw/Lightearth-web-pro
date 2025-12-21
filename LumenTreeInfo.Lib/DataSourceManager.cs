@@ -10,12 +10,16 @@ public class DataSourceManager : IDisposable
     private readonly SolarInverterMonitor _mqttMonitor;
     private readonly HomeAssistantClient? _haClient;
     private readonly string _deviceSn;
+    private readonly bool _haEnabled;
     
     private DataSource _currentSource = DataSource.None;
     private DateTime _lastMqttData = DateTime.MinValue;
     private DateTime _lastHaData = DateTime.MinValue;
     private readonly TimeSpan _mqttTimeout = TimeSpan.FromSeconds(30);
     private readonly object _lock = new();
+    private bool _mqttFailed = false;
+    private int _mqttRetryCount = 0;
+    private const int MaxMqttRetries = 3;
 
     // Latest data cache
     private SolarInverterMonitor.DeviceData? _latestDeviceData;
@@ -64,24 +68,54 @@ public class DataSourceManager : IDisposable
         if (!string.IsNullOrEmpty(haUrl) && !string.IsNullOrEmpty(haToken))
         {
             _haClient = new HomeAssistantClient(haUrl, haToken, deviceSn);
-            Log.Information($"DataSourceManager initialized with HA fallback: {haUrl}");
+            _haEnabled = true;
+            Log.Information($"DataSourceManager initialized with HA as PRIMARY: {haUrl}");
         }
         else
         {
-            Log.Information("DataSourceManager initialized with MQTT only (no HA fallback)");
+            _haEnabled = false;
+            Log.Information("DataSourceManager initialized with MQTT only (no HA configured)");
         }
     }
 
     /// <summary>
     /// Start monitoring with automatic source selection
+    /// Priority: Home Assistant (if configured) > MQTT
     /// </summary>
     public async Task StartAsync()
     {
         Log.Information("Starting DataSourceManager...");
 
-        // Start MQTT connection
+        // If Home Assistant is configured, try it FIRST (primary source)
+        if (_haEnabled && _haClient != null)
+        {
+            Log.Information("Home Assistant is configured, trying as PRIMARY source...");
+            try
+            {
+                var haAvailable = await _haClient.CheckAvailabilityAsync();
+                if (haAvailable)
+                {
+                    SetDataSource(DataSource.HomeAssistant);
+                    Log.Information("Home Assistant connected as PRIMARY data source");
+                    _ = StartHaPollingAsync();
+                    _ = StartHealthCheckAsync();
+                    return; // Don't try MQTT if HA works
+                }
+                else
+                {
+                    Log.Warning("Home Assistant not available, will try MQTT as fallback");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"Home Assistant connection failed: {ex.Message}, will try MQTT");
+            }
+        }
+
+        // Try MQTT as fallback (or primary if HA not configured)
         try
         {
+            Log.Information("Trying MQTT connection...");
             await _mqttMonitor.ConnectAsync();
             _ = _mqttMonitor.StartMonitoringAsync();
             SetDataSource(DataSource.Mqtt);
@@ -89,18 +123,19 @@ public class DataSourceManager : IDisposable
         }
         catch (Exception ex)
         {
-            Log.Warning($"MQTT connection failed: {ex.Message}");
+            _mqttFailed = true;
+            _mqttRetryCount++;
+            Log.Warning($"MQTT connection failed (attempt {_mqttRetryCount}): {ex.Message}");
             
-            // Try Home Assistant fallback
-            if (_haClient != null && await _haClient.CheckAvailabilityAsync())
+            if (_mqttRetryCount >= MaxMqttRetries)
             {
-                SetDataSource(DataSource.HomeAssistant);
-                Log.Information("Falling back to Home Assistant");
-                _ = StartHaPollingAsync();
+                Log.Error($"MQTT failed {MaxMqttRetries} times, disabling MQTT retries");
             }
-            else
+            
+            // If both failed, log error
+            if (_currentSource == DataSource.None)
             {
-                Log.Error("No data source available");
+                Log.Error("No data source available - both HA and MQTT failed");
             }
         }
 
@@ -247,86 +282,132 @@ public class DataSourceManager : IDisposable
     private async Task StartHealthCheckAsync()
     {
         Log.Information("Starting health check task...");
-        int mqttFailCount = 0;
-        const int maxMqttFailures = 3; // Switch to HA after 3 consecutive failures
+        int healthCheckCount = 0;
 
         while (true)
         {
-            await Task.Delay(10000); // Check every 10 seconds
+            // Check every 30 seconds instead of 10 to reduce log spam
+            await Task.Delay(30000);
+            healthCheckCount++;
 
             try
             {
-                // Check if MQTT has timed out or no data received
-                if (_currentSource == DataSource.Mqtt)
+                // If using Home Assistant, just verify it's still working
+                if (_currentSource == DataSource.HomeAssistant)
+                {
+                    if (_haClient != null)
+                    {
+                        var haAvailable = await _haClient.CheckAvailabilityAsync();
+                        if (!haAvailable)
+                        {
+                            Log.Warning("Home Assistant became unavailable");
+                            // Don't try MQTT if it already failed multiple times
+                            if (!_mqttFailed || _mqttRetryCount < MaxMqttRetries)
+                            {
+                                Log.Information("Attempting to switch to MQTT...");
+                                try
+                                {
+                                    await _mqttMonitor.ConnectAsync();
+                                    SetDataSource(DataSource.Mqtt);
+                                    _ = _mqttMonitor.StartMonitoringAsync();
+                                }
+                                catch (Exception ex)
+                                {
+                                    _mqttFailed = true;
+                                    _mqttRetryCount++;
+                                    Log.Warning($"MQTT fallback failed: {ex.Message}");
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // Log status every 5 minutes (10 health checks)
+                            if (healthCheckCount % 10 == 0)
+                            {
+                                Log.Information($"Health check OK - Source: HomeAssistant, HA Available: {haAvailable}");
+                            }
+                        }
+                    }
+                }
+                // If using MQTT, check if it's still working
+                else if (_currentSource == DataSource.Mqtt)
                 {
                     if (!IsMqttConnected)
                     {
-                        mqttFailCount++;
-                        Log.Warning($"MQTT data timeout detected (fail count: {mqttFailCount}/{maxMqttFailures})");
-
-                        if (mqttFailCount >= maxMqttFailures)
+                        Log.Warning("MQTT connection lost");
+                        
+                        // Try Home Assistant first if configured
+                        if (_haEnabled && _haClient != null)
                         {
-                            Log.Warning("MQTT failed multiple times, checking Home Assistant...");
-                            
-                            // Fall back to Home Assistant
-                            if (_haClient != null)
+                            var haAvailable = await _haClient.CheckAvailabilityAsync();
+                            if (haAvailable)
                             {
-                                Log.Information("Checking Home Assistant availability...");
-                                var haAvailable = await _haClient.CheckAvailabilityAsync();
-                                Log.Information($"Home Assistant available: {haAvailable}");
-                                
-                                if (haAvailable)
-                                {
-                                    SetDataSource(DataSource.HomeAssistant);
-                                    Log.Information("Switched to Home Assistant as backup");
-                                    _ = StartHaPollingAsync();
-                                    mqttFailCount = 0;
-                                    continue;
-                                }
+                                SetDataSource(DataSource.HomeAssistant);
+                                Log.Information("Switched to Home Assistant");
+                                _ = StartHaPollingAsync();
+                                continue;
                             }
-                            
-                            // Try to reconnect MQTT
+                        }
+                        
+                        // Try MQTT reconnect if not exceeded max retries
+                        if (_mqttRetryCount < MaxMqttRetries)
+                        {
                             try
                             {
-                                Log.Information("Attempting MQTT reconnect...");
+                                Log.Information($"Attempting MQTT reconnect ({_mqttRetryCount + 1}/{MaxMqttRetries})...");
                                 await _mqttMonitor.ConnectAsync();
-                                await _mqttMonitor.RequestDeviceInfoAsync(_deviceSn);
+                                _mqttRetryCount = 0; // Reset on success
                             }
                             catch (Exception ex)
                             {
+                                _mqttRetryCount++;
                                 Log.Warning($"MQTT reconnect failed: {ex.Message}");
                             }
                         }
                     }
                     else
                     {
-                        mqttFailCount = 0; // Reset on success
-                    }
-                }
-                // If using HA, periodically try to switch back to MQTT
-                else if (_currentSource == DataSource.HomeAssistant)
-                {
-                    // Try MQTT every 60 seconds when on HA
-                    try
-                    {
-                        Log.Debug("Checking if MQTT is back online...");
-                        await _mqttMonitor.ConnectAsync();
-                        await _mqttMonitor.RequestDeviceInfoAsync(_deviceSn);
-                        
-                        // Wait a bit to see if we get data
-                        await Task.Delay(5000);
-                        
-                        if (IsMqttConnected)
+                        _mqttRetryCount = 0; // Reset on success
+                        if (healthCheckCount % 10 == 0)
                         {
-                            SetDataSource(DataSource.Mqtt);
-                            Log.Information("MQTT recovered, switched back to MQTT");
-                            mqttFailCount = 0;
+                            Log.Information($"Health check OK - Source: MQTT");
                         }
                     }
-                    catch
+                }
+                // No source available
+                else if (_currentSource == DataSource.None)
+                {
+                    // Only try to connect every 5 health checks (2.5 minutes)
+                    if (healthCheckCount % 5 == 0)
                     {
-                        // Stay on HA, that's fine
-                        Log.Debug("MQTT still unavailable, staying on Home Assistant");
+                        Log.Information("No data source, attempting to connect...");
+                        
+                        // Try HA first
+                        if (_haEnabled && _haClient != null)
+                        {
+                            var haAvailable = await _haClient.CheckAvailabilityAsync();
+                            if (haAvailable)
+                            {
+                                SetDataSource(DataSource.HomeAssistant);
+                                _ = StartHaPollingAsync();
+                                continue;
+                            }
+                        }
+                        
+                        // Try MQTT if not exceeded retries
+                        if (_mqttRetryCount < MaxMqttRetries)
+                        {
+                            try
+                            {
+                                await _mqttMonitor.ConnectAsync();
+                                SetDataSource(DataSource.Mqtt);
+                                _ = _mqttMonitor.StartMonitoringAsync();
+                            }
+                            catch
+                            {
+                                _mqttRetryCount++;
+                            }
+                        }
                     }
                 }
             }

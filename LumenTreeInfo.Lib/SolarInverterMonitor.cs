@@ -34,8 +34,10 @@ public class SolarInverterMonitor : IDisposable
 
     private CancellationTokenSource _cancellationTokenSource = new();
 
-
     private bool _isRunning;
+    private int _connectionRetryCount = 0;
+    private const int MaxConnectionRetries = 5;
+    private bool _permanentlyDisabled = false;
 
     // MQTT client
     private IMqttClient _mqttClient;
@@ -250,13 +252,41 @@ public class SolarInverterMonitor : IDisposable
             _mqttClient.DisconnectedAsync += async e =>
             {
                 Log.Information("Disconnected from MQTT broker");
-                await Task.Delay(TimeSpan.FromSeconds(5));
-                await ConnectAsync(); // Attempt to reconnect
+                
+                // Don't auto-reconnect if permanently disabled or max retries exceeded
+                if (_permanentlyDisabled)
+                {
+                    Log.Information("MQTT permanently disabled, not reconnecting");
+                    return;
+                }
+                
+                _connectionRetryCount++;
+                if (_connectionRetryCount > MaxConnectionRetries)
+                {
+                    Log.Warning($"MQTT max retries ({MaxConnectionRetries}) exceeded, stopping auto-reconnect");
+                    _permanentlyDisabled = true;
+                    return;
+                }
+                
+                // Exponential backoff: 5s, 10s, 20s, 40s, 80s
+                var delay = TimeSpan.FromSeconds(5 * Math.Pow(2, _connectionRetryCount - 1));
+                Log.Information($"MQTT reconnect attempt {_connectionRetryCount}/{MaxConnectionRetries} in {delay.TotalSeconds}s");
+                await Task.Delay(delay);
+                
+                try
+                {
+                    await ConnectAsync();
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning($"MQTT reconnect failed: {ex.Message}");
+                }
             };
 
             _mqttClient.ConnectedAsync += async e =>
             {
                 Log.Information("Connected to MQTT broker");
+                _connectionRetryCount = 0; // Reset retry count on successful connection
 
                 // Subscribe to all device topics
                 foreach (var deviceId in _deviceIds)
