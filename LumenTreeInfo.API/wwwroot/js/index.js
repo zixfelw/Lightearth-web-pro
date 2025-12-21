@@ -79,13 +79,6 @@ document.addEventListener('DOMContentLoaded', function () {
             soc: 'https://solar-proxy.applike098.workers.dev/api/soc',
             isLocal: true  // Flag to indicate local API format
         },
-        // Direct Home Assistant API (for users on same network as HA)
-        homeassistant: {
-            name: 'Home Assistant Direct',
-            realtime: null, // Will be set dynamically based on HA_URL
-            soc: 'https://solar-proxy.applike098.workers.dev/api/soc',
-            isHomeAssistant: true
-        },
         workers: {
             name: 'Cloudflare Workers',
             realtime: 'https://lightearth.applike098.workers.dev/api/realtime',
@@ -103,105 +96,6 @@ document.addEventListener('DOMContentLoaded', function () {
             soc: 'https://lumentree.net/api/soc'  // Direct for SOC (more accurate)
         }
     };
-    
-    // Home Assistant configuration - Can be set by user or auto-detected
-    let HA_CONFIG = {
-        url: localStorage.getItem('ha_url') || 'http://192.168.1.14:8123',
-        token: localStorage.getItem('ha_token') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIzNzY1ZGMxYWEzMjM0YzQ0OTY1YTZjYzFjNGZjMzZiZSIsImlhdCI6MTc2NjI4ODA5OSwiZXhwIjoyMDgxNjQ4MDk5fQ.7E-7sks1FPIg_4y674idLiZVMr8mUcvKsGGpEgjP2VI'
-    };
-    
-    // Function to fetch data directly from Home Assistant API
-    async function fetchFromHomeAssistant(deviceId) {
-        try {
-            const deviceSnLower = deviceId.toLowerCase();
-            const headers = {
-                'Authorization': `Bearer ${HA_CONFIG.token}`,
-                'Content-Type': 'application/json'
-            };
-            
-            // Fetch all states from HA
-            const response = await fetch(`${HA_CONFIG.url}/api/states`, { headers });
-            if (!response.ok) {
-                throw new Error(`HA API error: ${response.status}`);
-            }
-            
-            const states = await response.json();
-            
-            // Filter states for this device
-            const deviceStates = states.filter(s => 
-                s.entity_id && s.entity_id.includes(`device_${deviceSnLower}`)
-            );
-            
-            if (deviceStates.length === 0) {
-                return { success: false, message: `Device ${deviceId} not found in Home Assistant` };
-            }
-            
-            // Parse states into device data format
-            const getValue = (suffix) => {
-                const entity = deviceStates.find(s => s.entity_id.endsWith(`_${suffix}`));
-                if (entity && entity.state !== 'unavailable' && entity.state !== 'unknown') {
-                    return parseFloat(entity.state) || 0;
-                }
-                return 0;
-            };
-            
-            const getStringValue = (suffix) => {
-                const entity = deviceStates.find(s => s.entity_id.endsWith(`_${suffix}`));
-                if (entity && entity.state !== 'unavailable' && entity.state !== 'unknown') {
-                    return entity.state;
-                }
-                return '';
-            };
-            
-            const deviceData = {
-                deviceId: deviceId.toUpperCase(),
-                timestamp: new Date().toISOString(),
-                pv: {
-                    pv1Power: getValue('pv1_power'),
-                    pv1Voltage: getValue('pv1_voltage'),
-                    pv2Power: getValue('pv2_power'),
-                    pv2Voltage: getValue('pv2_voltage'),
-                    totalPower: getValue('pv_power')
-                },
-                battery: {
-                    soc: getValue('battery_soc'),
-                    power: getValue('battery_power'),
-                    voltage: getValue('battery_voltage'),
-                    current: getValue('battery_current'),
-                    status: getStringValue('battery_status') || 'Idle'
-                },
-                grid: {
-                    power: getValue('grid_power'),
-                    status: getStringValue('grid_status') || 'Idle',
-                    inputVoltage: getValue('grid_voltage') || getValue('ac_input_voltage'),
-                    inputFrequency: getValue('ac_input_frequency')
-                },
-                acOutput: {
-                    power: getValue('ac_output_power'),
-                    voltage: getValue('ac_output_voltage'),
-                    frequency: getValue('ac_output_frequency')
-                },
-                load: {
-                    power: getValue('load_power') || getValue('total_load_power')
-                },
-                system: {
-                    temperature: getValue('device_temperature')
-                }
-            };
-            
-            // Calculate total PV if not available
-            if (!deviceData.pv.totalPower && (deviceData.pv.pv1Power || deviceData.pv.pv2Power)) {
-                deviceData.pv.totalPower = deviceData.pv.pv1Power + deviceData.pv.pv2Power;
-            }
-            
-            console.log('✅ HA Direct Data:', deviceData);
-            return { success: true, source: 'HomeAssistant', deviceData };
-            
-        } catch (error) {
-            console.error('❌ HA Direct fetch error:', error);
-            return { success: false, message: error.message };
-        }
-    }
     
     // Lightearth API - Direct from lesvr.suntcn.com via Cloudflare Worker proxy
     const LIGHTEARTH_API = {
@@ -567,30 +461,14 @@ document.addEventListener('DOMContentLoaded', function () {
     
     async function fetchRealtimeData(deviceId) {
         try {
-            let data;
+            // Use configured API source (Workers or Sandbox)
+            const apiUrl = getRealtimeApiUrl(deviceId);
+            console.log(`📡 Fetching from ${API_SOURCES[currentApiSource].name}:`, apiUrl);
+            const response = await fetch(apiUrl);
+            if (!response.ok) return;
             
-            // Try Home Assistant direct first (for users on same network)
-            try {
-                console.log(`📡 Trying Home Assistant Direct at ${HA_CONFIG.url}...`);
-                data = await fetchFromHomeAssistant(deviceId);
-                if (data.success) {
-                    console.log('✅ Home Assistant Direct connected!');
-                }
-            } catch (haError) {
-                console.log('⚠️ HA Direct failed, falling back to Railway API:', haError.message);
-                data = null;
-            }
-            
-            // Fallback to Railway API if HA direct failed
-            if (!data || !data.success) {
-                const apiUrl = getRealtimeApiUrl(deviceId);
-                console.log(`📡 Fetching from ${API_SOURCES[currentApiSource].name}:`, apiUrl);
-                const response = await fetch(apiUrl);
-                if (!response.ok) return;
-                
-                data = await response.json();
-                if (data.error) return;
-            }
+            const data = await response.json();
+            if (data.error) return;
             
             // Check if device not found in Home Assistant
             if (data.success === false) {
@@ -609,7 +487,7 @@ document.addEventListener('DOMContentLoaded', function () {
             let displayData, cellsData;
             
             if (isNewFormat) {
-                // New format from /api/realtime/all (HA fallback) or HA Direct
+                // New format from /api/realtime/all (HA fallback)
                 const dd = data.deviceData || {};
                 displayData = {
                     pvTotalPower: dd.pv?.totalPower || 0,
