@@ -825,6 +825,24 @@ public class RealtimeController : ControllerBase
             timestamp = DateTime.Now
         });
     }
+    
+    /// <summary>
+    /// Clear all power history data (useful after logic changes)
+    /// </summary>
+    [HttpPost("power-history-clear")]
+    public IActionResult ClearPowerHistory()
+    {
+        var count = PowerHistoryCollector.ClearAllData();
+        _logger.LogInformation("Cleared {Count} power history entries", count);
+        
+        return Ok(new
+        {
+            success = true,
+            message = $"Cleared {count} power history entries. New data will be collected in ~5 minutes.",
+            clearedCount = count,
+            timestamp = DateTime.Now
+        });
+    }
 
     /// <summary>
     /// Get configuration info (for debugging)

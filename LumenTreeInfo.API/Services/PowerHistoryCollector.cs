@@ -162,4 +162,28 @@ public class PowerHistoryCollector : BackgroundService
             .GroupBy(kv => kv.Key.Split(':')[0])
             .ToDictionary(g => g.Key, g => g.Sum(kv => kv.Value.Count));
     }
+    
+    /// <summary>
+    /// Clear all collected data (useful after logic changes)
+    /// </summary>
+    public static int ClearAllData()
+    {
+        var count = _powerHistory.Count;
+        _powerHistory.Clear();
+        return count;
+    }
+    
+    /// <summary>
+    /// Clear data for a specific device
+    /// </summary>
+    public static int ClearDeviceData(string deviceId)
+    {
+        var prefix = $"{deviceId.ToUpper()}:";
+        var keysToRemove = _powerHistory.Keys.Where(k => k.StartsWith(prefix)).ToList();
+        foreach (var key in keysToRemove)
+        {
+            _powerHistory.TryRemove(key, out _);
+        }
+        return keysToRemove.Count;
+    }
 }

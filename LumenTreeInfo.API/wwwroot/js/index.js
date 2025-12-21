@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 12206 - Fix timezone GMT+7 and battery discharge logic
+ * Version: 12207 - Add power history clear endpoint
  * 
  * Features:
  * - Real-time data via SignalR
