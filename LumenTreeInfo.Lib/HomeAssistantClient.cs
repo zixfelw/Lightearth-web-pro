@@ -217,27 +217,97 @@ public class HomeAssistantClient : IDisposable
                     CellVoltages = new Dictionary<string, double>()
                 };
 
-                // Parse cell voltages from attributes
-                foreach (var attr in cellEntity.Attributes)
+                var attrs = cellEntity.Attributes;
+
+                // Try to get pre-calculated values from attributes (num, avg, min, max, diff)
+                if (attrs.TryGetValue("num", out var numObj) && int.TryParse(numObj?.ToString(), out var num))
+                    cellData.NumberOfCells = num;
+                if (attrs.TryGetValue("avg", out var avgObj) && double.TryParse(avgObj?.ToString(), out var avg))
+                    cellData.AverageVoltage = avg;
+                if (attrs.TryGetValue("min", out var minObj) && double.TryParse(minObj?.ToString(), out var min))
+                    cellData.MinimumVoltage = min;
+                if (attrs.TryGetValue("max", out var maxObj) && double.TryParse(maxObj?.ToString(), out var max))
+                    cellData.MaximumVoltage = max;
+                if (attrs.TryGetValue("diff", out var diffObj) && double.TryParse(diffObj?.ToString(), out var diff))
+                    cellData.VoltageDifference = diff;
+
+                // Parse cell voltages from "cells" object: {"c_01": 3.29, "c_02": 3.291, ...}
+                if (attrs.TryGetValue("cells", out var cellsObj) && cellsObj != null)
                 {
-                    if (attr.Key.StartsWith("cell_", StringComparison.OrdinalIgnoreCase))
+                    try
                     {
-                        if (double.TryParse(attr.Value?.ToString(), out var voltage))
+                        // cells is a nested object, need to parse it
+                        if (cellsObj is System.Text.Json.JsonElement jsonElement)
                         {
-                            var cellName = attr.Key.Replace("cell_", "Cell ");
-                            cellData.CellVoltages[cellName] = voltage;
+                            foreach (var prop in jsonElement.EnumerateObject())
+                            {
+                                // Convert c_01 -> Cell 01, c_02 -> Cell 02, etc.
+                                var cellName = prop.Name.Replace("c_", "Cell ");
+                                if (prop.Value.TryGetDouble(out var voltage))
+                                {
+                                    cellData.CellVoltages[cellName] = voltage;
+                                }
+                            }
+                        }
+                        else if (cellsObj is Dictionary<string, object> cellsDict)
+                        {
+                            foreach (var kvp in cellsDict)
+                            {
+                                var cellName = kvp.Key.Replace("c_", "Cell ");
+                                if (double.TryParse(kvp.Value?.ToString(), out var voltage))
+                                {
+                                    cellData.CellVoltages[cellName] = voltage;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Debug($"Error parsing cells object: {ex.Message}");
+                    }
+                }
+
+                // Fallback: try old format (cell_01, cell_02 directly in attributes)
+                if (cellData.CellVoltages.Count == 0)
+                {
+                    foreach (var attr in attrs)
+                    {
+                        if (attr.Key.StartsWith("cell_", StringComparison.OrdinalIgnoreCase) ||
+                            attr.Key.StartsWith("c_", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (double.TryParse(attr.Value?.ToString(), out var voltage))
+                            {
+                                var cellName = attr.Key
+                                    .Replace("cell_", "Cell ")
+                                    .Replace("c_", "Cell ");
+                                cellData.CellVoltages[cellName] = voltage;
+                            }
                         }
                     }
                 }
 
+                // If we got cell data, calculate stats if not already set
                 if (cellData.CellVoltages.Count > 0)
                 {
-                    cellData.NumberOfCells = cellData.CellVoltages.Count;
-                    cellData.AverageVoltage = cellData.CellVoltages.Values.Average();
-                    cellData.MinimumVoltage = cellData.CellVoltages.Values.Min();
-                    cellData.MaximumVoltage = cellData.CellVoltages.Values.Max();
-                    cellData.VoltageDifference = cellData.MaximumVoltage - cellData.MinimumVoltage;
+                    if (cellData.NumberOfCells == 0)
+                        cellData.NumberOfCells = cellData.CellVoltages.Count;
+                    if (cellData.AverageVoltage == 0)
+                        cellData.AverageVoltage = cellData.CellVoltages.Values.Average();
+                    if (cellData.MinimumVoltage == 0)
+                        cellData.MinimumVoltage = cellData.CellVoltages.Values.Min();
+                    if (cellData.MaximumVoltage == 0)
+                        cellData.MaximumVoltage = cellData.CellVoltages.Values.Max();
+                    if (cellData.VoltageDifference == 0)
+                        cellData.VoltageDifference = cellData.MaximumVoltage - cellData.MinimumVoltage;
 
+                    Log.Information($"HA Cell Data: {cellData.NumberOfCells} cells, Avg={cellData.AverageVoltage:F3}V, Diff={cellData.VoltageDifference:F3}V");
+                    return cellData;
+                }
+                
+                // Even if no individual cells, return stats if we have them
+                if (cellData.NumberOfCells > 0)
+                {
+                    Log.Information($"HA Cell Stats: {cellData.NumberOfCells} cells, Avg={cellData.AverageVoltage:F3}V");
                     return cellData;
                 }
             }
