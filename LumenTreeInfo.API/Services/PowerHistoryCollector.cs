@@ -75,13 +75,15 @@ public class PowerHistoryCollector : BackgroundService
                 var deviceData = await haClient.GetDeviceDataAsync(deviceId);
                 if (deviceData == null) continue;
                 
-                var now = DateTime.UtcNow;
-                var dateKey = $"{deviceId}:{now:yyyy-MM-dd}";
+                // Use Vietnam timezone (GMT+7)
+                var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+                var nowVietnam = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTz);
+                var dateKey = $"{deviceId}:{nowVietnam:yyyy-MM-dd}";
                 
                 var point = new PowerHistoryPoint
                 {
-                    Timestamp = now,
-                    Time = now.ToString("HH:mm"),
+                    Timestamp = nowVietnam,
+                    Time = nowVietnam.ToString("HH:mm"),
                     PvPower = deviceData.TotalPvPower ?? 0,
                     BatteryPower = deviceData.BatteryPower ?? 0,
                     GridPower = deviceData.GridPower ?? 0,
@@ -111,7 +113,10 @@ public class PowerHistoryCollector : BackgroundService
 
     private void CleanupOldData()
     {
-        var cutoffDate = DateTime.UtcNow.AddDays(-MaxDaysToKeep).ToString("yyyy-MM-dd");
+        // Use Vietnam timezone for cleanup
+        var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        var nowVietnam = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTz);
+        var cutoffDate = nowVietnam.AddDays(-MaxDaysToKeep).ToString("yyyy-MM-dd");
         var keysToRemove = _powerHistory.Keys
             .Where(k => string.Compare(k.Split(':')[1], cutoffDate) < 0)
             .ToList();

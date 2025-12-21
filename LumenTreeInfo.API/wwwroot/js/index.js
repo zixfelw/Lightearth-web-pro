@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 12205 - Enhanced SOC chart touch responsiveness
+ * Version: 12206 - Fix timezone GMT+7 and battery discharge logic
  * 
  * Features:
  * - Real-time data via SignalR
@@ -2496,13 +2496,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function processBatteryChargingData(data) {
         if (!data) return [];
-        return data.map(value => value < 0 ? Math.abs(value) : 0);
+        // Battery convention: POSITIVE = charging (power flowing INTO battery)
+        return data.map(value => value > 0 ? value : 0);
     }
 
     function processBatteryDischargingData(data) {
         if (!data) return [];
-        // Return positive values for discharge (when battery value > 0 means discharging)
-        return data.map(value => value > 0 ? value : 0);
+        // Battery convention: NEGATIVE = discharging (power flowing OUT of battery)
+        // We show as positive value in chart
+        return data.map(value => value < 0 ? Math.abs(value) : 0);
     }
 
     // ========================================
