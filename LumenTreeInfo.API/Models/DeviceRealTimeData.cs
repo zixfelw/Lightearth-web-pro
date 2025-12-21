@@ -29,8 +29,8 @@ public class DeviceRealTimeData(string deviceId)
     // PV (Solar Panel) data
     public int Pv1Power { get; set; }
     public int? Pv2Power { get; set; }
-    public int Pv1Voltage { get; set; }
-    public int? Pv2Voltage { get; set; }
+    public double Pv1Voltage { get; set; }
+    public double? Pv2Voltage { get; set; }
     public int PvTotalPower { get; set; }
     
     // Battery cell voltages
