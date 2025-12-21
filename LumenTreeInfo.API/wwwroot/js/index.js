@@ -1237,7 +1237,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Check if device not found in Home Assistant
         if (data.deviceNotFound) {
             updateValue('pv-power', 'N/A');
-            updateValueHTML('pv-desc', `<span class="text-red-400 text-xs">Thiết bị không tồn tại trong HA</span>`);
+            updateValueHTML('pv-desc', `<span class="text-red-400 text-xs">Thiết bị chưa được thêm vào, vui lòng liên hệ trong nhóm Zalo</span>`);
             
             updateValue('grid-power', 'N/A');
             updateValue('grid-voltage', 'N/A');
