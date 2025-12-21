@@ -358,18 +358,21 @@ public class MultiDeviceHomeAssistantClient : IDisposable
         {
             var deviceSnLower = deviceSn.ToLower();
             
-            // Entity IDs for power sensors
+            // Entity IDs for power sensors (include alternatives)
             var pvEntity = $"sensor.device_{deviceSnLower}_pv_power";
             var batteryEntity = $"sensor.device_{deviceSnLower}_battery_power";
             var gridEntity = $"sensor.device_{deviceSnLower}_grid_power";
             var loadEntity = $"sensor.device_{deviceSnLower}_load_power";
+            var totalLoadEntity = $"sensor.device_{deviceSnLower}_total_load_power";
             
             // Format date for HA API
             var startTime = date.ToString("yyyy-MM-ddT00:00:00");
             var endTime = date.AddDays(1).ToString("yyyy-MM-ddT00:00:00");
             
-            // Fetch all power histories in parallel
-            var entities = new[] { pvEntity, batteryEntity, gridEntity, loadEntity };
+            // Fetch all power histories (include both load and total_load)
+            var entities = new[] { pvEntity, batteryEntity, gridEntity, loadEntity, totalLoadEntity };
+            Log.Information($"Fetching power history for entities: {string.Join(", ", entities)}");
+            
             var request = new RestRequest($"/api/history/period/{startTime}", Method.Get);
             request.AddQueryParameter("filter_entity_id", string.Join(",", entities));
             request.AddQueryParameter("end_time", endTime);
@@ -385,13 +388,17 @@ public class MultiDeviceHomeAssistantClient : IDisposable
             }
 
             // HA returns array of arrays: [[{entity_id, state, last_changed}], [...], ...]
+            Log.Information($"Power history response length: {response.Content?.Length ?? 0} bytes");
+            
             var historyArray = JsonSerializer.Deserialize<List<List<HaHistoryState>>>(response.Content);
             
             if (historyArray == null || historyArray.Count == 0)
             {
-                Log.Warning($"No power history found for {deviceSn} on {date:yyyy-MM-dd}");
+                Log.Warning($"No power history found for {deviceSn} on {date:yyyy-MM-dd}. Response: {response.Content?.Substring(0, Math.Min(500, response.Content?.Length ?? 0))}");
                 return null;
             }
+            
+            Log.Information($"Power history arrays count: {historyArray.Count}");
 
             // Create dictionaries for each sensor's timeline
             var pvHistory = new Dictionary<DateTime, int>();
@@ -409,7 +416,9 @@ public class MultiDeviceHomeAssistantClient : IDisposable
                 if (entityId.Contains("pv_power")) targetDict = pvHistory;
                 else if (entityId.Contains("battery_power")) targetDict = batteryHistory;
                 else if (entityId.Contains("grid_power")) targetDict = gridHistory;
-                else if (entityId.Contains("load_power")) targetDict = loadHistory;
+                else if (entityId.Contains("total_load_power") || entityId.Contains("load_power")) targetDict = loadHistory;
+                
+                Log.Debug($"Processing entity: {entityId}, points: {entityHistory.Count}, target: {(targetDict != null ? "found" : "null")}");
                 
                 if (targetDict == null) continue;
 
