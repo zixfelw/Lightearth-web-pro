@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 12203 - Power History Collector Service
+ * Version: 12204 - Clean SOC chart update time
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1327,13 +1327,13 @@ document.addEventListener('DOMContentLoaded', function () {
         // Power cards removed - nothing to update
     }
     
-    // Update last fetch time with source info
+    // Update last fetch time (no source info displayed)
     function updateSOCLastTime(source = '') {
         const el = document.getElementById('soc-last-update');
         if (el) {
             const now = new Date();
-            const timeStr = now.toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'});
-            el.textContent = source ? `${timeStr} (${source})` : `Cập nhật: ${timeStr}`;
+            const timeStr = now.toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit', second: '2-digit'});
+            el.textContent = `Cập nhật: ${timeStr}`;
         }
     }
     
