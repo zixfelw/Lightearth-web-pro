@@ -852,9 +852,9 @@ public class SolarInverterMonitor : IDisposable
         public int? HomeLoad { get; set; }
 
         // PV (Solar) Input
-        public int? Pv1Voltage { get; set; }
+        public double? Pv1Voltage { get; set; }
         public int? Pv1Power { get; set; }
-        public int? Pv2Voltage { get; set; }
+        public double? Pv2Voltage { get; set; }
         public int? Pv2Power { get; set; }
         public int? TotalPvPower { get; set; }
 

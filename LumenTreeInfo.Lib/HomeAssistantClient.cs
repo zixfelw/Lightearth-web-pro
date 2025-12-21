@@ -133,6 +133,11 @@ public class HomeAssistantClient : IDisposable
                 { $"sensor.device_{deviceSnLower}_ac_input_power", v => deviceData.AcInputPower = ParseInt(v) },
                 { $"sensor.device_{deviceSnLower}_ac_input_frequency", v => deviceData.AcInputFrequency = ParseDouble(v) },
                 { $"sensor.device_{deviceSnLower}_device_temperature", v => deviceData.TemperatureCelsius = ParseDouble(v) },
+                // PV1/PV2 individual power and voltage
+                { $"sensor.device_{deviceSnLower}_pv1_power", v => deviceData.Pv1Power = ParseInt(v) },
+                { $"sensor.device_{deviceSnLower}_pv2_power", v => deviceData.Pv2Power = ParseInt(v) },
+                { $"sensor.device_{deviceSnLower}_pv1_voltage", v => deviceData.Pv1Voltage = ParseDouble(v) },
+                { $"sensor.device_{deviceSnLower}_pv2_voltage", v => deviceData.Pv2Voltage = ParseDouble(v) },
             };
 
             // Alternative format: sensor.lumentree_xxx (fallback)
