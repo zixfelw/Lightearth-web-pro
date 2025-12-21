@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 12200 - SOC Chart V5 Clean
+ * Version: 12201 - Railway API Priority for All Devices
  * 
  * Features:
  * - Real-time data via SignalR
@@ -700,27 +700,63 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // Fetch day data in background (for summary stats: Năng lượng - Pin Lưu Trữ - Nguồn Điện)
-    // Primary: Lightearth API (lesvr.suntcn.com via Cloudflare Worker) - cached for 10 minutes
-    // Fallback: solar-proxy Workers API
+    // PRIORITY ORDER:
+    // 1. Railway API (Home Assistant data) - always try first for all devices
+    // 2. Lightearth API (lesvr.suntcn.com via Cloudflare Worker) - for chart data
+    // 3. solar-proxy Workers API - final fallback
     async function fetchDayDataInBackground(deviceId, date) {
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
         const now = Date.now();
         
-        // Check cache - return cached data if still valid (within 10 minutes)
+        // Clear cache if deviceId changed
+        if (lightearthCache.deviceId && lightearthCache.deviceId !== deviceId) {
+            console.log(`🔄 Device changed from ${lightearthCache.deviceId} to ${deviceId}, clearing cache`);
+            lightearthCache = { data: null, deviceId: null, date: null, timestamp: 0 };
+        }
+        
+        // STEP 1: Always try Railway API first (Home Assistant data - works for all HA devices)
+        let railwayDataLoaded = false;
+        try {
+            console.log("📡 [Priority 1] Trying Railway API (Home Assistant)...");
+            const haEnergyUrl = `${currentOrigin}/api/realtime/daily-energy/${deviceId}`;
+            const haResponse = await fetch(haEnergyUrl);
+            
+            if (haResponse.ok) {
+                const haData = await haResponse.json();
+                
+                if (haData.success && haData.summary) {
+                    const summary = haData.summary;
+                    updateValue('pv-total', (summary.pv_day || 0).toFixed(1) + ' kWh');
+                    updateValue('load-total', (summary.total_load_day || summary.load_day || 0).toFixed(1) + ' kWh');
+                    updateValue('grid-total', (summary.grid_day || 0).toFixed(1) + ' kWh');
+                    updateValue('essential-total', (summary.essential_day || 0).toFixed(1) + ' kWh');
+                    updateValue('bat-charge', (summary.charge_day || 0).toFixed(1) + ' kWh');
+                    updateValue('bat-discharge', (summary.discharge_day || 0).toFixed(1) + ' kWh');
+                    
+                    console.log("✅ [Priority 1] Railway API SUCCESS - Summary updated from Home Assistant:", summary);
+                    railwayDataLoaded = true;
+                }
+            }
+        } catch (haError) {
+            console.warn("⚠️ [Priority 1] Railway API failed:", haError.message);
+        }
+        
+        // STEP 2: Try Lightearth API for chart data (even if Railway succeeded for summary)
+        // Check cache first
         if (lightearthCache.data && 
             lightearthCache.deviceId === deviceId && 
             lightearthCache.date === queryDate &&
             (now - lightearthCache.timestamp) < LIGHTEARTH_CACHE_TTL) {
             
             const cacheAge = Math.round((now - lightearthCache.timestamp) / 1000);
-            console.log(`📦 Using cached Lightearth data (age: ${cacheAge}s, next refresh in ${600 - cacheAge}s)`);
+            console.log(`📦 Using cached Lightearth chart data (age: ${cacheAge}s)`);
             updateSummaryFromLightearthData(lightearthCache.data);
             return;
         }
         
         try {
             // Use Lightearth API - fetch all 3 endpoints in parallel
-            console.log("📊 Fetching fresh data from Lightearth API...");
+            console.log("📊 [Priority 2] Fetching chart data from Lightearth API...");
             
             const [batResponse, pvResponse, otherResponse] = await Promise.all([
                 fetch(LIGHTEARTH_API.bat(deviceId, queryDate)),
@@ -738,7 +774,7 @@ document.addEventListener('DOMContentLoaded', function () {
             
             // Check if data is valid (returnValue === 1)
             if (batData.returnValue !== 1 || pvData.returnValue !== 1 || otherData.returnValue !== 1) {
-                throw new Error("Lightearth API returned invalid data");
+                throw new Error(`Lightearth API returned invalid data (returnValue: ${batData.returnValue}, ${pvData.returnValue}, ${otherData.returnValue})`);
             }
             
             // Cache the data
@@ -750,7 +786,7 @@ document.addEventListener('DOMContentLoaded', function () {
             };
             console.log("💾 Lightearth data cached (TTL: 10 minutes)");
             
-            // Update UI
+            // Update UI with chart data (this also updates summary, overwriting Railway data if available)
             updateSummaryFromLightearthData(lightearthCache.data);
             
         } catch (error) {
@@ -816,33 +852,14 @@ document.addEventListener('DOMContentLoaded', function () {
             } catch (fallbackError) {
                 console.warn("⚠️ Solar-proxy fallback also failed:", fallbackError.message);
                 
-                // Final fallback: Try Home Assistant daily energy API
-                try {
-                    console.log("📡 Final fallback: Trying Home Assistant daily energy API...");
-                    const haEnergyUrl = `${currentOrigin}/api/realtime/daily-energy/${deviceId}`;
-                    const haResponse = await fetch(haEnergyUrl);
-                    
-                    if (haResponse.ok) {
-                        const haData = await haResponse.json();
-                        
-                        if (haData.success && haData.summary) {
-                            const summary = haData.summary;
-                            updateValue('pv-total', (summary.pv_day || 0).toFixed(1) + ' kWh');
-                            updateValue('load-total', (summary.total_load_day || summary.load_day || 0).toFixed(1) + ' kWh');
-                            updateValue('grid-total', (summary.grid_day || 0).toFixed(1) + ' kWh');
-                            updateValue('essential-total', (summary.essential_day || 0).toFixed(1) + ' kWh');
-                            updateValue('bat-charge', (summary.charge_day || 0).toFixed(1) + ' kWh');
-                            updateValue('bat-discharge', (summary.discharge_day || 0).toFixed(1) + ' kWh');
-                            
-                            console.log("✅ Daily energy updated from Home Assistant:", summary);
-                            return;
-                        }
-                    }
-                } catch (haError) {
-                    console.warn("⚠️ HA daily energy also failed:", haError.message);
+                // If Railway API already loaded summary data, we're done (just no chart data)
+                if (railwayDataLoaded) {
+                    console.log("ℹ️ Railway API already loaded summary data - chart data unavailable for this device");
+                    return;
                 }
                 
-                // All failed - show N/A
+                // All APIs failed - show N/A
+                console.error("❌ All data sources failed for device:", deviceId);
                 updateValue('pv-total', 'N/A');
                 updateValue('bat-charge', 'N/A');
                 updateValue('bat-discharge', 'N/A');
