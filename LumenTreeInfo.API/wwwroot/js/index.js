@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 12201 - Railway API Priority for All Devices
+ * Version: 12202 - Railway Power History API for Charts
  * 
  * Features:
  * - Real-time data via SignalR
@@ -741,7 +741,39 @@ document.addEventListener('DOMContentLoaded', function () {
             console.warn("⚠️ [Priority 1] Railway API failed:", haError.message);
         }
         
-        // STEP 2: Try Lightearth API for chart data (even if Railway succeeded for summary)
+        // STEP 2: Try Railway Power History API for chart data (Home Assistant history)
+        let chartDataLoaded = false;
+        try {
+            console.log("📊 [Priority 2] Trying Railway Power History API...");
+            const powerHistoryUrl = `${currentOrigin}/api/realtime/power-history/${deviceId}?date=${queryDate}`;
+            const powerResponse = await fetch(powerHistoryUrl);
+            
+            if (powerResponse.ok) {
+                const powerData = await powerResponse.json();
+                
+                if (powerData.success && powerData.timeline && powerData.timeline.length > 0) {
+                    console.log(`✅ [Priority 2] Railway Power History SUCCESS: ${powerData.timeline.length} data points`);
+                    
+                    // Convert Railway data to chart format (288 points for 5-minute intervals)
+                    const chartData = convertRailwayPowerToChartData(powerData.timeline);
+                    updateCharts(chartData);
+                    chartDataLoaded = true;
+                    
+                    // Update peak stats from Railway data
+                    updateEnergyChartPeakStatsFromRailway(powerData);
+                }
+            }
+        } catch (powerError) {
+            console.warn("⚠️ [Priority 2] Railway Power History failed:", powerError.message);
+        }
+        
+        // Skip Lightearth if Railway chart data loaded successfully
+        if (chartDataLoaded) {
+            console.log("ℹ️ Chart data loaded from Railway - skipping Lightearth/Workers API");
+            return;
+        }
+        
+        // STEP 3: Try Lightearth API for chart data (fallback)
         // Check cache first
         if (lightearthCache.data && 
             lightearthCache.deviceId === deviceId && 
@@ -756,7 +788,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         try {
             // Use Lightearth API - fetch all 3 endpoints in parallel
-            console.log("📊 [Priority 2] Fetching chart data from Lightearth API...");
+            console.log("📊 [Priority 3] Fetching chart data from Lightearth API...");
             
             const [batResponse, pvResponse, otherResponse] = await Promise.all([
                 fetch(LIGHTEARTH_API.bat(deviceId, queryDate)),
@@ -868,6 +900,99 @@ document.addEventListener('DOMContentLoaded', function () {
                 updateValue('essential-total', 'N/A');
             }
         }
+    }
+    
+    // Convert Railway Power History data to chart format (288 points for 5-minute intervals)
+    function convertRailwayPowerToChartData(timeline) {
+        // Create 288 slots for each 5-minute interval (00:00 to 23:55)
+        const pvData = new Array(288).fill(0);
+        const batData = new Array(288).fill(0);
+        const loadData = new Array(288).fill(0);
+        const gridData = new Array(288).fill(0);
+        
+        // Fill in data from timeline
+        timeline.forEach(point => {
+            // Parse time (HH:mm format) to get slot index
+            const timeParts = point.t.split(':');
+            if (timeParts.length >= 2) {
+                const hours = parseInt(timeParts[0], 10);
+                const minutes = parseInt(timeParts[1], 10);
+                const slotIndex = hours * 12 + Math.floor(minutes / 5);
+                
+                if (slotIndex >= 0 && slotIndex < 288) {
+                    pvData[slotIndex] = point.pv || 0;
+                    batData[slotIndex] = point.bat || 0;
+                    loadData[slotIndex] = point.load || 0;
+                    gridData[slotIndex] = point.grid || 0;
+                }
+            }
+        });
+        
+        // Forward-fill gaps (use previous value for missing data points)
+        for (let i = 1; i < 288; i++) {
+            if (pvData[i] === 0 && pvData[i-1] !== 0) pvData[i] = pvData[i-1];
+            if (loadData[i] === 0 && loadData[i-1] !== 0) loadData[i] = loadData[i-1];
+            if (gridData[i] === 0 && gridData[i-1] !== 0) gridData[i] = gridData[i-1];
+            // Battery data is different - 0 is valid, so don't forward fill
+        }
+        
+        console.log(`📊 Converted Railway data: ${timeline.length} points -> 288 chart slots`);
+        
+        return {
+            pv: { tableValueInfo: pvData },
+            bat: { tableValueInfo: batData },
+            load: { tableValueInfo: loadData },
+            grid: { tableValueInfo: gridData },
+            essentialLoad: { tableValueInfo: new Array(288).fill(0) } // Not available from HA
+        };
+    }
+    
+    // Update peak stats from Railway Power History data
+    function updateEnergyChartPeakStatsFromRailway(powerData) {
+        if (!powerData || !powerData.timeline) return;
+        
+        const timeline = powerData.timeline;
+        
+        // Find peak values and times
+        let maxPv = 0, maxPvTime = '--:--';
+        let maxLoad = 0, maxLoadTime = '--:--';
+        let maxGrid = 0, maxGridTime = '--:--';
+        
+        timeline.forEach(point => {
+            if (point.pv > maxPv) {
+                maxPv = point.pv;
+                maxPvTime = point.t;
+            }
+            if (point.load > maxLoad) {
+                maxLoad = point.load;
+                maxLoadTime = point.t;
+            }
+            if (point.grid > maxGrid) {
+                maxGrid = point.grid;
+                maxGridTime = point.t;
+            }
+        });
+        
+        // Update UI
+        const pvMaxEl = document.getElementById('pv-max-value');
+        const pvMaxTimeEl = document.getElementById('pv-max-time');
+        const loadMaxEl = document.getElementById('load-max-value');
+        const loadMaxTimeEl = document.getElementById('load-max-time');
+        const gridMaxEl = document.getElementById('grid-max-value');
+        const gridMaxTimeEl = document.getElementById('grid-max-time');
+        
+        if (pvMaxEl) pvMaxEl.textContent = maxPv > 0 ? `${maxPv} W` : '--';
+        if (pvMaxTimeEl) pvMaxTimeEl.textContent = maxPv > 0 ? maxPvTime : '--:--';
+        if (loadMaxEl) loadMaxEl.textContent = maxLoad > 0 ? `${maxLoad} W` : '--';
+        if (loadMaxTimeEl) loadMaxTimeEl.textContent = maxLoad > 0 ? maxLoadTime : '--:--';
+        if (gridMaxEl) gridMaxEl.textContent = maxGrid > 0 ? `${maxGrid} W` : '--';
+        if (gridMaxTimeEl) gridMaxTimeEl.textContent = maxGrid > 0 ? maxGridTime : '--:--';
+        
+        console.log("📊 Peak stats updated from Railway:", { 
+            pv: `${maxPv}W @ ${maxPvTime}`,
+            load: `${maxLoad}W @ ${maxLoadTime}`,
+            grid: `${maxGrid}W @ ${maxGridTime}`
+        });
     }
     
     // Helper function to update summary stats from Lightearth data

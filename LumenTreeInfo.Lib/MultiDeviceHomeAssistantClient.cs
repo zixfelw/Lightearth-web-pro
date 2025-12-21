@@ -346,6 +346,131 @@ public class MultiDeviceHomeAssistantClient : IDisposable
     }
 
     /// <summary>
+    /// Get power history timeline for a specific device from Home Assistant
+    /// Returns PV, Battery, Grid, Load power values over time for charts
+    /// </summary>
+    public async Task<List<PowerHistoryPoint>?> GetPowerHistoryAsync(string deviceSn, DateTime date)
+    {
+        if (!await CheckAvailabilityAsync())
+            return null;
+
+        try
+        {
+            var deviceSnLower = deviceSn.ToLower();
+            
+            // Entity IDs for power sensors
+            var pvEntity = $"sensor.device_{deviceSnLower}_pv_power";
+            var batteryEntity = $"sensor.device_{deviceSnLower}_battery_power";
+            var gridEntity = $"sensor.device_{deviceSnLower}_grid_power";
+            var loadEntity = $"sensor.device_{deviceSnLower}_load_power";
+            
+            // Format date for HA API
+            var startTime = date.ToString("yyyy-MM-ddT00:00:00");
+            var endTime = date.AddDays(1).ToString("yyyy-MM-ddT00:00:00");
+            
+            // Fetch all power histories in parallel
+            var entities = new[] { pvEntity, batteryEntity, gridEntity, loadEntity };
+            var request = new RestRequest($"/api/history/period/{startTime}", Method.Get);
+            request.AddQueryParameter("filter_entity_id", string.Join(",", entities));
+            request.AddQueryParameter("end_time", endTime);
+            request.AddQueryParameter("minimal_response", "true");
+            request.AddQueryParameter("no_attributes", "true");
+            
+            var response = await _client.ExecuteAsync(request);
+            
+            if (!response.IsSuccessful || string.IsNullOrEmpty(response.Content))
+            {
+                Log.Warning($"Failed to get power history: {response.StatusCode}");
+                return null;
+            }
+
+            // HA returns array of arrays: [[{entity_id, state, last_changed}], [...], ...]
+            var historyArray = JsonSerializer.Deserialize<List<List<HaHistoryState>>>(response.Content);
+            
+            if (historyArray == null || historyArray.Count == 0)
+            {
+                Log.Warning($"No power history found for {deviceSn} on {date:yyyy-MM-dd}");
+                return null;
+            }
+
+            // Create dictionaries for each sensor's timeline
+            var pvHistory = new Dictionary<DateTime, int>();
+            var batteryHistory = new Dictionary<DateTime, int>();
+            var gridHistory = new Dictionary<DateTime, int>();
+            var loadHistory = new Dictionary<DateTime, int>();
+
+            foreach (var entityHistory in historyArray)
+            {
+                if (entityHistory == null || entityHistory.Count == 0) continue;
+                
+                var entityId = entityHistory[0]?.EntityId?.ToLower() ?? "";
+                
+                Dictionary<DateTime, int>? targetDict = null;
+                if (entityId.Contains("pv_power")) targetDict = pvHistory;
+                else if (entityId.Contains("battery_power")) targetDict = batteryHistory;
+                else if (entityId.Contains("grid_power")) targetDict = gridHistory;
+                else if (entityId.Contains("load_power")) targetDict = loadHistory;
+                
+                if (targetDict == null) continue;
+
+                foreach (var state in entityHistory)
+                {
+                    if (state.State != null && DateTime.TryParse(state.LastChanged, out var timestamp))
+                    {
+                        if (int.TryParse(state.State, out var power))
+                        {
+                            // Round to nearest 5 minutes
+                            var roundedTime = new DateTime(
+                                timestamp.Year, timestamp.Month, timestamp.Day,
+                                timestamp.Hour, (timestamp.Minute / 5) * 5, 0);
+                            
+                            targetDict[roundedTime] = power;
+                        }
+                    }
+                }
+            }
+
+            // Merge all timelines into a single list
+            var allTimes = pvHistory.Keys
+                .Union(batteryHistory.Keys)
+                .Union(gridHistory.Keys)
+                .Union(loadHistory.Keys)
+                .OrderBy(t => t)
+                .ToList();
+
+            var timeline = new List<PowerHistoryPoint>();
+            int lastPv = 0, lastBat = 0, lastGrid = 0, lastLoad = 0;
+
+            foreach (var time in allTimes)
+            {
+                // Use last known value if current time doesn't have a reading
+                if (pvHistory.TryGetValue(time, out var pv)) lastPv = pv;
+                if (batteryHistory.TryGetValue(time, out var bat)) lastBat = bat;
+                if (gridHistory.TryGetValue(time, out var grid)) lastGrid = grid;
+                if (loadHistory.TryGetValue(time, out var load)) lastLoad = load;
+
+                timeline.Add(new PowerHistoryPoint
+                {
+                    Timestamp = time,
+                    Time = time.ToString("HH:mm"),
+                    PvPower = lastPv,
+                    BatteryPower = lastBat,
+                    GridPower = lastGrid,
+                    LoadPower = lastLoad
+                });
+            }
+
+            Log.Information($"Got {timeline.Count} power history points for {deviceSn} on {date:yyyy-MM-dd}");
+            return timeline;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Error getting power history for {deviceSn}: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Get daily energy summary for a device (today's totals)
     /// </summary>
     public async Task<DailyEnergySummary?> GetDailyEnergyAsync(string deviceSn)
@@ -536,6 +661,33 @@ public class SocHistoryPoint
     /// </summary>
     [JsonPropertyName("t")]
     public string Time { get; set; } = "";
+}
+
+/// <summary>
+/// Power history data point for energy charts (PV, Battery, Grid, Load)
+/// </summary>
+public class PowerHistoryPoint
+{
+    [JsonPropertyName("timestamp")]
+    public DateTime Timestamp { get; set; }
+    
+    /// <summary>
+    /// Time in HH:mm format for chart x-axis
+    /// </summary>
+    [JsonPropertyName("t")]
+    public string Time { get; set; } = "";
+    
+    [JsonPropertyName("pv")]
+    public int PvPower { get; set; }
+    
+    [JsonPropertyName("bat")]
+    public int BatteryPower { get; set; }
+    
+    [JsonPropertyName("grid")]
+    public int GridPower { get; set; }
+    
+    [JsonPropertyName("load")]
+    public int LoadPower { get; set; }
 }
 
 /// <summary>

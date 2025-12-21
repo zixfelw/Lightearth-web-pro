@@ -616,6 +616,109 @@ public class RealtimeController : ControllerBase
     }
 
     /// <summary>
+    /// Get power history timeline for a specific device from Home Assistant
+    /// Returns PV, Battery, Grid, Load power values over time for energy charts
+    /// </summary>
+    /// <param name="deviceId">The device ID (e.g., P250801055)</param>
+    /// <param name="date">Optional date in format yyyy-MM-dd (defaults to today)</param>
+    [HttpGet("power-history/{deviceId}")]
+    public async Task<IActionResult> GetPowerHistory(string deviceId, [FromQuery] string? date = null)
+    {
+        _logger.LogInformation("Fetching power history for device: {DeviceId}, date: {Date}", deviceId, date ?? "today");
+
+        if (_multiDeviceHaClient == null)
+        {
+            return Ok(new
+            {
+                success = false,
+                message = "Home Assistant client not configured",
+                deviceId = deviceId,
+                timestamp = DateTime.Now
+            });
+        }
+
+        try
+        {
+            // Check if device exists in Home Assistant
+            var deviceExists = await _multiDeviceHaClient.DeviceExistsAsync(deviceId);
+            
+            if (!deviceExists)
+            {
+                _logger.LogWarning("Device {DeviceId} not found in Home Assistant", deviceId);
+                return Ok(new
+                {
+                    success = false,
+                    message = $"Device {deviceId} not found in Home Assistant",
+                    deviceId = deviceId,
+                    timestamp = DateTime.Now
+                });
+            }
+
+            // Parse date or use today
+            DateTime targetDate;
+            if (string.IsNullOrEmpty(date))
+            {
+                targetDate = DateTime.Today;
+            }
+            else if (!DateTime.TryParse(date, out targetDate))
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Invalid date format. Use yyyy-MM-dd",
+                    deviceId = deviceId
+                });
+            }
+
+            // Get power history from HA
+            var powerHistory = await _multiDeviceHaClient.GetPowerHistoryAsync(deviceId, targetDate);
+
+            if (powerHistory == null || powerHistory.Count == 0)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    message = $"No power history found for device {deviceId} on {targetDate:yyyy-MM-dd}",
+                    deviceId = deviceId,
+                    date = targetDate.ToString("yyyy-MM-dd"),
+                    timestamp = DateTime.Now
+                });
+            }
+
+            // Calculate statistics
+            var pvValues = powerHistory.Select(x => x.PvPower).Where(p => p > 0).ToList();
+            var loadValues = powerHistory.Select(x => x.LoadPower).Where(p => p > 0).ToList();
+
+            return Ok(new
+            {
+                success = true,
+                deviceId = deviceId.ToUpper(),
+                date = targetDate.ToString("yyyy-MM-dd"),
+                timeline = powerHistory,
+                statistics = new
+                {
+                    count = powerHistory.Count,
+                    maxPv = pvValues.Any() ? pvValues.Max() : 0,
+                    avgLoad = loadValues.Any() ? Math.Round(loadValues.Average(), 0) : 0,
+                    maxLoad = loadValues.Any() ? loadValues.Max() : 0
+                },
+                timestamp = DateTime.Now
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting power history for device {DeviceId}", deviceId);
+            return StatusCode(500, new
+            {
+                success = false,
+                message = ex.Message,
+                deviceId = deviceId,
+                timestamp = DateTime.Now
+            });
+        }
+    }
+
+    /// <summary>
     /// Get daily energy summary for a device from Home Assistant
     /// Returns today's energy values: PV, charge, discharge, grid, load, essential
     /// </summary>
