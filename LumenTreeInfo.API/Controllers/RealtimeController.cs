@@ -1,4 +1,5 @@
 using LumenTreeInfo.Lib;
+using LumenTreeInfo.API.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 
@@ -670,17 +671,31 @@ public class RealtimeController : ControllerBase
                 });
             }
 
-            // Get power history from HA
+            // Try to get power history from HA first
             var powerHistory = await _multiDeviceHaClient.GetPowerHistoryAsync(deviceId, targetDate);
+            var dataSource = "HomeAssistant";
 
+            // Fallback to collected data if HA history is empty
             if (powerHistory == null || powerHistory.Count == 0)
             {
+                _logger.LogInformation("HA power history empty for {DeviceId}, trying collected data...", deviceId);
+                powerHistory = PowerHistoryCollector.GetPowerHistory(deviceId, targetDate);
+                dataSource = "Collector";
+            }
+            
+            if (powerHistory == null || powerHistory.Count == 0)
+            {
+                // Return available dates for debugging
+                var availableDates = PowerHistoryCollector.GetAvailableDates(deviceId).ToList();
+                
                 return Ok(new
                 {
                     success = false,
-                    message = $"No power history found for device {deviceId} on {targetDate:yyyy-MM-dd}",
+                    message = $"No power history found for device {deviceId} on {targetDate:yyyy-MM-dd}. Data collection started - check back in ~5 minutes.",
                     deviceId = deviceId,
                     date = targetDate.ToString("yyyy-MM-dd"),
+                    availableDates = availableDates,
+                    collectorStats = PowerHistoryCollector.GetStats(),
                     timestamp = DateTime.Now
                 });
             }
@@ -694,6 +709,7 @@ public class RealtimeController : ControllerBase
                 success = true,
                 deviceId = deviceId.ToUpper(),
                 date = targetDate.ToString("yyyy-MM-dd"),
+                dataSource = dataSource,
                 timeline = powerHistory,
                 statistics = new
                 {
@@ -789,6 +805,25 @@ public class RealtimeController : ControllerBase
                 timestamp = DateTime.Now
             });
         }
+    }
+
+    /// <summary>
+    /// Get power history collector statistics
+    /// </summary>
+    [HttpGet("power-history-stats")]
+    public IActionResult GetPowerHistoryStats()
+    {
+        var stats = PowerHistoryCollector.GetStats();
+        
+        return Ok(new
+        {
+            success = true,
+            message = "Power history collector statistics",
+            deviceStats = stats,
+            totalPoints = stats.Values.Sum(),
+            note = "Data is collected every 5 minutes for all devices in Home Assistant",
+            timestamp = DateTime.Now
+        });
     }
 
     /// <summary>

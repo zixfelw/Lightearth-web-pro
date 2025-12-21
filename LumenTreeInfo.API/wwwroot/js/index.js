@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 12202 - Railway Power History API for Charts
+ * Version: 12203 - Power History Collector Service
  * 
  * Features:
  * - Real-time data via SignalR

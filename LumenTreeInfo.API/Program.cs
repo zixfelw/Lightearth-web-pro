@@ -1,4 +1,5 @@
 using LumenTreeInfo.Lib;
+using LumenTreeInfo.API.Services;
 
 using Serilog;
 using Serilog.Events;
@@ -114,6 +115,9 @@ public class Program
         
         // Start DataSourceManager as hosted service
         builder.Services.AddHostedService<DataSourceManagerHostedService>();
+        
+        // Add PowerHistoryCollector to collect power data every 5 minutes
+        builder.Services.AddHostedService<PowerHistoryCollector>();
 
         var app = builder.Build();
 
