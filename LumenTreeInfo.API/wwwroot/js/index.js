@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 12209 - Fix URL encode %2B for timezone in HA history
+ * Version: 12210 - Simplify HA history date format (no timezone needed)
  * 
  * Features:
  * - Real-time data via SignalR

@@ -291,10 +291,9 @@ public class MultiDeviceHomeAssistantClient : IDisposable
             var deviceSnLower = deviceSn.ToLower();
             var entityId = $"sensor.device_{deviceSnLower}_battery_soc";
             
-            // Format date for HA API - use Vietnam timezone (GMT+7)
-            // URL encode the + sign as %2B to prevent issues
-            var startTime = date.ToString("yyyy-MM-ddT00:00:00") + "%2B07:00";
-            var endTime = date.AddDays(1).ToString("yyyy-MM-ddT00:00:00") + "%2B07:00";
+            // Format date for HA API - simple format without timezone
+            var startTime = date.ToString("yyyy-MM-ddT00:00:00");
+            var endTime = date.AddDays(1).ToString("yyyy-MM-ddT00:00:00");
             
             var request = new RestRequest($"/api/history/period/{startTime}", Method.Get);
             request.AddQueryParameter("filter_entity_id", entityId);
@@ -366,14 +365,14 @@ public class MultiDeviceHomeAssistantClient : IDisposable
             var loadEntity = $"sensor.device_{deviceSnLower}_load_power";
             var totalLoadEntity = $"sensor.device_{deviceSnLower}_total_load_power";
             
-            // Format date for HA API - use Vietnam timezone (GMT+7)
-            // URL encode the + sign as %2B to prevent issues
-            var startTime = date.ToString("yyyy-MM-ddT00:00:00") + "%2B07:00";
-            var endTime = date.AddDays(1).ToString("yyyy-MM-ddT00:00:00") + "%2B07:00";
+            // Format date for HA API - simple format without timezone
+            // HA interprets the date in its configured timezone
+            var startTime = date.ToString("yyyy-MM-ddT00:00:00");
+            var endTime = date.AddDays(1).ToString("yyyy-MM-ddT00:00:00");
             
             // Fetch all power histories (include both load and total_load)
             var entities = new[] { pvEntity, batteryEntity, gridEntity, loadEntity, totalLoadEntity };
-            Log.Information($"Fetching power history for entities: {string.Join(", ", entities)}, start: {startTime}");
+            Log.Information($"Fetching power history for {deviceSn}: {string.Join(", ", entities)}");
             
             var request = new RestRequest($"/api/history/period/{startTime}", Method.Get);
             request.AddQueryParameter("filter_entity_id", string.Join(",", entities));
