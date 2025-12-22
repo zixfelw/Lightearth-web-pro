@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13134 - Add hover markers (circles + vertical line) to combined chart
+ * Version: 13135 - Use HA temperature API from Cloudflare Worker for min/max display
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1355,34 +1355,43 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log("📊 Day data loaded - Realtime display will show empty until MQTT data arrives");
     }
     
-    // Fetch Temperature Min/Max for the day (via proxy to avoid CORS)
+    // Fetch Temperature Min/Max for the day from Home Assistant via Cloudflare Worker
     function fetchTemperatureMinMax(deviceId, date) {
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
         
-        // Use proxy endpoint to avoid CORS issues
-        fetch(`/api/proxy/temperature/${deviceId}/${queryDate}`)
+        // Use Cloudflare Worker API (Home Assistant data with correct timezone)
+        const haTemperatureUrl = LIGHTEARTH_API.base + `/api/ha/temperature/${deviceId}/${queryDate}`;
+        console.log('🌡️ Fetching temperature from:', haTemperatureUrl);
+        
+        fetch(haTemperatureUrl)
             .then(response => {
                 if (!response.ok) throw new Error(`Temperature API error: ${response.status}`);
                 return response.json();
             })
             .then(data => {
-                console.log("Temperature min/max data received:", data);
+                console.log("🌡️ Temperature min/max data received:", data);
                 
                 // Update UI with min/max temperature
                 const badge = document.getElementById('tempMinMaxBadge');
                 const minEl = document.getElementById('temp-min-value');
                 const maxEl = document.getElementById('temp-max-value');
                 
-                if (badge && data.min !== undefined && data.max !== undefined) {
-                    minEl.textContent = `${data.min.toFixed(1)}°C`;
-                    maxEl.textContent = `${data.max.toFixed(1)}°C`;
+                if (badge && data.success && data.min !== null && data.max !== null) {
+                    minEl.textContent = `${data.min}°C`;
+                    maxEl.textContent = `${data.max}°C`;
+                    // Add time tooltips if available
+                    if (data.minTime) minEl.title = `Thấp nhất lúc ${data.minTime}`;
+                    if (data.maxTime) maxEl.title = `Cao nhất lúc ${data.maxTime}`;
                     badge.classList.remove('hidden');
                     badge.classList.add('flex');
-                    console.log("Temperature badge updated:", data.min, data.max);
+                    console.log(`✅ Temperature badge updated: ${data.min}°C (${data.minTime}) - ${data.max}°C (${data.maxTime})`);
+                } else {
+                    console.warn("⚠️ Temperature data not available or invalid");
+                    badge.classList.add('hidden');
                 }
             })
             .catch(error => {
-                console.warn("Temperature API unavailable:", error.message);
+                console.warn("🌡️ Temperature API unavailable:", error.message);
                 // Hide the badge if API fails
                 const badge = document.getElementById('tempMinMaxBadge');
                 if (badge) badge.classList.add('hidden');
