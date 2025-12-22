@@ -353,6 +353,14 @@
             <button id="prevDayCompact" class="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600" title="Ngày trước">
                 <i data-lucide="chevron-left" class="w-4 h-4"></i>
             </button>
+            <!-- Date Display with Date Picker -->
+            <div class="relative">
+                <button id="datePickerBtn" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" title="Chọn ngày">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5 text-teal-500"></i>
+                    <span id="compactDateDisplay" class="text-xs font-semibold text-slate-700 dark:text-slate-200">--/--/----</span>
+                </button>
+                <input type="date" id="compactDateInput" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" title="Chọn ngày">
+            </div>
             <button id="nextDayCompact" class="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600" title="Ngày sau">
                 <i data-lucide="chevron-right" class="w-4 h-4"></i>
             </button>

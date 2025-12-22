@@ -401,6 +401,32 @@ document.addEventListener('DOMContentLoaded', function () {
     const nextDayCompact = document.getElementById('nextDayCompact');
     if (prevDayCompact) prevDayCompact.addEventListener('click', () => changeDate(-1));
     if (nextDayCompact) nextDayCompact.addEventListener('click', () => changeDate(1));
+    
+    // Compact date picker - allows selecting specific date
+    const compactDateInput = document.getElementById('compactDateInput');
+    if (compactDateInput) {
+        compactDateInput.addEventListener('change', function() {
+            const selectedDate = this.value;
+            if (selectedDate) {
+                // Update main date input
+                const mainDateInput = document.getElementById('dateInput');
+                if (mainDateInput) {
+                    mainDateInput.value = selectedDate;
+                }
+                // Update compact date display
+                const compactDateDisplay = document.getElementById('compactDateDisplay');
+                if (compactDateDisplay) {
+                    const dateObj = new Date(selectedDate);
+                    const day = String(dateObj.getDate()).padStart(2, '0');
+                    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    const year = dateObj.getFullYear();
+                    compactDateDisplay.textContent = `${day}/${month}/${year}`;
+                }
+                // Fetch data for new date
+                fetchData();
+            }
+        });
+    }
 
     // Initialize SignalR
     initializeSignalRConnection();
@@ -1932,6 +1958,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const deviceIdDisplay = document.getElementById('deviceIdDisplay');
         const dateDisplay = document.getElementById('dateDisplay');
         const fixedCalculateBtn = document.getElementById('fixedCalculateBtn');
+        const compactDateDisplay = document.getElementById('compactDateDisplay');
+        const compactDateInput = document.getElementById('compactDateInput');
 
         if (heroSection) {
             heroSection.classList.add('hidden');
@@ -1945,6 +1973,18 @@ document.addEventListener('DOMContentLoaded', function () {
         if (dateDisplay) {
             const dateObj = new Date(date);
             dateDisplay.textContent = dateObj.toLocaleDateString('vi-VN');
+        }
+        // Update compact date display (DD/MM/YYYY format)
+        if (compactDateDisplay && date) {
+            const dateObj = new Date(date);
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const year = dateObj.getFullYear();
+            compactDateDisplay.textContent = `${day}/${month}/${year}`;
+        }
+        // Sync compact date input value
+        if (compactDateInput && date) {
+            compactDateInput.value = date;
         }
         // Show fixed calculate button
         if (fixedCalculateBtn) {
