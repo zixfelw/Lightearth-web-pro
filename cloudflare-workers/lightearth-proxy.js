@@ -1,23 +1,24 @@
 /**
- * Lightearth Proxy Worker v3.0 - SECURED VERSION
+ * Lightearth Proxy Worker v3.0 (based on v2.6)
  * - Proxy to lesvr.suntcn.com
  * - Proxy to Home Assistant
  * - Optimized: O(n log n) power history processing to avoid Worker timeout
  * - Fixed: Timezone handling for Vietnam (UTC+7)
  * - Added: Temperature min/max history endpoint
  * - Added: Device info endpoint (model, manufacturer, firmware)
+ * - Added: HA devices list endpoint
+ * - Added: HA monthly energy endpoint
  * 
  * SECURITY FEATURES (v3.0):
- * - Rate limiting per IP (using Cloudflare KV)
+ * - Rate limiting per IP (60 requests/minute)
  * - CORS protection with allowed origins whitelist
- * - User-Agent validation
- * - Request logging for suspicious activity
+ * - User-Agent validation (block bots/scrapers)
+ * - Input validation for deviceId
+ * - Security headers
  * 
  * Environment Variables needed:
  * - HA_URL: Home Assistant URL (e.g., https://xxx.trycloudflare.com)
  * - HA_TOKEN: Home Assistant Long-Lived Access Token
- * - RATE_LIMIT_KV: KV namespace for rate limiting (optional)
- * - API_KEY: Optional API key for additional protection
  */
 
 // Vietnam timezone offset: UTC+7
@@ -37,7 +38,6 @@ const SECURITY_CONFIG = {
     'http://127.0.0.1:3000',
     'http://127.0.0.1:5000',
     'http://127.0.0.1:8080',
-    // Add more allowed origins as needed
   ],
   
   // Rate limiting settings
@@ -59,20 +59,10 @@ const SECURITY_CONFIG = {
     'lwp-trivial',
     'php/',
     'go-http-client',
-    'axios/',
-  ],
-  
-  // Suspicious patterns to log
-  suspiciousPatterns: [
-    /\.\.\//,           // Path traversal
-    /<script/i,         // XSS attempt
-    /union.*select/i,   // SQL injection
-    /eval\(/i,          // Code injection
   ],
 };
 
-// ============ RATE LIMITING (In-Memory for Workers without KV) ============
-// Note: This resets on worker restart. For persistent rate limiting, use Cloudflare KV
+// ============ RATE LIMITING ============
 const rateLimitMap = new Map();
 
 function isRateLimited(ip) {
@@ -84,12 +74,10 @@ function isRateLimited(ip) {
     return false;
   }
   
-  // Check if blocked
   if (record.blocked && now < record.blockedUntil) {
     return true;
   }
   
-  // Reset block if duration passed
   if (record.blocked && now >= record.blockedUntil) {
     record.blocked = false;
     record.count = 1;
@@ -97,14 +85,12 @@ function isRateLimited(ip) {
     return false;
   }
   
-  // Check if window expired
   if (now - record.windowStart > SECURITY_CONFIG.rateLimit.windowMs) {
     record.count = 1;
     record.windowStart = now;
     return false;
   }
   
-  // Increment and check
   record.count++;
   if (record.count > SECURITY_CONFIG.rateLimit.maxRequests) {
     record.blocked = true;
@@ -116,10 +102,9 @@ function isRateLimited(ip) {
   return false;
 }
 
-// Clean up old entries periodically (prevent memory leak)
 function cleanupRateLimitMap() {
   const now = Date.now();
-  const maxAge = SECURITY_CONFIG.rateLimit.windowMs * 10; // Keep for 10 windows
+  const maxAge = SECURITY_CONFIG.rateLimit.windowMs * 10;
   
   for (const [ip, record] of rateLimitMap.entries()) {
     if (now - record.windowStart > maxAge) {
@@ -138,38 +123,34 @@ function getClientIP(request) {
 }
 
 function isOriginAllowed(origin) {
-  if (!origin) return false;
+  if (!origin) return true; // Allow requests without origin (direct API calls)
   return SECURITY_CONFIG.allowedOrigins.some(allowed => 
-    origin === allowed || origin.endsWith('.workers.dev')
+    origin === allowed || origin.endsWith('.workers.dev') || origin.endsWith('.railway.app')
   );
 }
 
 function isUserAgentBlocked(userAgent) {
-  if (!userAgent) return true; // Block requests without User-Agent
+  if (!userAgent) return false; // Allow requests without User-Agent for now
   const ua = userAgent.toLowerCase();
   return SECURITY_CONFIG.blockedUserAgents.some(blocked => ua.includes(blocked));
 }
 
-function hasSuspiciousPatterns(url, path) {
-  const fullPath = url + path;
-  return SECURITY_CONFIG.suspiciousPatterns.some(pattern => pattern.test(fullPath));
-}
-
 function createSecurityHeaders(origin) {
-  // Only allow specific origins, not wildcard
-  const allowedOrigin = isOriginAllowed(origin) ? origin : SECURITY_CONFIG.allowedOrigins[0];
+  const allowedOrigin = isOriginAllowed(origin) ? (origin || '*') : SECURITY_CONFIG.allowedOrigins[0];
   
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Max-Age': '86400',
     'Content-Type': 'application/json',
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
-    'X-XSS-Protection': '1; mode=block',
-    'Referrer-Policy': 'strict-origin-when-cross-origin',
   };
+}
+
+function isValidDeviceId(deviceId) {
+  return /^[A-Za-z0-9_-]+$/.test(deviceId);
 }
 
 // ============ MAIN HANDLER ============
@@ -182,44 +163,23 @@ export default {
     const userAgent = request.headers.get('User-Agent');
     const clientIP = getClientIP(request);
     
-    // Get security headers
     const headers = createSecurityHeaders(origin);
-    
-    // ============ SECURITY CHECKS ============
-    
-    // 1. Handle preflight requests
+
+    // Handle preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers });
     }
-    
-    // 2. Only allow GET requests (except OPTIONS)
-    if (request.method !== 'GET') {
-      console.log(`[BLOCKED] Non-GET method from ${clientIP}: ${request.method}`);
-      return new Response(JSON.stringify({ 
-        error: 'Method not allowed',
-        code: 'METHOD_NOT_ALLOWED'
-      }), { status: 405, headers });
-    }
-    
-    // 3. Check User-Agent (allow browsers, block scrapers)
+
+    // Security: Block suspicious User-Agents
     if (isUserAgentBlocked(userAgent)) {
       console.log(`[BLOCKED] Suspicious User-Agent from ${clientIP}: ${userAgent}`);
       return new Response(JSON.stringify({ 
         error: 'Access denied',
-        code: 'INVALID_USER_AGENT'
+        code: 'BLOCKED_USER_AGENT'
       }), { status: 403, headers });
     }
-    
-    // 4. Check for suspicious patterns
-    if (hasSuspiciousPatterns(url.href, path)) {
-      console.log(`[BLOCKED] Suspicious pattern from ${clientIP}: ${path}`);
-      return new Response(JSON.stringify({ 
-        error: 'Invalid request',
-        code: 'SUSPICIOUS_REQUEST'
-      }), { status: 400, headers });
-    }
-    
-    // 5. Rate limiting
+
+    // Security: Rate limiting
     if (isRateLimited(clientIP)) {
       return new Response(JSON.stringify({ 
         error: 'Too many requests. Please try again later.',
@@ -233,23 +193,12 @@ export default {
         }
       });
     }
-    
-    // 6. Origin check for API endpoints (skip for health check)
-    if (path !== '/' && path !== '/health' && !isOriginAllowed(origin)) {
-      // Allow requests without origin (direct API calls from servers)
-      // But log them for monitoring
-      if (origin) {
-        console.log(`[WARNING] Request from non-whitelisted origin: ${origin} - IP: ${clientIP}`);
-      }
-    }
-    
+
     // Cleanup old rate limit entries periodically
-    if (Math.random() < 0.01) { // 1% chance on each request
+    if (Math.random() < 0.01) {
       cleanupRateLimitMap();
     }
-    
-    // ============ API LOGIC ============
-    
+
     const apiHeaders = {
       'Accept-Language': 'vi-VN,vi;q=0.8',
       'User-Agent': 'okhttp-okgo/jeasonlzy',
@@ -271,20 +220,55 @@ export default {
         ha_configured: !!(HA_URL && HA_TOKEN),
         timezone: 'UTC+7 (Vietnam)',
         security: {
-          rateLimit: `${SECURITY_CONFIG.rateLimit.maxRequests} requests per minute`,
+          rateLimit: `${SECURITY_CONFIG.rateLimit.maxRequests} requests/minute`,
           corsProtected: true
         },
         endpoints: [
+          '/api/ha/devices',
           '/api/ha/power-history/{deviceId}/{date}',
           '/api/ha/soc-history/{deviceId}/{date}',
           '/api/ha/temperature/{deviceId}/{date}',
           '/api/ha/device-info/{deviceId}',
-          '/api/ha/states/{deviceId}'
+          '/api/ha/states/{deviceId}',
+          '/api/ha/monthly/{deviceId}'
         ]
       }), { headers });
     }
 
     // ============ HOME ASSISTANT ENDPOINTS ============
+
+    // GET /api/ha/devices - List all solar devices from HA
+    if (path === '/api/ha/devices') {
+      if (!HA_URL || !HA_TOKEN) {
+        return new Response(JSON.stringify({ success: false, error: 'HA not configured' }), { status: 503, headers });
+      }
+      try {
+        const data = await fetchHADevices(HA_URL, HA_TOKEN);
+        return new Response(JSON.stringify({ success: true, dataSource: 'HomeAssistant', ...data }), { headers });
+      } catch (error) {
+        return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers });
+      }
+    }
+
+    // GET /api/ha/monthly/{deviceId} - Get current month energy data from HA
+    if (path.match(/^\/api\/ha\/monthly\/([^\/]+)$/)) {
+      if (!HA_URL || !HA_TOKEN) {
+        return new Response(JSON.stringify({ success: false, error: 'HA not configured' }), { status: 503, headers });
+      }
+      const match = path.match(/^\/api\/ha\/monthly\/([^\/]+)$/);
+      const deviceId = match[1];
+      
+      if (!isValidDeviceId(deviceId)) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid deviceId format' }), { status: 400, headers });
+      }
+      
+      try {
+        const data = await fetchHAMonthlyEnergy(HA_URL, HA_TOKEN, deviceId);
+        return new Response(JSON.stringify({ success: true, dataSource: 'HomeAssistant', deviceId, ...data }), { headers });
+      } catch (error) {
+        return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers });
+      }
+    }
 
     // GET /api/ha/power-history/{deviceId}/{date}
     if (path.match(/^\/api\/ha\/power-history\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/)) {
@@ -295,8 +279,7 @@ export default {
       const deviceId = match[1];
       const queryDate = match[2];
       
-      // Validate deviceId format (alphanumeric)
-      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+      if (!isValidDeviceId(deviceId)) {
         return new Response(JSON.stringify({ success: false, error: 'Invalid deviceId format' }), { status: 400, headers });
       }
       
@@ -317,7 +300,7 @@ export default {
       const deviceId = match[1];
       const queryDate = match[2];
       
-      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+      if (!isValidDeviceId(deviceId)) {
         return new Response(JSON.stringify({ success: false, error: 'Invalid deviceId format' }), { status: 400, headers });
       }
       
@@ -337,7 +320,7 @@ export default {
       const match = path.match(/^\/api\/ha\/states\/([^\/]+)$/);
       const deviceId = match[1];
       
-      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+      if (!isValidDeviceId(deviceId)) {
         return new Response(JSON.stringify({ success: false, error: 'Invalid deviceId format' }), { status: 400, headers });
       }
       
@@ -357,7 +340,7 @@ export default {
       const match = path.match(/^\/api\/ha\/device-info\/([^\/]+)$/);
       const deviceId = match[1];
       
-      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+      if (!isValidDeviceId(deviceId)) {
         return new Response(JSON.stringify({ success: false, error: 'Invalid deviceId format' }), { status: 400, headers });
       }
       
@@ -378,7 +361,7 @@ export default {
       const deviceId = match[1];
       const queryDate = match[2];
       
-      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+      if (!isValidDeviceId(deviceId)) {
         return new Response(JSON.stringify({ success: false, error: 'Invalid deviceId format' }), { status: 400, headers });
       }
       
@@ -397,7 +380,7 @@ export default {
       const match = path.match(/^\/api\/bat\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/);
       const deviceId = match[1];
       
-      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+      if (!isValidDeviceId(deviceId)) {
         return new Response(JSON.stringify({ error: 'Invalid deviceId format' }), { status: 400, headers });
       }
       
@@ -411,7 +394,7 @@ export default {
       const match = path.match(/^\/api\/pv\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/);
       const deviceId = match[1];
       
-      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+      if (!isValidDeviceId(deviceId)) {
         return new Response(JSON.stringify({ error: 'Invalid deviceId format' }), { status: 400, headers });
       }
       
@@ -425,7 +408,7 @@ export default {
       const match = path.match(/^\/api\/other\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/);
       const deviceId = match[1];
       
-      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+      if (!isValidDeviceId(deviceId)) {
         return new Response(JSON.stringify({ error: 'Invalid deviceId format' }), { status: 400, headers });
       }
       
@@ -439,7 +422,7 @@ export default {
       const match = path.match(/^\/api\/month\/([^\/]+)$/);
       const deviceId = match[1];
       
-      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+      if (!isValidDeviceId(deviceId)) {
         return new Response(JSON.stringify({ error: 'Invalid deviceId format' }), { status: 400, headers });
       }
       
@@ -453,7 +436,7 @@ export default {
       const match = path.match(/^\/api\/year\/([^\/]+)$/);
       const deviceId = match[1];
       
-      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+      if (!isValidDeviceId(deviceId)) {
         return new Response(JSON.stringify({ error: 'Invalid deviceId format' }), { status: 400, headers });
       }
       
@@ -467,7 +450,7 @@ export default {
       const match = path.match(/^\/api\/history-year\/([^\/]+)$/);
       const deviceId = match[1];
       
-      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+      if (!isValidDeviceId(deviceId)) {
         return new Response(JSON.stringify({ error: 'Invalid deviceId format' }), { status: 400, headers });
       }
       
@@ -506,10 +489,121 @@ export default {
 
 // ============ HA HELPER FUNCTIONS ============
 
+// Get list of all solar devices from HA
+async function fetchHADevices(haUrl, haToken) {
+  const haHeaders = { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' };
+  const response = await fetch(`${haUrl}/api/states`, { headers: haHeaders });
+  if (!response.ok) throw new Error(`HA API error: ${response.status}`);
+
+  const states = await response.json();
+  
+  // Find all unique device IDs from sensor names (sensor.device_XXXXX_*)
+  const deviceIds = new Set();
+  const deviceRegex = /^sensor\.device_([a-z0-9]+)_/i;
+  
+  states.forEach(state => {
+    const match = state.entity_id.match(deviceRegex);
+    if (match) {
+      deviceIds.add(match[1].toUpperCase());
+    }
+  });
+
+  // Build device list with basic info
+  const devices = [];
+  for (const deviceId of deviceIds) {
+    const devicePrefix = `sensor.device_${deviceId.toLowerCase()}`;
+    const deviceStates = states.filter(s => s.entity_id.startsWith(devicePrefix));
+    
+    // Get model from friendly_name
+    let model = null;
+    const pvPowerEntity = deviceStates.find(s => s.entity_id.includes('_pv_power'));
+    if (pvPowerEntity && pvPowerEntity.attributes?.friendly_name) {
+      const friendlyName = pvPowerEntity.attributes.friendly_name;
+      const modelMatch = friendlyName.match(/^(SUNT-[\d.]+kW-[A-Z]+)/i);
+      if (modelMatch) model = modelMatch[1];
+    }
+    
+    // Get current status
+    const socEntity = deviceStates.find(s => s.entity_id.includes('_battery_soc'));
+    const pvPower = deviceStates.find(s => s.entity_id.includes('_pv_power'));
+    
+    devices.push({
+      deviceId: deviceId,
+      model: model,
+      sensorCount: deviceStates.length,
+      batterySoc: socEntity ? parseFloat(socEntity.state) || 0 : null,
+      pvPower: pvPower ? parseFloat(pvPower.state) || 0 : null,
+      online: pvPower && pvPower.state !== 'unavailable'
+    });
+  }
+
+  return { 
+    devices: devices.sort((a, b) => a.deviceId.localeCompare(b.deviceId)),
+    count: devices.length,
+    timestamp: new Date().toISOString()
+  };
+}
+
+// Get current month energy data from HA
+async function fetchHAMonthlyEnergy(haUrl, haToken, deviceId) {
+  const haHeaders = { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' };
+  const response = await fetch(`${haUrl}/api/states`, { headers: haHeaders });
+  if (!response.ok) throw new Error(`HA API error: ${response.status}`);
+
+  const states = await response.json();
+  const devicePrefix = `sensor.device_${deviceId.toLowerCase()}`;
+  const deviceStates = states.filter(state => state.entity_id.startsWith(devicePrefix));
+
+  // Extract energy data
+  const getValue = (suffix) => {
+    const entity = deviceStates.find(s => s.entity_id.endsWith(suffix));
+    return entity ? parseFloat(entity.state) || 0 : 0;
+  };
+
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  return {
+    month: currentMonth,
+    today: {
+      pv: getValue('_pv_today'),
+      load: getValue('_load_today'),
+      grid: getValue('_grid_in_today'),
+      charge: getValue('_charge_today'),
+      discharge: getValue('_discharge_today'),
+      essential: getValue('_essential_today')
+    },
+    monthly: {
+      pv: getValue('_pv_month'),
+      load: getValue('_load_month'),
+      grid: getValue('_grid_in_month'),
+      charge: getValue('_charge_month'),
+      discharge: getValue('_discharge_month'),
+      essential: getValue('_essential_month')
+    },
+    year: {
+      pv: getValue('_pv_year'),
+      load: getValue('_load_year'),
+      grid: getValue('_grid_in_year'),
+      charge: getValue('_charge_year'),
+      discharge: getValue('_discharge_year'),
+      essential: getValue('_essential_year')
+    },
+    total: {
+      pv: getValue('_pv_total'),
+      load: getValue('_load_total'),
+      grid: getValue('_grid_in_total'),
+      charge: getValue('_charge_total'),
+      discharge: getValue('_discharge_total'),
+      essential: getValue('_essential_total')
+    },
+    timestamp: new Date().toISOString()
+  };
+}
+
 async function fetchHAPowerHistory(haUrl, haToken, deviceId, queryDate) {
   const haHeaders = { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' };
   
-  // Format: sensor.device_{deviceId}_xxx
   const sensors = {
     pv: `sensor.device_${deviceId.toLowerCase()}_pv_power`,
     battery: `sensor.device_${deviceId.toLowerCase()}_battery_power`,
@@ -517,13 +611,8 @@ async function fetchHAPowerHistory(haUrl, haToken, deviceId, queryDate) {
     load: `sensor.device_${deviceId.toLowerCase()}_load_power`
   };
 
-  // TIMEZONE FIX: Convert Vietnam local time to UTC for HA API query
-  // Vietnam 00:00 = UTC 17:00 previous day (UTC+7)
-  // Vietnam 23:59 = UTC 16:59 same day
-  const vnDayStart = new Date(`${queryDate}T00:00:00+07:00`); // Vietnam midnight
-  const vnDayEnd = new Date(`${queryDate}T23:59:59+07:00`);   // Vietnam end of day
-  
-  // Format for HA API (ISO format)
+  const vnDayStart = new Date(`${queryDate}T00:00:00+07:00`);
+  const vnDayEnd = new Date(`${queryDate}T23:59:59+07:00`);
   const startTimeUTC = vnDayStart.toISOString();
   const endTimeUTC = vnDayEnd.toISOString();
   
@@ -535,8 +624,6 @@ async function fetchHAPowerHistory(haUrl, haToken, deviceId, queryDate) {
 
   const historyData = await response.json();
   
-  // Pre-process: Create sorted arrays of {time, value} for each sensor
-  // This is O(n log n) instead of O(n * m * k)
   const sensorTimelines = {};
   const sensorKeys = Object.keys(sensors);
   
@@ -546,7 +633,6 @@ async function fetchHAPowerHistory(haUrl, haToken, deviceId, queryDate) {
     const key = sensorKeys.find(k => sensors[k] === entityId);
     if (!key) continue;
     
-    // Convert to sorted array of {time, value}
     sensorTimelines[key] = sensorHistory
       .map(entry => ({
         time: new Date(entry.last_changed || entry.last_updated).getTime(),
@@ -556,24 +642,18 @@ async function fetchHAPowerHistory(haUrl, haToken, deviceId, queryDate) {
       .sort((a, b) => a.time - b.time);
   }
 
-  // Create 288 time slots (every 5 minutes) in VIETNAM LOCAL TIME
   const timeline = [];
   const interval = 5 * 60 * 1000;
-  const dayStartMs = vnDayStart.getTime(); // Vietnam 00:00 in milliseconds
-  const dayEndMs = vnDayEnd.getTime();     // Vietnam 23:59 in milliseconds
+  const dayStartMs = vnDayStart.getTime();
+  const dayEndMs = vnDayEnd.getTime();
   
-  // Track current index in each sensor's timeline for efficient lookup
   const indices = { pv: 0, battery: 0, grid: 0, load: 0 };
-  // Initialize with null to differentiate "no data yet" from "actual 0 value"
   const lastValues = { pv: null, battery: null, grid: null, load: null };
-  // Track if we've seen any actual data
   const hasSeenData = { pv: false, battery: false, grid: false, load: false };
 
   for (let time = dayStartMs; time <= dayEndMs; time += interval) {
-    // For each sensor, find the latest value before or at this time
     for (const key of sensorKeys) {
       const sensorData = sensorTimelines[key] || [];
-      // Advance index while entries are before or at current time
       while (indices[key] < sensorData.length && sensorData[indices[key]].time <= time) {
         lastValues[key] = sensorData[indices[key]].value;
         hasSeenData[key] = true;
@@ -581,17 +661,14 @@ async function fetchHAPowerHistory(haUrl, haToken, deviceId, queryDate) {
       }
     }
     
-    // Convert UTC timestamp to Vietnam local time string (HH:mm format)
     const vnTime = new Date(time);
     const hours = vnTime.getUTCHours() + VN_OFFSET_HOURS;
     const adjustedHours = hours >= 24 ? hours - 24 : hours;
     const minutes = vnTime.getUTCMinutes();
     const localTimeStr = `${String(adjustedHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     
-    // Only output values if we've seen actual data, otherwise use 0
-    // This prevents carrying over stale values from previous day
     timeline.push({ 
-      time: localTimeStr,  // Return local time string instead of ISO
+      time: localTimeStr,
       pv: hasSeenData.pv ? (lastValues.pv || 0) : 0,
       battery: hasSeenData.battery ? (lastValues.battery || 0) : 0,
       grid: hasSeenData.grid ? (lastValues.grid || 0) : 0,
@@ -611,10 +688,8 @@ async function fetchHAPowerHistory(haUrl, haToken, deviceId, queryDate) {
 
 async function fetchHASOCHistory(haUrl, haToken, deviceId, queryDate) {
   const haHeaders = { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' };
-  // Format: sensor.device_{deviceId}_battery_soc
   const socEntity = `sensor.device_${deviceId.toLowerCase()}_battery_soc`;
   
-  // TIMEZONE FIX: Convert Vietnam local time to UTC for HA API query
   const vnDayStart = new Date(`${queryDate}T00:00:00+07:00`);
   const vnDayEnd = new Date(`${queryDate}T23:59:59+07:00`);
   const startTimeUTC = vnDayStart.toISOString();
@@ -630,17 +705,15 @@ async function fetchHASOCHistory(haUrl, haToken, deviceId, queryDate) {
     return { timeline: [], count: 0 };
   }
 
-  // Convert UTC timestamps to Vietnam local time strings
   const timeline = historyData[0].map(entry => {
     const utcTime = new Date(entry.last_changed || entry.last_updated);
-    // Add 7 hours for Vietnam timezone
     const vnHours = utcTime.getUTCHours() + VN_OFFSET_HOURS;
     const adjustedHours = vnHours >= 24 ? vnHours - 24 : vnHours;
     const minutes = utcTime.getUTCMinutes();
     const localTimeStr = `${String(adjustedHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     
     return {
-      t: localTimeStr,  // Return "HH:mm" format for frontend
+      t: localTimeStr,
       soc: parseFloat(entry.state) || 0
     };
   }).filter(entry => !isNaN(entry.soc));
@@ -654,7 +727,6 @@ async function fetchHAStates(haUrl, haToken, deviceId) {
   if (!response.ok) throw new Error(`HA API error: ${response.status}`);
 
   const states = await response.json();
-  // Format: sensor.device_{deviceId}_xxx
   const devicePrefix = `sensor.device_${deviceId.toLowerCase()}`;
   const deviceStates = states.filter(state => state.entity_id.startsWith(devicePrefix));
 
@@ -667,13 +739,72 @@ async function fetchHAStates(haUrl, haToken, deviceId) {
   return result;
 }
 
+async function fetchHADeviceInfo(haUrl, haToken, deviceId) {
+  const haHeaders = { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' };
+  
+  const response = await fetch(`${haUrl}/api/states`, { headers: haHeaders });
+  if (!response.ok) throw new Error(`HA API error: ${response.status}`);
+  
+  const states = await response.json();
+  const devicePrefix = `sensor.device_${deviceId.toLowerCase()}`;
+  
+  const deviceEntity = states.find(state => state.entity_id.startsWith(devicePrefix));
+  
+  if (!deviceEntity) {
+    return { 
+      model: null, 
+      manufacturer: null, 
+      sw_version: null, 
+      hw_version: null,
+      error: 'Device not found in HA' 
+    };
+  }
+  
+  try {
+    const configResponse = await fetch(`${haUrl}/api/config/device_registry`, { headers: haHeaders });
+    if (configResponse.ok) {
+      const devices = await configResponse.json();
+      const device = devices.find(d => {
+        if (d.identifiers) {
+          return JSON.stringify(d.identifiers).toLowerCase().includes(deviceId.toLowerCase());
+        }
+        if (d.name) {
+          return d.name.toLowerCase().includes(deviceId.toLowerCase());
+        }
+        return false;
+      });
+      
+      if (device) {
+        return {
+          model: device.model || null,
+          manufacturer: device.manufacturer || null,
+          sw_version: device.sw_version || null,
+          hw_version: device.hw_version || null,
+          name: device.name || null,
+          area: device.area_id || null
+        };
+      }
+    }
+  } catch (e) {
+    // Config API not available
+  }
+  
+  const attrs = deviceEntity.attributes || {};
+  return {
+    model: attrs.model || attrs.device_class || null,
+    manufacturer: attrs.manufacturer || null,
+    sw_version: attrs.sw_version || null,
+    hw_version: attrs.hw_version || null,
+    friendly_name: attrs.friendly_name || null,
+    entity_id: deviceEntity.entity_id
+  };
+}
+
 async function fetchHATemperatureHistory(haUrl, haToken, deviceId, queryDate) {
   const haHeaders = { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' };
   
-  // Format: sensor.device_{deviceId}_device_temperature
   const tempEntity = `sensor.device_${deviceId.toLowerCase()}_device_temperature`;
   
-  // TIMEZONE FIX: Convert Vietnam local time to UTC for HA API query
   const vnDayStart = new Date(`${queryDate}T00:00:00+07:00`);
   const vnDayEnd = new Date(`${queryDate}T23:59:59+07:00`);
   const startTimeUTC = vnDayStart.toISOString();
@@ -689,10 +820,9 @@ async function fetchHATemperatureHistory(haUrl, haToken, deviceId, queryDate) {
     return { min: null, max: null, current: null, count: 0 };
   }
 
-  // Extract all temperature values
   const temps = historyData[0]
     .map(entry => parseFloat(entry.state))
-    .filter(temp => !isNaN(temp) && temp > 0 && temp < 100); // Filter invalid values
+    .filter(temp => !isNaN(temp) && temp > 0 && temp < 100);
 
   if (temps.length === 0) {
     return { min: null, max: null, current: null, count: 0 };
@@ -702,7 +832,6 @@ async function fetchHATemperatureHistory(haUrl, haToken, deviceId, queryDate) {
   const max = Math.max(...temps);
   const current = temps[temps.length - 1];
   
-  // Get time of min/max
   let minTime = '--:--', maxTime = '--:--';
   historyData[0].forEach(entry => {
     const temp = parseFloat(entry.state);
@@ -725,73 +854,5 @@ async function fetchHATemperatureHistory(haUrl, haToken, deviceId, queryDate) {
     minTime,
     maxTime,
     count: temps.length 
-  };
-}
-
-async function fetchHADeviceInfo(haUrl, haToken, deviceId) {
-  const haHeaders = { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' };
-  
-  // Get all states to find entities for this device
-  const response = await fetch(`${haUrl}/api/states`, { headers: haHeaders });
-  if (!response.ok) throw new Error(`HA API error: ${response.status}`);
-  
-  const states = await response.json();
-  const devicePrefix = `sensor.device_${deviceId.toLowerCase()}`;
-  
-  // Find any entity for this device to get device info from attributes
-  const deviceEntity = states.find(state => state.entity_id.startsWith(devicePrefix));
-  
-  if (!deviceEntity) {
-    return { 
-      model: null, 
-      manufacturer: null, 
-      sw_version: null, 
-      hw_version: null,
-      error: 'Device not found in HA' 
-    };
-  }
-  
-  // Try to get device registry info via config API
-  try {
-    const configResponse = await fetch(`${haUrl}/api/config/device_registry`, { headers: haHeaders });
-    if (configResponse.ok) {
-      const devices = await configResponse.json();
-      // Find device by matching entity prefix
-      const device = devices.find(d => {
-        // Check if any identifier contains the deviceId
-        if (d.identifiers) {
-          return JSON.stringify(d.identifiers).toLowerCase().includes(deviceId.toLowerCase());
-        }
-        // Check name
-        if (d.name) {
-          return d.name.toLowerCase().includes(deviceId.toLowerCase());
-        }
-        return false;
-      });
-      
-      if (device) {
-        return {
-          model: device.model || null,
-          manufacturer: device.manufacturer || null,
-          sw_version: device.sw_version || null,
-          hw_version: device.hw_version || null,
-          name: device.name || null,
-          area: device.area_id || null
-        };
-      }
-    }
-  } catch (e) {
-    // Config API not available, continue with fallback
-  }
-  
-  // Fallback: Extract info from entity attributes
-  const attrs = deviceEntity.attributes || {};
-  return {
-    model: attrs.model || attrs.device_class || null,
-    manufacturer: attrs.manufacturer || null,
-    sw_version: attrs.sw_version || null,
-    hw_version: attrs.hw_version || null,
-    friendly_name: attrs.friendly_name || null,
-    entity_id: deviceEntity.entity_id
   };
 }
