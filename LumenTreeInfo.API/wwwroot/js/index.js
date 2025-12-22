@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13132 - Fix chart: limit data to current time for today, show 0 for future
+ * Version: 13133 - Fix timezone: HA data now uses Vietnam local time (UTC+7)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1083,7 +1083,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // Update chart from Home Assistant Power History data (via Cloudflare Worker)
-    // Timeline format: [{time: "2025-12-22T00:00:00", pv: 0, battery: 0, grid: 0, load: 0}, ...]
+    // NEW Timeline format v2.3: [{time: "HH:mm", pv: 0, battery: 0, grid: 0, load: 0}, ...]
+    // Worker now returns local Vietnam time strings (not ISO)
     function updateChartFromHAData(haData) {
         if (!haData || !haData.timeline || haData.timeline.length === 0) {
             console.warn("⚠️ No HA data to update chart");
@@ -1094,13 +1095,12 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log(`📊 Converting HA data to chart format: ${timeline.length} data points`);
         
         // Get current time slot - for TODAY, we limit data to current time
-        // For past days, we show all data
         const now = new Date();
         const currentHour = now.getHours();
         const currentMinute = now.getMinutes();
         const currentSlot = currentHour * 12 + Math.floor(currentMinute / 5);
         
-        // Check if data is for today by comparing the date in haData
+        // Check if data is for today
         const queryDate = haData.date || document.getElementById('dateInput')?.value;
         const todayStr = now.toISOString().split('T')[0];
         const isToday = queryDate === todayStr;
@@ -1108,65 +1108,77 @@ document.addEventListener('DOMContentLoaded', function () {
         // Maximum slot to show data: current time for today, 287 for past days
         const maxAllowedSlot = isToday ? currentSlot : 287;
         
-        console.log(`📊 Today: ${todayStr}, Query: ${queryDate}, isToday: ${isToday}, maxAllowedSlot: ${maxAllowedSlot} (${Math.floor(maxAllowedSlot/12)}:${String((maxAllowedSlot%12)*5).padStart(2,'0')})`);
+        console.log(`📊 Today: ${todayStr}, Query: ${queryDate}, isToday: ${isToday}, maxAllowedSlot: ${maxAllowedSlot}`);
         
         // Create 288 slots for each 5-minute interval (00:00 to 23:55)
-        // Use null for slots without data - Chart.js will skip these points
         const pvData = new Array(288).fill(null);
         const batData = new Array(288).fill(null);
         const loadData = new Array(288).fill(null);
         const gridData = new Array(288).fill(null);
         
-        // Track the last slot with actual data (limited by maxAllowedSlot)
+        // Track the last slot with actual non-zero data
         let lastDataSlot = -1;
         
-        // Fill in data from timeline - ONLY for slots <= maxAllowedSlot
-        timeline.forEach(point => {
-            // Parse ISO time to get slot index
-            const time = new Date(point.time);
-            const hours = time.getHours();
-            const minutes = time.getMinutes();
+        // Fill in data from timeline
+        // v2.3 format: time is "HH:mm" string (local Vietnam time)
+        timeline.forEach((point, index) => {
+            // Parse "HH:mm" format OR handle legacy ISO format
+            let hours, minutes;
+            
+            if (point.time && point.time.includes(':') && point.time.length <= 5) {
+                // New format: "HH:mm"
+                const parts = point.time.split(':');
+                hours = parseInt(parts[0], 10);
+                minutes = parseInt(parts[1], 10);
+            } else if (point.time && point.time.includes('T')) {
+                // Legacy ISO format (backwards compatibility)
+                const d = new Date(point.time);
+                hours = d.getHours();
+                minutes = d.getMinutes();
+            } else {
+                // Fallback: use index position (each index = 5 minutes)
+                hours = Math.floor(index / 12);
+                minutes = (index % 12) * 5;
+            }
+            
             const slotIndex = hours * 12 + Math.floor(minutes / 5);
             
-            // Only include data for slots up to current time (for today) or all (for past days)
+            // Only include data for valid slots
             if (slotIndex >= 0 && slotIndex < 288 && slotIndex <= maxAllowedSlot) {
                 pvData[slotIndex] = point.pv || 0;
                 batData[slotIndex] = point.battery || 0;
                 loadData[slotIndex] = point.load || 0;
                 gridData[slotIndex] = point.grid || 0;
                 
-                // Track the last slot that has data
-                if (slotIndex > lastDataSlot) {
+                // Track last slot with any actual data (non-zero)
+                const hasData = (point.pv > 0) || (point.battery !== 0) || (point.load > 0) || (point.grid > 0);
+                if (hasData && slotIndex > lastDataSlot) {
                     lastDataSlot = slotIndex;
                 }
             }
         });
         
-        console.log(`📊 Last data slot: ${lastDataSlot} (${Math.floor(lastDataSlot/12)}:${String((lastDataSlot%12)*5).padStart(2,'0')})`);
-        
-        // Forward-fill gaps ONLY within the data range (not beyond lastDataSlot)
-        // This fills missing 5-min intervals between actual data points
-        for (let i = 1; i <= lastDataSlot; i++) {
-            // Only fill if current is null AND previous has valid data
-            if (pvData[i] === null && pvData[i-1] !== null) pvData[i] = pvData[i-1];
-            if (loadData[i] === null && loadData[i-1] !== null) loadData[i] = loadData[i-1];
-            if (gridData[i] === null && gridData[i-1] !== null) gridData[i] = gridData[i-1];
-            if (batData[i] === null && batData[i-1] !== null) batData[i] = batData[i-1];
+        // If no actual data found, use the last processed slot
+        if (lastDataSlot === -1) {
+            lastDataSlot = Math.min(timeline.length - 1, maxAllowedSlot);
         }
         
-        // Convert null to 0 for slots within data range (start to lastDataSlot)
-        // Keep null for slots beyond lastDataSlot (future time - no data yet)
-        for (let i = 0; i <= lastDataSlot; i++) {
-            if (pvData[i] === null) pvData[i] = 0;
-            if (batData[i] === null) batData[i] = 0;
-            if (loadData[i] === null) loadData[i] = 0;
-            if (gridData[i] === null) gridData[i] = 0;
+        console.log(`📊 Last data slot: ${lastDataSlot} (${Math.floor(lastDataSlot/12)}:${String((lastDataSlot%12)*5).padStart(2,'0')})`);
+        
+        // Set null for future slots (beyond lastDataSlot for today)
+        if (isToday) {
+            for (let i = lastDataSlot + 1; i < 288; i++) {
+                pvData[i] = null;
+                batData[i] = null;
+                loadData[i] = null;
+                gridData[i] = null;
+            }
         }
         
         // Count non-null values for logging
         const nonNullCount = pvData.filter(v => v !== null).length;
-        console.log(`📊 HA data converted: ${timeline.length} points -> ${nonNullCount} chart slots (0-${lastDataSlot})`);
-        console.log("📊 Sample data - PV max:", Math.max(...pvData.filter(v => v !== null)), "Load max:", Math.max(...loadData.filter(v => v !== null)));
+        console.log(`📊 HA data converted: ${timeline.length} points -> ${nonNullCount} chart slots`);
+        console.log("📊 Sample data - PV max:", Math.max(...pvData.filter(v => v !== null && v > 0), 0), "Load max:", Math.max(...loadData.filter(v => v !== null && v > 0), 0));
         
         // Convert to chart format and update
         const chartData = {
@@ -1174,22 +1186,28 @@ document.addEventListener('DOMContentLoaded', function () {
             bat: { tableValueInfo: batData },
             load: { tableValueInfo: loadData },
             grid: { tableValueInfo: gridData },
-            essentialLoad: { tableValueInfo: new Array(288).fill(null) } // Not available from HA
+            essentialLoad: { tableValueInfo: new Array(288).fill(null) }
         };
         
         console.log("📊 Updating combined energy chart with Home Assistant data");
         updateCharts(chartData);
         
-        // Update peak stats from HA data (only for data within allowed time range)
-        const filteredTimeline = timeline.filter(point => {
-            const time = new Date(point.time);
-            const slotIndex = time.getHours() * 12 + Math.floor(time.getMinutes() / 5);
+        // Update peak stats from HA data
+        const filteredTimeline = timeline.filter((point, index) => {
+            let slotIndex;
+            if (point.time && point.time.includes(':') && point.time.length <= 5) {
+                const parts = point.time.split(':');
+                slotIndex = parseInt(parts[0], 10) * 12 + Math.floor(parseInt(parts[1], 10) / 5);
+            } else {
+                slotIndex = index;
+            }
             return slotIndex <= maxAllowedSlot;
         });
         updateEnergyChartPeakStatsFromHA(filteredTimeline);
     }
     
     // Update peak stats from Home Assistant Power History
+    // v2.3: time is now "HH:mm" string format (or legacy ISO)
     function updateEnergyChartPeakStatsFromHA(timeline) {
         if (!timeline || timeline.length === 0) return;
         
@@ -1200,36 +1218,45 @@ document.addEventListener('DOMContentLoaded', function () {
         let maxLoad = 0, maxLoadTime = '--:--';
         let maxGrid = 0, maxGridTime = '--:--';
         
-        const formatTime = (isoTime) => {
-            const d = new Date(isoTime);
+        // Format time: handle both "HH:mm" and ISO formats
+        const getTimeStr = (timeValue) => {
+            if (!timeValue) return '--:--';
+            // If already in "HH:mm" format
+            if (timeValue.includes(':') && timeValue.length <= 5) {
+                return timeValue;
+            }
+            // Legacy ISO format
+            const d = new Date(timeValue);
             return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         };
         
         timeline.forEach(point => {
+            const timeStr = getTimeStr(point.time);
+            
             // PV
             if (point.pv > maxPv) {
                 maxPv = point.pv;
-                maxPvTime = formatTime(point.time);
+                maxPvTime = timeStr;
             }
             // Battery charge (positive battery = charging)
             if (point.battery > 0 && point.battery > maxCharge) {
                 maxCharge = point.battery;
-                maxChargeTime = formatTime(point.time);
+                maxChargeTime = timeStr;
             }
             // Battery discharge (negative battery = discharging)
             if (point.battery < 0 && Math.abs(point.battery) > maxDischarge) {
                 maxDischarge = Math.abs(point.battery);
-                maxDischargeTime = formatTime(point.time);
+                maxDischargeTime = timeStr;
             }
             // Load
             if (point.load > maxLoad) {
                 maxLoad = point.load;
-                maxLoadTime = formatTime(point.time);
+                maxLoadTime = timeStr;
             }
             // Grid
             if (point.grid > maxGrid) {
                 maxGrid = point.grid;
-                maxGridTime = formatTime(point.time);
+                maxGridTime = timeStr;
             }
         });
         

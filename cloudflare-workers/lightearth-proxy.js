@@ -1,13 +1,17 @@
 /**
- * Lightearth Proxy Worker v2.2
+ * Lightearth Proxy Worker v2.3
  * - Proxy to lesvr.suntcn.com
  * - Proxy to Home Assistant
  * - Optimized: O(n log n) power history processing to avoid Worker timeout
+ * - Fixed: Timezone handling for Vietnam (UTC+7)
  * 
  * Environment Variables needed:
  * - HA_URL: Home Assistant URL (e.g., https://xxx.trycloudflare.com)
  * - HA_TOKEN: Home Assistant Long-Lived Access Token
  */
+
+// Vietnam timezone offset: UTC+7
+const VN_OFFSET_HOURS = 7;
 
 export default {
   async fetch(request, env) {
@@ -42,8 +46,9 @@ export default {
     if (path === '/' || path === '/health') {
       return new Response(JSON.stringify({
         status: 'ok',
-        version: '2.2',
-        ha_configured: !!(HA_URL && HA_TOKEN)
+        version: '2.3',
+        ha_configured: !!(HA_URL && HA_TOKEN),
+        timezone: 'UTC+7 (Vietnam)'
       }), { headers });
     }
 
@@ -187,10 +192,18 @@ async function fetchHAPowerHistory(haUrl, haToken, deviceId, queryDate) {
     load: `sensor.device_${deviceId.toLowerCase()}_load_power`
   };
 
-  const startTime = `${queryDate}T00:00:00`;
-  const endTime = `${queryDate}T23:59:59`;
+  // TIMEZONE FIX: Convert Vietnam local time to UTC for HA API query
+  // Vietnam 00:00 = UTC 17:00 previous day (UTC+7)
+  // Vietnam 23:59 = UTC 16:59 same day
+  const vnDayStart = new Date(`${queryDate}T00:00:00+07:00`); // Vietnam midnight
+  const vnDayEnd = new Date(`${queryDate}T23:59:59+07:00`);   // Vietnam end of day
+  
+  // Format for HA API (ISO format)
+  const startTimeUTC = vnDayStart.toISOString();
+  const endTimeUTC = vnDayEnd.toISOString();
+  
   const entityIds = Object.values(sensors).join(',');
-  const historyUrl = `${haUrl}/api/history/period/${startTime}?end_time=${endTime}&filter_entity_id=${entityIds}&minimal_response&significant_changes_only`;
+  const historyUrl = `${haUrl}/api/history/period/${startTimeUTC}?end_time=${endTimeUTC}&filter_entity_id=${entityIds}&minimal_response&significant_changes_only`;
 
   const response = await fetch(historyUrl, { headers: haHeaders });
   if (!response.ok) throw new Error(`HA API error: ${response.status}`);
@@ -218,27 +231,47 @@ async function fetchHAPowerHistory(haUrl, haToken, deviceId, queryDate) {
       .sort((a, b) => a.time - b.time);
   }
 
-  // Create 288 time slots (every 5 minutes)
+  // Create 288 time slots (every 5 minutes) in VIETNAM LOCAL TIME
   const timeline = [];
   const interval = 5 * 60 * 1000;
-  const dayStart = new Date(`${queryDate}T00:00:00`).getTime();
-  const dayEnd = new Date(`${queryDate}T23:59:59`).getTime();
+  const dayStartMs = vnDayStart.getTime(); // Vietnam 00:00 in milliseconds
+  const dayEndMs = vnDayEnd.getTime();     // Vietnam 23:59 in milliseconds
   
   // Track current index in each sensor's timeline for efficient lookup
   const indices = { pv: 0, battery: 0, grid: 0, load: 0 };
-  const lastValues = { pv: 0, battery: 0, grid: 0, load: 0 };
+  // Initialize with null to differentiate "no data yet" from "actual 0 value"
+  const lastValues = { pv: null, battery: null, grid: null, load: null };
+  // Track if we've seen any actual data
+  const hasSeenData = { pv: false, battery: false, grid: false, load: false };
 
-  for (let time = dayStart; time <= dayEnd; time += interval) {
+  for (let time = dayStartMs; time <= dayEndMs; time += interval) {
     // For each sensor, find the latest value before or at this time
     for (const key of sensorKeys) {
       const sensorData = sensorTimelines[key] || [];
       // Advance index while entries are before or at current time
       while (indices[key] < sensorData.length && sensorData[indices[key]].time <= time) {
         lastValues[key] = sensorData[indices[key]].value;
+        hasSeenData[key] = true;
         indices[key]++;
       }
     }
-    timeline.push({ time: new Date(time).toISOString(), ...lastValues });
+    
+    // Convert UTC timestamp to Vietnam local time string (HH:mm format)
+    const vnTime = new Date(time);
+    const hours = vnTime.getUTCHours() + VN_OFFSET_HOURS;
+    const adjustedHours = hours >= 24 ? hours - 24 : hours;
+    const minutes = vnTime.getUTCMinutes();
+    const localTimeStr = `${String(adjustedHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    
+    // Only output values if we've seen actual data, otherwise use 0
+    // This prevents carrying over stale values from previous day
+    timeline.push({ 
+      time: localTimeStr,  // Return local time string instead of ISO
+      pv: hasSeenData.pv ? (lastValues.pv || 0) : 0,
+      battery: hasSeenData.battery ? (lastValues.battery || 0) : 0,
+      grid: hasSeenData.grid ? (lastValues.grid || 0) : 0,
+      load: hasSeenData.load ? (lastValues.load || 0) : 0
+    });
   }
 
   return {
@@ -255,9 +288,14 @@ async function fetchHASOCHistory(haUrl, haToken, deviceId, queryDate) {
   const haHeaders = { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' };
   // Format: sensor.device_{deviceId}_battery_soc
   const socEntity = `sensor.device_${deviceId.toLowerCase()}_battery_soc`;
-  const startTime = `${queryDate}T00:00:00`;
-  const endTime = `${queryDate}T23:59:59`;
-  const historyUrl = `${haUrl}/api/history/period/${startTime}?end_time=${endTime}&filter_entity_id=${socEntity}&minimal_response`;
+  
+  // TIMEZONE FIX: Convert Vietnam local time to UTC for HA API query
+  const vnDayStart = new Date(`${queryDate}T00:00:00+07:00`);
+  const vnDayEnd = new Date(`${queryDate}T23:59:59+07:00`);
+  const startTimeUTC = vnDayStart.toISOString();
+  const endTimeUTC = vnDayEnd.toISOString();
+  
+  const historyUrl = `${haUrl}/api/history/period/${startTimeUTC}?end_time=${endTimeUTC}&filter_entity_id=${socEntity}&minimal_response`;
 
   const response = await fetch(historyUrl, { headers: haHeaders });
   if (!response.ok) throw new Error(`HA API error: ${response.status}`);
@@ -267,10 +305,20 @@ async function fetchHASOCHistory(haUrl, haToken, deviceId, queryDate) {
     return { timeline: [], count: 0 };
   }
 
-  const timeline = historyData[0].map(entry => ({
-    time: entry.last_changed || entry.last_updated,
-    soc: parseFloat(entry.state) || 0
-  })).filter(entry => !isNaN(entry.soc));
+  // Convert UTC timestamps to Vietnam local time strings
+  const timeline = historyData[0].map(entry => {
+    const utcTime = new Date(entry.last_changed || entry.last_updated);
+    // Add 7 hours for Vietnam timezone
+    const vnHours = utcTime.getUTCHours() + VN_OFFSET_HOURS;
+    const adjustedHours = vnHours >= 24 ? vnHours - 24 : vnHours;
+    const minutes = utcTime.getUTCMinutes();
+    const localTimeStr = `${String(adjustedHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    
+    return {
+      t: localTimeStr,  // Return "HH:mm" format for frontend
+      soc: parseFloat(entry.state) || 0
+    };
+  }).filter(entry => !isNaN(entry.soc));
 
   return { timeline, count: timeline.length };
 }
