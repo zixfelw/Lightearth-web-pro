@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 12215 - Instant chart display with loading placeholder
+ * Version: 13130 - Home Assistant chart data integration via Cloudflare Worker
  * 
  * Features:
  * - Real-time data via SignalR
@@ -108,7 +108,11 @@ document.addEventListener('DOMContentLoaded', function () {
         other: (deviceId, date) => `https://lightearth.applike098.workers.dev/api/other/${deviceId}/${date}`,
         month: (deviceId) => `https://lightearth.applike098.workers.dev/api/month/${deviceId}`,
         year: (deviceId) => `https://lightearth.applike098.workers.dev/api/year/${deviceId}`,
-        historyYear: (deviceId) => `https://lightearth.applike098.workers.dev/api/history-year/${deviceId}`
+        historyYear: (deviceId) => `https://lightearth.applike098.workers.dev/api/history-year/${deviceId}`,
+        // Home Assistant endpoints for chart data
+        haPowerHistory: (deviceId, date) => `https://lightearth.applike098.workers.dev/api/ha/power-history/${deviceId}/${date}`,
+        haSocHistory: (deviceId, date) => `https://lightearth.applike098.workers.dev/api/ha/soc-history/${deviceId}/${date}`,
+        haStates: (deviceId) => `https://lightearth.applike098.workers.dev/api/ha/states/${deviceId}`
     };
     
     // Lightearth API cache - refresh every 10 minutes
@@ -810,10 +814,9 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log("📦 [Priority 1] Using cached summary data, skipping Railway API");
         }
         
-        // STEP 2: Skip Railway Power History API (too slow) - go directly to Lightearth
+        // STEP 2: Try Home Assistant Power History API for chart data (via Cloudflare Worker)
         let chartDataLoaded = false;
         
-        // STEP 3: Try Lightearth API for chart data (fallback)
         // Check cache first
         if (lightearthCache.data && 
             lightearthCache.deviceId === deviceId && 
@@ -821,14 +824,58 @@ document.addEventListener('DOMContentLoaded', function () {
             (now - lightearthCache.timestamp) < LIGHTEARTH_CACHE_TTL) {
             
             const cacheAge = Math.round((now - lightearthCache.timestamp) / 1000);
-            console.log(`📦 Using cached Lightearth chart data (age: ${cacheAge}s)`);
-            updateSummaryFromLightearthData(lightearthCache.data);
+            console.log(`📦 Using cached chart data (age: ${cacheAge}s)`);
+            
+            // Check if cached data is from HA or Lightearth
+            if (lightearthCache.data.dataSource === 'HomeAssistant') {
+                updateChartFromHAData(lightearthCache.data);
+            } else {
+                updateSummaryFromLightearthData(lightearthCache.data);
+            }
             return;
         }
         
+        // Try HA Power History API first (via Cloudflare Worker: lightearth.applike098.workers.dev)
+        try {
+            console.log("📊 [Priority 2] Fetching chart data from Home Assistant API (via Worker)...");
+            const haChartUrl = LIGHTEARTH_API.haPowerHistory(deviceId, queryDate);
+            console.log("📡 HA Power History URL:", haChartUrl);
+            
+            const haResponse = await fetch(haChartUrl);
+            if (haResponse.ok) {
+                const haChartData = await haResponse.json();
+                console.log("📊 HA Power History response:", haChartData);
+                
+                if (haChartData.success && haChartData.timeline && haChartData.timeline.length > 0) {
+                    console.log(`✅ [Priority 2] HA Power History SUCCESS: ${haChartData.timeline.length} data points`);
+                    
+                    // Cache the HA data
+                    lightearthCache = {
+                        data: { ...haChartData, dataSource: 'HomeAssistant' },
+                        deviceId: deviceId,
+                        date: queryDate,
+                        timestamp: now
+                    };
+                    console.log("💾 HA chart data cached (TTL: 10 minutes)");
+                    
+                    // Update chart with HA data
+                    updateChartFromHAData(haChartData);
+                    chartDataLoaded = true;
+                    return; // Success - no need to try Lightearth API
+                } else {
+                    console.warn("⚠️ [Priority 2] HA Power History returned no data");
+                }
+            } else {
+                console.warn(`⚠️ [Priority 2] HA Power History API returned status ${haResponse.status}`);
+            }
+        } catch (haError) {
+            console.warn("⚠️ [Priority 2] HA Power History API failed:", haError.message);
+        }
+        
+        // STEP 3: Fallback to Lightearth API for chart data
         try {
             // Use Lightearth API - fetch all 3 endpoints in parallel
-            console.log("📊 [Priority 3] Fetching chart data from Lightearth API...");
+            console.log("📊 [Priority 3] Fetching chart data from Lightearth API (fallback)...");
             
             const [batResponse, pvResponse, otherResponse] = await Promise.all([
                 fetch(LIGHTEARTH_API.bat(deviceId, queryDate)),
@@ -849,9 +896,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 throw new Error(`Lightearth API returned invalid data (returnValue: ${batData.returnValue}, ${pvData.returnValue}, ${otherData.returnValue})`);
             }
             
-            // Cache the data
+            // Cache the data (mark as Lightearth source)
             lightearthCache = {
-                data: { batData, pvData, otherData },
+                data: { batData, pvData, otherData, dataSource: 'Lightearth' },
                 deviceId: deviceId,
                 date: queryDate,
                 timestamp: now
@@ -1030,6 +1077,136 @@ document.addEventListener('DOMContentLoaded', function () {
         
         console.log("📊 Peak stats updated from Railway:", { 
             pv: `${maxPv}W @ ${maxPvTime}`,
+            load: `${maxLoad}W @ ${maxLoadTime}`,
+            grid: `${maxGrid}W @ ${maxGridTime}`
+        });
+    }
+    
+    // Update chart from Home Assistant Power History data (via Cloudflare Worker)
+    // Timeline format: [{time: "2025-12-22T00:00:00", pv: 0, battery: 0, grid: 0, load: 0}, ...]
+    function updateChartFromHAData(haData) {
+        if (!haData || !haData.timeline || haData.timeline.length === 0) {
+            console.warn("⚠️ No HA data to update chart");
+            return;
+        }
+        
+        const timeline = haData.timeline;
+        console.log(`📊 Converting HA data to chart format: ${timeline.length} data points`);
+        
+        // Create 288 slots for each 5-minute interval (00:00 to 23:55)
+        const pvData = new Array(288).fill(0);
+        const batData = new Array(288).fill(0);
+        const loadData = new Array(288).fill(0);
+        const gridData = new Array(288).fill(0);
+        
+        // Fill in data from timeline
+        timeline.forEach(point => {
+            // Parse ISO time to get slot index
+            const time = new Date(point.time);
+            const hours = time.getHours();
+            const minutes = time.getMinutes();
+            const slotIndex = hours * 12 + Math.floor(minutes / 5);
+            
+            if (slotIndex >= 0 && slotIndex < 288) {
+                pvData[slotIndex] = point.pv || 0;
+                batData[slotIndex] = point.battery || 0;
+                loadData[slotIndex] = point.load || 0;
+                gridData[slotIndex] = point.grid || 0;
+            }
+        });
+        
+        // Forward-fill gaps (use previous value for missing data points)
+        for (let i = 1; i < 288; i++) {
+            if (pvData[i] === 0 && pvData[i-1] !== 0) pvData[i] = pvData[i-1];
+            if (loadData[i] === 0 && loadData[i-1] !== 0) loadData[i] = loadData[i-1];
+            if (gridData[i] === 0 && gridData[i-1] !== 0) gridData[i] = gridData[i-1];
+            // Battery data: 0 is valid, don't forward fill
+        }
+        
+        console.log(`📊 HA data converted: ${timeline.length} points -> 288 chart slots`);
+        console.log("📊 Sample data - PV max:", Math.max(...pvData), "Load max:", Math.max(...loadData));
+        
+        // Convert to chart format and update
+        const chartData = {
+            pv: { tableValueInfo: pvData },
+            bat: { tableValueInfo: batData },
+            load: { tableValueInfo: loadData },
+            grid: { tableValueInfo: gridData },
+            essentialLoad: { tableValueInfo: new Array(288).fill(0) } // Not available from HA
+        };
+        
+        console.log("📊 Updating combined energy chart with Home Assistant data");
+        updateCharts(chartData);
+        
+        // Update peak stats from HA data
+        updateEnergyChartPeakStatsFromHA(timeline);
+    }
+    
+    // Update peak stats from Home Assistant Power History
+    function updateEnergyChartPeakStatsFromHA(timeline) {
+        if (!timeline || timeline.length === 0) return;
+        
+        // Find peak values and times
+        let maxPv = 0, maxPvTime = '--:--';
+        let maxCharge = 0, maxChargeTime = '--:--';
+        let maxDischarge = 0, maxDischargeTime = '--:--';
+        let maxLoad = 0, maxLoadTime = '--:--';
+        let maxGrid = 0, maxGridTime = '--:--';
+        
+        const formatTime = (isoTime) => {
+            const d = new Date(isoTime);
+            return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+        };
+        
+        timeline.forEach(point => {
+            // PV
+            if (point.pv > maxPv) {
+                maxPv = point.pv;
+                maxPvTime = formatTime(point.time);
+            }
+            // Battery charge (positive battery = charging)
+            if (point.battery > 0 && point.battery > maxCharge) {
+                maxCharge = point.battery;
+                maxChargeTime = formatTime(point.time);
+            }
+            // Battery discharge (negative battery = discharging)
+            if (point.battery < 0 && Math.abs(point.battery) > maxDischarge) {
+                maxDischarge = Math.abs(point.battery);
+                maxDischargeTime = formatTime(point.time);
+            }
+            // Load
+            if (point.load > maxLoad) {
+                maxLoad = point.load;
+                maxLoadTime = formatTime(point.time);
+            }
+            // Grid
+            if (point.grid > maxGrid) {
+                maxGrid = point.grid;
+                maxGridTime = formatTime(point.time);
+            }
+        });
+        
+        // Update UI elements
+        const updateEl = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        };
+        
+        updateEl('chart-pv-peak', maxPv > 0 ? `${Math.round(maxPv)} W` : '--');
+        updateEl('chart-pv-time', maxPvTime);
+        updateEl('chart-charge-peak', maxCharge > 0 ? `${Math.round(maxCharge)} W` : '--');
+        updateEl('chart-charge-time', maxChargeTime);
+        updateEl('chart-discharge-peak', maxDischarge > 0 ? `${Math.round(maxDischarge)} W` : '--');
+        updateEl('chart-discharge-time', maxDischargeTime);
+        updateEl('chart-load-peak', maxLoad > 0 ? `${Math.round(maxLoad)} W` : '--');
+        updateEl('chart-load-time', maxLoadTime);
+        updateEl('chart-grid-peak', maxGrid > 0 ? `${Math.round(maxGrid)} W` : '--');
+        updateEl('chart-grid-time', maxGridTime);
+        
+        console.log("📊 Peak stats updated from Home Assistant:", { 
+            pv: `${maxPv}W @ ${maxPvTime}`,
+            charge: `${maxCharge}W @ ${maxChargeTime}`,
+            discharge: `${maxDischarge}W @ ${maxDischargeTime}`,
             load: `${maxLoad}W @ ${maxLoadTime}`,
             grid: `${maxGrid}W @ ${maxGridTime}`
         });
