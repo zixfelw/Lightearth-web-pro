@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13135 - Use HA temperature API from Cloudflare Worker for min/max display
+ * Version: 13136 - Add device info from HA (inverter model), add Min/Max labels to temperature badge
  * 
  * Features:
  * - Real-time data via SignalR
@@ -112,7 +112,8 @@ document.addEventListener('DOMContentLoaded', function () {
         // Home Assistant endpoints for chart data
         haPowerHistory: (deviceId, date) => `https://lightearth.applike098.workers.dev/api/ha/power-history/${deviceId}/${date}`,
         haSocHistory: (deviceId, date) => `https://lightearth.applike098.workers.dev/api/ha/soc-history/${deviceId}/${date}`,
-        haStates: (deviceId) => `https://lightearth.applike098.workers.dev/api/ha/states/${deviceId}`
+        haStates: (deviceId) => `https://lightearth.applike098.workers.dev/api/ha/states/${deviceId}`,
+        haDeviceInfo: (deviceId) => `https://lightearth.applike098.workers.dev/api/ha/device-info/${deviceId}`
     };
     
     // Lightearth API cache - refresh every 10 minutes
@@ -700,6 +701,9 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // Fetch temperature min/max in background
         fetchTemperatureMinMax(deviceId, date);
+        
+        // Fetch device info (inverter model) from HA
+        fetchDeviceInfo(deviceId);
         
         // Fetch chart data (lower priority)
         fetchDayDataInBackground(deviceId, date).catch(err => console.warn('Day data error:', err));
@@ -1395,6 +1399,70 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Hide the badge if API fails
                 const badge = document.getElementById('tempMinMaxBadge');
                 if (badge) badge.classList.add('hidden');
+            });
+    }
+    
+    // ========================================
+    // DEVICE INFO - Get inverter model from HA
+    // ========================================
+    
+    function fetchDeviceInfo(deviceId) {
+        if (!deviceId) return;
+        
+        const deviceInfoUrl = LIGHTEARTH_API.haDeviceInfo(deviceId);
+        console.log('📦 Fetching device info from:', deviceInfoUrl);
+        
+        fetch(deviceInfoUrl)
+            .then(response => {
+                if (!response.ok) throw new Error(`Device info API error: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                console.log("📦 Device info received:", data);
+                
+                if (data.success) {
+                    // Extract model from friendly_name (e.g., "SUNT-4.0kW-H PV Power" -> "SUNT-4.0kW-H")
+                    let model = null;
+                    
+                    if (data.friendly_name) {
+                        // Parse friendly_name to extract model (usually "MODEL SENSOR_TYPE")
+                        // Examples: "SUNT-4.0kW-H PV Power", "SUNT-8.0kW-T Battery SOC"
+                        const friendlyName = data.friendly_name;
+                        const modelMatch = friendlyName.match(/^(SUNT-[\d.]+kW-[A-Z]+)/i);
+                        if (modelMatch) {
+                            model = modelMatch[1];
+                        } else {
+                            // Fallback: Take first part before common sensor names
+                            const sensorNames = ['PV Power', 'Battery', 'Grid', 'Load', 'SOC', 'Temperature'];
+                            for (const sensorName of sensorNames) {
+                                if (friendlyName.includes(sensorName)) {
+                                    model = friendlyName.split(sensorName)[0].trim();
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Fallback to model field if available
+                    if (!model && data.model) {
+                        model = data.model;
+                    }
+                    
+                    // Update UI - device-type element
+                    const deviceTypeEl = document.getElementById('device-type');
+                    const inverterTypeEl = document.getElementById('inverter-type');
+                    const inverterTypeBasicEl = document.getElementById('inverter-type-basic');
+                    
+                    if (model) {
+                        if (deviceTypeEl) deviceTypeEl.textContent = model;
+                        if (inverterTypeEl) inverterTypeEl.textContent = model;
+                        if (inverterTypeBasicEl) inverterTypeBasicEl.textContent = model;
+                        console.log(`✅ Device type updated: ${model}`);
+                    }
+                }
+            })
+            .catch(error => {
+                console.warn("📦 Device info API unavailable:", error.message);
             });
     }
     
