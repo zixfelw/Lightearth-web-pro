@@ -13,10 +13,8 @@
  */
 
 // Global constants - defined outside DOMContentLoaded to avoid TDZ issues
-// Primary: Railway SOC History API (Home Assistant data)
-// Fallback: solar-proxy Workers API
+// SOC History API (Railway - Home Assistant data)
 const SOC_API_PRIMARY = window.location.origin + '/api/realtime/soc-history';
-const SOC_API_FALLBACK = 'https://solar-proxy.applike098.workers.dev/api/soc';
 
 document.addEventListener('DOMContentLoaded', function () {
     // ========================================
@@ -74,29 +72,12 @@ document.addEventListener('DOMContentLoaded', function () {
     // Get current origin for local proxy API
     const currentOrigin = window.location.origin;
     
+    // API Configuration - Local Railway API only (simplified)
     const API_SOURCES = {
-        // Local API with Home Assistant fallback (default)
         local: {
-            name: 'Local API (HA Fallback)',
+            name: 'Local API (Home Assistant)',
             realtime: `${currentOrigin}/api/realtime/all`,
-            soc: 'https://solar-proxy.applike098.workers.dev/api/soc',
-            isLocal: true  // Flag to indicate local API format
-        },
-        workers: {
-            name: 'Cloudflare Workers',
-            realtime: 'https://lightearth.applike098.workers.dev/api/realtime',
-            soc: 'https://lumentree.net/api/soc'
-        },
-        sandbox: {
-            name: 'Sandbox Local',
-            realtime: `${currentOrigin}/api/proxy/realtime`,
-            soc: `${currentOrigin}/api/proxy/soc`
-        },
-        // Direct lumentree.net - most accurate but may have CORS issues
-        lumentree: {
-            name: 'Lumentree Direct',
-            realtime: 'https://lightearth.applike098.workers.dev/api/realtime',
-            soc: 'https://lumentree.net/api/soc'  // Direct for SOC (more accurate)
+            isLocal: true
         }
     };
     
@@ -290,11 +271,7 @@ document.addEventListener('DOMContentLoaded', function () {
         timestamp: 0
     };
     
-    // SOC API - Use Railway primary, fallback to solar-proxy
-    const SOC_API_RAILWAY = SOC_API_PRIMARY;
-    const SOC_API_WORKERS = SOC_API_FALLBACK;
-    
-    // Default to Local API with Home Assistant fallback
+    // Default to Local API with Home Assistant
     let currentApiSource = 'local';
     
     function getRealtimeApiUrl(deviceId) {
@@ -307,16 +284,9 @@ document.addEventListener('DOMContentLoaded', function () {
         return `${source.realtime}/${deviceId}`;
     }
     
+    // SOC API URL - Use Railway API (simplified, no external fallback)
     function getSocApiUrl(deviceId, date) {
-        return `${API_SOURCES[currentApiSource].soc}/${deviceId}/${date}`;
-    }
-    
-    // Try direct lumentree.net first, fallback to proxy if CORS fails
-    function getSocApiUrlWithFallback(deviceId, date) {
-        return {
-            primary: `https://lumentree.net/api/soc/${deviceId}/${date}`,
-            fallback: `${API_SOURCES[currentApiSource].soc}/${deviceId}/${date}`
-        };
+        return `${SOC_API_PRIMARY}/${deviceId}?date=${date}`;
     }
     
     // Store previous values for blink detection
@@ -938,7 +908,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // PRIORITY ORDER:
     // 1. Railway API (Home Assistant data) - always try first for all devices
     // 2. Lightearth API (lesvr.suntcn.com via Cloudflare Worker) - for chart data
-    // 3. solar-proxy Workers API - final fallback
     async function fetchDayDataInBackground(deviceId, date) {
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
         const now = Date.now();
@@ -1111,87 +1080,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 showRateLimitWarning();
             }
             
-            // Fallback: Try solar-proxy Workers API (last resort)
-            try {
-                console.log("📡 Last Resort: Trying solar-proxy Workers API...");
-                const dayApiUrl = `https://solar-proxy.applike098.workers.dev/api/day/${deviceId}/${queryDate}`;
-                const response = await fetch(dayApiUrl);
-                
-                if (response.status === 429) {
-                    console.error("⛔ [Rate Limited] solar-proxy also returned 429");
-                    localStorage.setItem(rateLimitKey, String(Date.now() + 5 * 60 * 1000));
-                    showRateLimitWarning();
-                    return;
-                }
-                if (!response.ok) {
-                    throw new Error(`Day data API error: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                console.log("✅ Day data received from solar-proxy:", data);
-                
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                
-                // Update summary stats from day data summary
-                if (data.summary) {
-                    const summary = data.summary;
-                    updateValue('pv-total', (summary.pv_day || 0).toFixed(1) + ' kWh');
-                    updateValue('load-total', (summary.load_day || 0).toFixed(1) + ' kWh');
-                    updateValue('grid-total', (summary.grid_day || 0).toFixed(1) + ' kWh');
-                    updateValue('essential-total', (summary.backup_day || 0).toFixed(1) + ' kWh');
-                    
-                    if (data.bat_raw?.bats) {
-                        const batCharge = (data.bat_raw.bats[0]?.tableValue || 0) / 10;
-                        const batDischarge = (data.bat_raw.bats[1]?.tableValue || 0) / 10;
-                        updateValue('bat-charge', batCharge.toFixed(1) + ' kWh');
-                        updateValue('bat-discharge', batDischarge.toFixed(1) + ' kWh');
-                    } else {
-                        const batNet = summary.bat_day || 0;
-                        if (batNet >= 0) {
-                            updateValue('bat-charge', batNet.toFixed(1) + ' kWh');
-                            updateValue('bat-discharge', '0.0 kWh');
-                        } else {
-                            updateValue('bat-charge', '0.0 kWh');
-                            updateValue('bat-discharge', Math.abs(batNet).toFixed(1) + ' kWh');
-                        }
-                    }
-                    
-                    console.log("✅ Summary stats updated from solar-proxy:", summary);
-                }
-                
-                // Update combined energy chart with raw data
-                if (data.pv_raw || data.bat_raw || data.other_raw) {
-                    const chartData = {
-                        pv: { tableValueInfo: data.pv_raw?.pv?.tableValueInfo || [] },
-                        bat: { tableValueInfo: data.bat_raw?.tableValueInfo || [] },
-                        load: { tableValueInfo: data.other_raw?.homeload?.tableValueInfo || [] },
-                        grid: { tableValueInfo: data.other_raw?.grid?.tableValueInfo || [] },
-                        essentialLoad: { tableValueInfo: data.other_raw?.essentialLoad?.tableValueInfo || [] }
-                    };
-                    console.log("📊 Updating combined energy chart with solar-proxy data");
-                    updateCharts(chartData);
-                }
-                
-            } catch (fallbackError) {
-                console.warn("⚠️ Solar-proxy fallback also failed:", fallbackError.message);
-                
-                // If Railway API already loaded summary data, we're done (just no chart data)
-                if (railwayDataLoaded) {
-                    console.log("ℹ️ Railway API already loaded summary data - chart data unavailable for this device");
-                    return;
-                }
-                
-                // All APIs failed - show N/A
-                console.error("❌ All data sources failed for device:", deviceId);
-                updateValue('pv-total', 'N/A');
-                updateValue('bat-charge', 'N/A');
-                updateValue('bat-discharge', 'N/A');
-                updateValue('load-total', 'N/A');
-                updateValue('grid-total', 'N/A');
-                updateValue('essential-total', 'N/A');
+            // If Railway API already loaded summary data, we're done (just no chart data)
+            if (railwayDataLoaded) {
+                console.log("ℹ️ Railway API already loaded summary data - chart data unavailable for this device");
+                return;
             }
+            
+            // All APIs failed - show N/A
+            console.error("❌ All data sources failed for device:", deviceId);
+            updateValue('pv-total', 'N/A');
+            updateValue('bat-charge', 'N/A');
+            updateValue('bat-discharge', 'N/A');
+            updateValue('load-total', 'N/A');
+            updateValue('grid-total', 'N/A');
+            updateValue('essential-total', 'N/A');
         }
     }
     
@@ -1717,17 +1619,15 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // ========================================
     // SOC CHART V5 - Clean Implementation
-    // API: https://solar-proxy.applike098.workers.dev/api/soc/{deviceId}/{date}
+    // API: Railway SOC History (Home Assistant data)
     // ========================================
     
-    // SOC_API_BASE is defined at the top with other API constants
+    // SOC Chart variables
     let socChartInstance = null;
     let socData = [];
     let socAutoReloadInterval = null;
     
-    // Fetch SOC data from API - uses deviceId from input and date from dateInput
-    // Primary: Railway SOC History API (from Home Assistant)
-    // Fallback: solar-proxy Workers API
+    // Fetch SOC data from Railway API (Home Assistant data only)
     async function fetchSOCData() {
         // Get deviceId from input or URL parameter
         const deviceId = document.getElementById('deviceId')?.value?.trim() || urlParams.get('deviceId');
@@ -1740,25 +1640,20 @@ document.addEventListener('DOMContentLoaded', function () {
         const dateInput = document.getElementById('dateInput')?.value;
         const date = dateInput || new Date().toISOString().split('T')[0];
         
-        // Primary: Railway SOC History API
-        const railwayUrl = `${SOC_API_RAILWAY}/${deviceId}?date=${date}`;
-        // Fallback: solar-proxy Workers API
-        const workersUrl = `${SOC_API_WORKERS}/${deviceId}/${date}`;
+        // Railway SOC History API (Home Assistant data)
+        const railwayUrl = `${SOC_API_PRIMARY}/${deviceId}?date=${date}`;
         
         let data = null;
-        let source = '';
         
-        // Try Railway API first (Home Assistant data)
         try {
-            console.log(`📡 [SOC] Trying Railway API: ${railwayUrl}`);
+            console.log(`📡 [SOC] Fetching from Railway API: ${railwayUrl}`);
             const response = await fetch(railwayUrl);
             if (response.ok) {
                 data = await response.json();
                 if (data.success && data.timeline && data.timeline.length > 0) {
-                    source = 'Railway (Home Assistant)';
                     console.log(`✅ [SOC] Railway API success: ${data.timeline.length} points`);
                 } else {
-                    data = null; // Reset to try fallback
+                    data = null;
                     console.warn(`⚠️ [SOC] Railway API returned no data for ${deviceId}`);
                 }
             }
@@ -1766,30 +1661,13 @@ document.addEventListener('DOMContentLoaded', function () {
             console.warn(`⚠️ [SOC] Railway API failed: ${error.message}`);
         }
         
-        // Fallback to solar-proxy Workers API
-        if (!data) {
-            try {
-                console.log(`📡 [SOC] Fallback to Workers API: ${workersUrl}`);
-                const response = await fetch(workersUrl);
-                if (response.ok) {
-                    data = await response.json();
-                    if (data.timeline && data.timeline.length > 0) {
-                        source = 'Workers (Lumentree)';
-                        console.log(`✅ [SOC] Workers API success: ${data.timeline.length} points`);
-                    }
-                }
-            } catch (error) {
-                console.warn(`❌ [SOC] Workers API also failed: ${error.message}`);
-            }
-        }
-        
         // Process data
         if (data && data.timeline && Array.isArray(data.timeline) && data.timeline.length > 0) {
             socData = data.timeline;
             renderSOCChart();
-            updateSOCLastTime(source);
+            updateSOCLastTime('Home Assistant');
             startSOCAutoReload();
-            console.log(`✅ [SOC] Chart rendered with ${socData.length} points from ${source}`);
+            console.log(`✅ [SOC] Chart rendered with ${socData.length} points`);
         } else {
             console.warn(`⚠️ [SOC] No data available for ${deviceId} on ${date}`);
             socData = [];
