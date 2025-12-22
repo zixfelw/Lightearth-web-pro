@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 12213 - Clean up energy chart footer, bigger date text
+ * Version: 12214 - Fix summaryDataCache TDZ error, instant data display
  * 
  * Features:
  * - Real-time data via SignalR
