@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 12214 - Fix summaryDataCache TDZ error, instant data display
+ * Version: 12215 - Instant chart display with loading placeholder
  * 
  * Features:
  * - Real-time data via SignalR
@@ -670,6 +670,22 @@ document.addEventListener('DOMContentLoaded', function () {
         // Initialize cells waiting state
         if (!hasCellData) {
             initializeBatteryCellsWaiting();
+        }
+        
+        // Show loading chart immediately (don't wait for Lightearth API)
+        // Check if we have cached chart data first
+        const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
+        const hasCachedChart = lightearthCache.data && 
+            lightearthCache.deviceId === deviceId && 
+            lightearthCache.date === queryDate &&
+            (Date.now() - lightearthCache.timestamp) < LIGHTEARTH_CACHE_TTL;
+        
+        if (hasCachedChart) {
+            console.log('📦 Using cached chart data for instant display');
+            updateSummaryFromLightearthData(lightearthCache.data);
+        } else {
+            // Show loading chart placeholder while fetching
+            showLoadingChart();
         }
         
         // Fetch summary data (updates 3 cards: Năng Lượng, Pin Lưu Trữ, Nguồn Điện)
@@ -1935,6 +1951,85 @@ document.addEventListener('DOMContentLoaded', function () {
     // ========================================
     // CHARTS
     // ========================================
+    
+    // Show loading/skeleton chart immediately while waiting for data
+    function showLoadingChart() {
+        const ctx = document.getElementById('combinedEnergyChart');
+        if (!ctx) return;
+        
+        console.log("📊 Showing loading chart placeholder...");
+        
+        // Generate time labels (same as real chart)
+        const timeLabels = generateTimeLabels();
+        
+        // Create empty/skeleton data (288 points of zeros)
+        const emptyData = new Array(288).fill(0);
+        
+        // Destroy existing chart if any
+        if (combinedEnergyChart) combinedEnergyChart.destroy();
+        
+        // Create skeleton chart with light gray lines
+        const context = ctx.getContext('2d');
+        
+        combinedEnergyChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: timeLabels,
+                datasets: [
+                    {
+                        label: 'Đang tải...',
+                        data: emptyData,
+                        borderColor: 'rgba(148, 163, 184, 0.3)',
+                        backgroundColor: 'rgba(148, 163, 184, 0.05)',
+                        borderWidth: 1,
+                        borderDash: [5, 5],
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 1000,
+                        grid: { color: 'rgba(148, 163, 184, 0.1)' },
+                        ticks: {
+                            callback: (value) => value + ' W',
+                            font: { size: 10 },
+                            color: 'rgba(148, 163, 184, 0.5)'
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            font: { size: 9 },
+                            color: 'rgba(148, 163, 184, 0.5)',
+                            maxRotation: 0,
+                            autoSkip: true,
+                            maxTicksLimit: 12
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Update peak stats to show loading state
+        const peakStatsEl = document.getElementById('energy-peak-stats');
+        if (peakStatsEl) {
+            peakStatsEl.innerHTML = `
+                <span class="text-slate-400 animate-pulse">⏳ Đang tải dữ liệu biểu đồ...</span>
+            `;
+        }
+    }
     
     function updateCharts(data) {
         const timeLabels = generateTimeLabels();
