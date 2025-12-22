@@ -900,88 +900,88 @@
             </div>
         </div>
         
-        <!-- Công Suất Cao Nhất - 3 khung gộp đôi -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
-            <!-- Khung 1: PV + EVN (Nguồn vào) -->
-            <div class="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/50 rounded-xl p-3 border border-slate-200 dark:border-slate-600">
-                <div class="flex items-center gap-1.5 mb-2 pb-2 border-b border-slate-200 dark:border-slate-600">
-                    <i data-lucide="arrow-down-circle" class="w-4 h-4 text-amber-500"></i>
-                    <span class="text-[10px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Nguồn Vào</span>
+        <!-- Công Suất Cao Nhất - 3 khung gộp đôi, 3 hàng ngang trên mobile -->
+        <div class="grid grid-cols-3 gap-1.5 sm:gap-3 mb-4">
+            <!-- Khung 1: PV + EVN (Nguồn vào cao nhất) -->
+            <div class="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/50 rounded-lg sm:rounded-xl p-1.5 sm:p-3 border border-slate-200 dark:border-slate-600">
+                <div class="flex items-center justify-center gap-1 mb-1.5 sm:mb-2 pb-1 sm:pb-2 border-b border-slate-200 dark:border-slate-600">
+                    <i data-lucide="arrow-down-circle" class="w-3 h-3 sm:w-4 sm:h-4 text-amber-500"></i>
+                    <span class="text-[8px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Nguồn Vào Cao Nhất</span>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-2 gap-1 sm:gap-2">
                     <!-- PV -->
-                    <div class="bg-amber-500/10 dark:bg-amber-500/20 rounded-lg p-2 text-center">
-                        <div class="flex items-center justify-center gap-1 mb-1">
-                            <i data-lucide="sun" class="w-3 h-3 text-amber-500"></i>
-                            <span class="text-[9px] font-bold text-amber-600 dark:text-amber-400">PV</span>
+                    <div class="bg-amber-500/10 dark:bg-amber-500/20 rounded-md sm:rounded-lg p-1.5 sm:p-2 text-center">
+                        <div class="flex items-center justify-center gap-0.5 sm:gap-1 mb-0.5 sm:mb-1">
+                            <i data-lucide="sun" class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-500"></i>
+                            <span class="text-[8px] sm:text-[9px] font-bold text-amber-600 dark:text-amber-400">PV</span>
                         </div>
-                        <div class="text-sm sm:text-base font-black text-amber-600 dark:text-amber-300" id="chart-pv-peak">--</div>
-                        <div class="text-[10px] font-semibold text-amber-500 dark:text-amber-400" id="chart-pv-time">--:--</div>
+                        <div class="text-[10px] sm:text-base font-black text-amber-600 dark:text-amber-300" id="chart-pv-peak">--</div>
+                        <div class="text-[8px] sm:text-[10px] font-semibold text-amber-500 dark:text-amber-400" id="chart-pv-time">--:--</div>
                     </div>
                     <!-- EVN -->
-                    <div class="bg-purple-500/10 dark:bg-purple-500/20 rounded-lg p-2 text-center">
-                        <div class="flex items-center justify-center gap-1 mb-1">
-                            <i data-lucide="plug" class="w-3 h-3 text-purple-500"></i>
-                            <span class="text-[9px] font-bold text-purple-600 dark:text-purple-400">EVN</span>
+                    <div class="bg-purple-500/10 dark:bg-purple-500/20 rounded-md sm:rounded-lg p-1.5 sm:p-2 text-center">
+                        <div class="flex items-center justify-center gap-0.5 sm:gap-1 mb-0.5 sm:mb-1">
+                            <i data-lucide="plug" class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-purple-500"></i>
+                            <span class="text-[8px] sm:text-[9px] font-bold text-purple-600 dark:text-purple-400">EVN</span>
                         </div>
-                        <div class="text-sm sm:text-base font-black text-purple-600 dark:text-purple-300" id="chart-grid-peak">--</div>
-                        <div class="text-[10px] font-semibold text-purple-500 dark:text-purple-400" id="chart-grid-time">--:--</div>
+                        <div class="text-[10px] sm:text-base font-black text-purple-600 dark:text-purple-300" id="chart-grid-peak">--</div>
+                        <div class="text-[8px] sm:text-[10px] font-semibold text-purple-500 dark:text-purple-400" id="chart-grid-time">--:--</div>
                     </div>
                 </div>
             </div>
             
-            <!-- Khung 2: Sạc + Xả (Pin) -->
-            <div class="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/50 rounded-xl p-3 border border-slate-200 dark:border-slate-600">
-                <div class="flex items-center gap-1.5 mb-2 pb-2 border-b border-slate-200 dark:border-slate-600">
-                    <i data-lucide="battery" class="w-4 h-4 text-emerald-500"></i>
-                    <span class="text-[10px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Pin Lưu Trữ</span>
+            <!-- Khung 2: Sạc + Xả (Pin cao nhất) -->
+            <div class="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/50 rounded-lg sm:rounded-xl p-1.5 sm:p-3 border border-slate-200 dark:border-slate-600">
+                <div class="flex items-center justify-center gap-1 mb-1.5 sm:mb-2 pb-1 sm:pb-2 border-b border-slate-200 dark:border-slate-600">
+                    <i data-lucide="battery" class="w-3 h-3 sm:w-4 sm:h-4 text-emerald-500"></i>
+                    <span class="text-[8px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Pin Cao Nhất</span>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-2 gap-1 sm:gap-2">
                     <!-- Sạc -->
-                    <div class="bg-green-500/10 dark:bg-green-500/20 rounded-lg p-2 text-center">
-                        <div class="flex items-center justify-center gap-1 mb-1">
-                            <i data-lucide="battery-charging" class="w-3 h-3 text-green-500"></i>
-                            <span class="text-[9px] font-bold text-green-600 dark:text-green-400">Sạc</span>
+                    <div class="bg-green-500/10 dark:bg-green-500/20 rounded-md sm:rounded-lg p-1.5 sm:p-2 text-center">
+                        <div class="flex items-center justify-center gap-0.5 sm:gap-1 mb-0.5 sm:mb-1">
+                            <i data-lucide="battery-charging" class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-green-500"></i>
+                            <span class="text-[8px] sm:text-[9px] font-bold text-green-600 dark:text-green-400">Sạc</span>
                         </div>
-                        <div class="text-sm sm:text-base font-black text-green-600 dark:text-green-300" id="chart-charge-peak">--</div>
-                        <div class="text-[10px] font-semibold text-green-500 dark:text-green-400" id="chart-charge-time">--:--</div>
+                        <div class="text-[10px] sm:text-base font-black text-green-600 dark:text-green-300" id="chart-charge-peak">--</div>
+                        <div class="text-[8px] sm:text-[10px] font-semibold text-green-500 dark:text-green-400" id="chart-charge-time">--:--</div>
                     </div>
                     <!-- Xả -->
-                    <div class="bg-red-500/10 dark:bg-red-500/20 rounded-lg p-2 text-center">
-                        <div class="flex items-center justify-center gap-1 mb-1">
-                            <i data-lucide="zap" class="w-3 h-3 text-red-500"></i>
-                            <span class="text-[9px] font-bold text-red-600 dark:text-red-400">Xả</span>
+                    <div class="bg-red-500/10 dark:bg-red-500/20 rounded-md sm:rounded-lg p-1.5 sm:p-2 text-center">
+                        <div class="flex items-center justify-center gap-0.5 sm:gap-1 mb-0.5 sm:mb-1">
+                            <i data-lucide="zap" class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-red-500"></i>
+                            <span class="text-[8px] sm:text-[9px] font-bold text-red-600 dark:text-red-400">Xả</span>
                         </div>
-                        <div class="text-sm sm:text-base font-black text-red-600 dark:text-red-300" id="chart-discharge-peak">--</div>
-                        <div class="text-[10px] font-semibold text-red-500 dark:text-red-400" id="chart-discharge-time">--:--</div>
+                        <div class="text-[10px] sm:text-base font-black text-red-600 dark:text-red-300" id="chart-discharge-peak">--</div>
+                        <div class="text-[8px] sm:text-[10px] font-semibold text-red-500 dark:text-red-400" id="chart-discharge-time">--:--</div>
                     </div>
                 </div>
             </div>
             
-            <!-- Khung 3: Tải + Dự phòng (Tiêu thụ) -->
-            <div class="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/50 rounded-xl p-3 border border-slate-200 dark:border-slate-600">
-                <div class="flex items-center gap-1.5 mb-2 pb-2 border-b border-slate-200 dark:border-slate-600">
-                    <i data-lucide="arrow-up-circle" class="w-4 h-4 text-blue-500"></i>
-                    <span class="text-[10px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Tiêu Thụ</span>
+            <!-- Khung 3: Tải + Dự phòng (Tiêu thụ cao nhất) -->
+            <div class="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/50 rounded-lg sm:rounded-xl p-1.5 sm:p-3 border border-slate-200 dark:border-slate-600">
+                <div class="flex items-center justify-center gap-1 mb-1.5 sm:mb-2 pb-1 sm:pb-2 border-b border-slate-200 dark:border-slate-600">
+                    <i data-lucide="arrow-up-circle" class="w-3 h-3 sm:w-4 sm:h-4 text-blue-500"></i>
+                    <span class="text-[8px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Tiêu Thụ Cao Nhất</span>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-2 gap-1 sm:gap-2">
                     <!-- Tải -->
-                    <div class="bg-blue-500/10 dark:bg-blue-500/20 rounded-lg p-2 text-center">
-                        <div class="flex items-center justify-center gap-1 mb-1">
-                            <i data-lucide="home" class="w-3 h-3 text-blue-500"></i>
-                            <span class="text-[9px] font-bold text-blue-600 dark:text-blue-400">Tải</span>
+                    <div class="bg-blue-500/10 dark:bg-blue-500/20 rounded-md sm:rounded-lg p-1.5 sm:p-2 text-center">
+                        <div class="flex items-center justify-center gap-0.5 sm:gap-1 mb-0.5 sm:mb-1">
+                            <i data-lucide="home" class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-500"></i>
+                            <span class="text-[8px] sm:text-[9px] font-bold text-blue-600 dark:text-blue-400">Tải</span>
                         </div>
-                        <div class="text-sm sm:text-base font-black text-blue-600 dark:text-blue-300" id="chart-load-peak">--</div>
-                        <div class="text-[10px] font-semibold text-blue-500 dark:text-blue-400" id="chart-load-time">--:--</div>
+                        <div class="text-[10px] sm:text-base font-black text-blue-600 dark:text-blue-300" id="chart-load-peak">--</div>
+                        <div class="text-[8px] sm:text-[10px] font-semibold text-blue-500 dark:text-blue-400" id="chart-load-time">--:--</div>
                     </div>
                     <!-- Dự phòng -->
-                    <div class="bg-cyan-500/10 dark:bg-cyan-500/20 rounded-lg p-2 text-center">
-                        <div class="flex items-center justify-center gap-1 mb-1">
-                            <i data-lucide="shield" class="w-3 h-3 text-cyan-500"></i>
-                            <span class="text-[9px] font-bold text-cyan-600 dark:text-cyan-400">Dự phòng</span>
+                    <div class="bg-cyan-500/10 dark:bg-cyan-500/20 rounded-md sm:rounded-lg p-1.5 sm:p-2 text-center">
+                        <div class="flex items-center justify-center gap-0.5 sm:gap-1 mb-0.5 sm:mb-1">
+                            <i data-lucide="shield" class="w-2.5 h-2.5 sm:w-3 sm:h-3 text-cyan-500"></i>
+                            <span class="text-[8px] sm:text-[9px] font-bold text-cyan-600 dark:text-cyan-400">Dự phòng</span>
                         </div>
-                        <div class="text-sm sm:text-base font-black text-cyan-600 dark:text-cyan-300" id="chart-essential-peak">--</div>
-                        <div class="text-[10px] font-semibold text-cyan-500 dark:text-cyan-400" id="chart-essential-time">--:--</div>
+                        <div class="text-[10px] sm:text-base font-black text-cyan-600 dark:text-cyan-300" id="chart-essential-peak">--</div>
+                        <div class="text-[8px] sm:text-[10px] font-semibold text-cyan-500 dark:text-cyan-400" id="chart-essential-time">--:--</div>
                     </div>
                 </div>
             </div>
