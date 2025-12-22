@@ -1,10 +1,11 @@
 /**
- * Lightearth Proxy Worker v2.4
+ * Lightearth Proxy Worker v2.5
  * - Proxy to lesvr.suntcn.com
  * - Proxy to Home Assistant
  * - Optimized: O(n log n) power history processing to avoid Worker timeout
  * - Fixed: Timezone handling for Vietnam (UTC+7)
  * - Added: Temperature min/max history endpoint
+ * - Added: Device info endpoint (model, manufacturer, firmware)
  * 
  * Environment Variables needed:
  * - HA_URL: Home Assistant URL (e.g., https://xxx.trycloudflare.com)
@@ -47,9 +48,16 @@ export default {
     if (path === '/' || path === '/health') {
       return new Response(JSON.stringify({
         status: 'ok',
-        version: '2.4',
+        version: '2.5',
         ha_configured: !!(HA_URL && HA_TOKEN),
-        timezone: 'UTC+7 (Vietnam)'
+        timezone: 'UTC+7 (Vietnam)',
+        endpoints: [
+          '/api/ha/power-history/{deviceId}/{date}',
+          '/api/ha/soc-history/{deviceId}/{date}',
+          '/api/ha/temperature/{deviceId}/{date}',
+          '/api/ha/device-info/{deviceId}',
+          '/api/ha/states/{deviceId}'
+        ]
       }), { headers });
     }
 
@@ -96,6 +104,21 @@ export default {
       const deviceId = match[1];
       try {
         const data = await fetchHAStates(HA_URL, HA_TOKEN, deviceId);
+        return new Response(JSON.stringify({ success: true, dataSource: 'HomeAssistant', deviceId, ...data }), { headers });
+      } catch (error) {
+        return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers });
+      }
+    }
+
+    // GET /api/ha/device-info/{deviceId} - Get device info (model, type, firmware)
+    if (path.match(/^\/api\/ha\/device-info\/([^\/]+)$/)) {
+      if (!HA_URL || !HA_TOKEN) {
+        return new Response(JSON.stringify({ success: false, error: 'HA not configured' }), { status: 503, headers });
+      }
+      const match = path.match(/^\/api\/ha\/device-info\/([^\/]+)$/);
+      const deviceId = match[1];
+      try {
+        const data = await fetchHADeviceInfo(HA_URL, HA_TOKEN, deviceId);
         return new Response(JSON.stringify({ success: true, dataSource: 'HomeAssistant', deviceId, ...data }), { headers });
       } catch (error) {
         return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers });
@@ -417,5 +440,73 @@ async function fetchHATemperatureHistory(haUrl, haToken, deviceId, queryDate) {
     minTime,
     maxTime,
     count: temps.length 
+  };
+}
+
+async function fetchHADeviceInfo(haUrl, haToken, deviceId) {
+  const haHeaders = { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' };
+  
+  // Get all states to find entities for this device
+  const response = await fetch(`${haUrl}/api/states`, { headers: haHeaders });
+  if (!response.ok) throw new Error(`HA API error: ${response.status}`);
+  
+  const states = await response.json();
+  const devicePrefix = `sensor.device_${deviceId.toLowerCase()}`;
+  
+  // Find any entity for this device to get device info from attributes
+  const deviceEntity = states.find(state => state.entity_id.startsWith(devicePrefix));
+  
+  if (!deviceEntity) {
+    return { 
+      model: null, 
+      manufacturer: null, 
+      sw_version: null, 
+      hw_version: null,
+      error: 'Device not found in HA' 
+    };
+  }
+  
+  // Try to get device registry info via config API
+  try {
+    const configResponse = await fetch(`${haUrl}/api/config/device_registry`, { headers: haHeaders });
+    if (configResponse.ok) {
+      const devices = await configResponse.json();
+      // Find device by matching entity prefix
+      const device = devices.find(d => {
+        // Check if any identifier contains the deviceId
+        if (d.identifiers) {
+          return JSON.stringify(d.identifiers).toLowerCase().includes(deviceId.toLowerCase());
+        }
+        // Check name
+        if (d.name) {
+          return d.name.toLowerCase().includes(deviceId.toLowerCase());
+        }
+        return false;
+      });
+      
+      if (device) {
+        return {
+          model: device.model || null,
+          manufacturer: device.manufacturer || null,
+          sw_version: device.sw_version || null,
+          hw_version: device.hw_version || null,
+          name: device.name || null,
+          area: device.area_id || null
+        };
+      }
+    }
+  } catch (e) {
+    // Config API not available, continue with fallback
+  }
+  
+  // Fallback: Extract info from entity attributes
+  const attrs = deviceEntity.attributes || {};
+  return {
+    model: attrs.model || attrs.device_class || null,
+    manufacturer: attrs.manufacturer || null,
+    sw_version: attrs.sw_version || null,
+    hw_version: attrs.hw_version || null,
+    friendly_name: attrs.friendly_name || null,
+    entity_id: deviceEntity.entity_id
   };
 }
