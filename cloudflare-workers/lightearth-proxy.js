@@ -1,9 +1,10 @@
 /**
- * Lightearth Proxy Worker v2.3
+ * Lightearth Proxy Worker v2.4
  * - Proxy to lesvr.suntcn.com
  * - Proxy to Home Assistant
  * - Optimized: O(n log n) power history processing to avoid Worker timeout
  * - Fixed: Timezone handling for Vietnam (UTC+7)
+ * - Added: Temperature min/max history endpoint
  * 
  * Environment Variables needed:
  * - HA_URL: Home Assistant URL (e.g., https://xxx.trycloudflare.com)
@@ -46,7 +47,7 @@ export default {
     if (path === '/' || path === '/health') {
       return new Response(JSON.stringify({
         status: 'ok',
-        version: '2.3',
+        version: '2.4',
         ha_configured: !!(HA_URL && HA_TOKEN),
         timezone: 'UTC+7 (Vietnam)'
       }), { headers });
@@ -96,6 +97,22 @@ export default {
       try {
         const data = await fetchHAStates(HA_URL, HA_TOKEN, deviceId);
         return new Response(JSON.stringify({ success: true, dataSource: 'HomeAssistant', deviceId, ...data }), { headers });
+      } catch (error) {
+        return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers });
+      }
+    }
+
+    // GET /api/ha/temperature/{deviceId}/{date} - Temperature min/max for the day
+    if (path.match(/^\/api\/ha\/temperature\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/)) {
+      if (!HA_URL || !HA_TOKEN) {
+        return new Response(JSON.stringify({ success: false, error: 'HA not configured' }), { status: 503, headers });
+      }
+      const match = path.match(/^\/api\/ha\/temperature\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/);
+      const deviceId = match[1];
+      const queryDate = match[2];
+      try {
+        const data = await fetchHATemperatureHistory(HA_URL, HA_TOKEN, deviceId, queryDate);
+        return new Response(JSON.stringify({ success: true, dataSource: 'HomeAssistant', deviceId, date: queryDate, ...data }), { headers });
       } catch (error) {
         return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers });
       }
@@ -340,4 +357,65 @@ async function fetchHAStates(haUrl, haToken, deviceId) {
   });
 
   return result;
+}
+
+async function fetchHATemperatureHistory(haUrl, haToken, deviceId, queryDate) {
+  const haHeaders = { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' };
+  
+  // Format: sensor.device_{deviceId}_device_temperature
+  const tempEntity = `sensor.device_${deviceId.toLowerCase()}_device_temperature`;
+  
+  // TIMEZONE FIX: Convert Vietnam local time to UTC for HA API query
+  const vnDayStart = new Date(`${queryDate}T00:00:00+07:00`);
+  const vnDayEnd = new Date(`${queryDate}T23:59:59+07:00`);
+  const startTimeUTC = vnDayStart.toISOString();
+  const endTimeUTC = vnDayEnd.toISOString();
+  
+  const historyUrl = `${haUrl}/api/history/period/${startTimeUTC}?end_time=${endTimeUTC}&filter_entity_id=${tempEntity}&minimal_response`;
+
+  const response = await fetch(historyUrl, { headers: haHeaders });
+  if (!response.ok) throw new Error(`HA API error: ${response.status}`);
+
+  const historyData = await response.json();
+  if (!historyData || historyData.length === 0 || historyData[0].length === 0) {
+    return { min: null, max: null, current: null, count: 0 };
+  }
+
+  // Extract all temperature values
+  const temps = historyData[0]
+    .map(entry => parseFloat(entry.state))
+    .filter(temp => !isNaN(temp) && temp > 0 && temp < 100); // Filter invalid values
+
+  if (temps.length === 0) {
+    return { min: null, max: null, current: null, count: 0 };
+  }
+
+  const min = Math.min(...temps);
+  const max = Math.max(...temps);
+  const current = temps[temps.length - 1];
+  
+  // Get time of min/max
+  let minTime = '--:--', maxTime = '--:--';
+  historyData[0].forEach(entry => {
+    const temp = parseFloat(entry.state);
+    if (temp === min || temp === max) {
+      const utcTime = new Date(entry.last_changed || entry.last_updated);
+      const vnHours = utcTime.getUTCHours() + VN_OFFSET_HOURS;
+      const adjustedHours = vnHours >= 24 ? vnHours - 24 : vnHours;
+      const minutes = utcTime.getUTCMinutes();
+      const timeStr = `${String(adjustedHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+      
+      if (temp === min) minTime = timeStr;
+      if (temp === max) maxTime = timeStr;
+    }
+  });
+
+  return { 
+    min: Math.round(min * 10) / 10,
+    max: Math.round(max * 10) / 10, 
+    current: Math.round(current * 10) / 10,
+    minTime,
+    maxTime,
+    count: temps.length 
+  };
 }
