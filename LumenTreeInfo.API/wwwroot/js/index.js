@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13131 - Fix chart: null for future slots, no forward-fill beyond data range
+ * Version: 13132 - Fix chart: limit data to current time for today, show 0 for future
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1093,6 +1093,23 @@ document.addEventListener('DOMContentLoaded', function () {
         const timeline = haData.timeline;
         console.log(`📊 Converting HA data to chart format: ${timeline.length} data points`);
         
+        // Get current time slot - for TODAY, we limit data to current time
+        // For past days, we show all data
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+        const currentSlot = currentHour * 12 + Math.floor(currentMinute / 5);
+        
+        // Check if data is for today by comparing the date in haData
+        const queryDate = haData.date || document.getElementById('dateInput')?.value;
+        const todayStr = now.toISOString().split('T')[0];
+        const isToday = queryDate === todayStr;
+        
+        // Maximum slot to show data: current time for today, 287 for past days
+        const maxAllowedSlot = isToday ? currentSlot : 287;
+        
+        console.log(`📊 Today: ${todayStr}, Query: ${queryDate}, isToday: ${isToday}, maxAllowedSlot: ${maxAllowedSlot} (${Math.floor(maxAllowedSlot/12)}:${String((maxAllowedSlot%12)*5).padStart(2,'0')})`);
+        
         // Create 288 slots for each 5-minute interval (00:00 to 23:55)
         // Use null for slots without data - Chart.js will skip these points
         const pvData = new Array(288).fill(null);
@@ -1100,10 +1117,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const loadData = new Array(288).fill(null);
         const gridData = new Array(288).fill(null);
         
-        // Track the last slot with actual data
+        // Track the last slot with actual data (limited by maxAllowedSlot)
         let lastDataSlot = -1;
         
-        // Fill in data from timeline
+        // Fill in data from timeline - ONLY for slots <= maxAllowedSlot
         timeline.forEach(point => {
             // Parse ISO time to get slot index
             const time = new Date(point.time);
@@ -1111,7 +1128,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const minutes = time.getMinutes();
             const slotIndex = hours * 12 + Math.floor(minutes / 5);
             
-            if (slotIndex >= 0 && slotIndex < 288) {
+            // Only include data for slots up to current time (for today) or all (for past days)
+            if (slotIndex >= 0 && slotIndex < 288 && slotIndex <= maxAllowedSlot) {
                 pvData[slotIndex] = point.pv || 0;
                 batData[slotIndex] = point.battery || 0;
                 loadData[slotIndex] = point.load || 0;
@@ -1162,8 +1180,13 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log("📊 Updating combined energy chart with Home Assistant data");
         updateCharts(chartData);
         
-        // Update peak stats from HA data
-        updateEnergyChartPeakStatsFromHA(timeline);
+        // Update peak stats from HA data (only for data within allowed time range)
+        const filteredTimeline = timeline.filter(point => {
+            const time = new Date(point.time);
+            const slotIndex = time.getHours() * 12 + Math.floor(time.getMinutes() / 5);
+            return slotIndex <= maxAllowedSlot;
+        });
+        updateEnergyChartPeakStatsFromHA(filteredTimeline);
     }
     
     // Update peak stats from Home Assistant Power History
@@ -1261,13 +1284,40 @@ document.addEventListener('DOMContentLoaded', function () {
             essential: essentialTotal, batCharge, batDischarge
         });
         
+        // Get current time slot - for TODAY, we limit data to current time
+        const now = new Date();
+        const currentSlot = now.getHours() * 12 + Math.floor(now.getMinutes() / 5);
+        const queryDate = document.getElementById('dateInput')?.value;
+        const todayStr = now.toISOString().split('T')[0];
+        const isToday = queryDate === todayStr;
+        const maxAllowedSlot = isToday ? currentSlot : 287;
+        
+        console.log(`📊 Lightearth data: isToday=${isToday}, maxAllowedSlot=${maxAllowedSlot}`);
+        
+        // Get raw data arrays
+        let pvArr = pvData.data?.pv?.tableValueInfo || [];
+        let batArr = batData.data?.tableValueInfo || [];
+        let loadArr = otherData.data?.homeload?.tableValueInfo || [];
+        let gridArr = otherData.data?.grid?.tableValueInfo || [];
+        let essentialArr = otherData.data?.essentialLoad?.tableValueInfo || [];
+        
+        // Truncate data beyond current time (for today) - set future slots to null
+        if (isToday && pvArr.length > 0) {
+            pvArr = pvArr.map((v, i) => i <= maxAllowedSlot ? v : null);
+            batArr = batArr.map((v, i) => i <= maxAllowedSlot ? v : null);
+            loadArr = loadArr.map((v, i) => i <= maxAllowedSlot ? v : null);
+            gridArr = gridArr.map((v, i) => i <= maxAllowedSlot ? v : null);
+            essentialArr = essentialArr.map((v, i) => i <= maxAllowedSlot ? v : null);
+            console.log(`📊 Truncated Lightearth data to slot ${maxAllowedSlot}`);
+        }
+        
         // Update combined energy chart with raw data
         const chartData = {
-            pv: { tableValueInfo: pvData.data?.pv?.tableValueInfo || [] },
-            bat: { tableValueInfo: batData.data?.tableValueInfo || [] },
-            load: { tableValueInfo: otherData.data?.homeload?.tableValueInfo || [] },
-            grid: { tableValueInfo: otherData.data?.grid?.tableValueInfo || [] },
-            essentialLoad: { tableValueInfo: otherData.data?.essentialLoad?.tableValueInfo || [] }
+            pv: { tableValueInfo: pvArr },
+            bat: { tableValueInfo: batArr },
+            load: { tableValueInfo: loadArr },
+            grid: { tableValueInfo: gridArr },
+            essentialLoad: { tableValueInfo: essentialArr }
         };
         console.log("📊 Updating combined energy chart with Lightearth data");
         updateCharts(chartData);
