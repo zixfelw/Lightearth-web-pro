@@ -123,7 +123,47 @@ document.addEventListener('DOMContentLoaded', function () {
         date: null,
         timestamp: 0
     };
-    const LIGHTEARTH_CACHE_TTL = 10 * 60 * 1000; // 10 minutes in milliseconds
+    const LIGHTEARTH_CACHE_TTL = 30 * 60 * 1000; // 30 minutes - INCREASED to reduce Cloudflare API calls
+    
+    // LocalStorage cache keys for persistent caching across page reloads
+    const LS_CACHE_KEYS = {
+        lightearthData: 'solar_lightearth_cache',
+        chartData: 'solar_chart_cache'
+    };
+    
+    // Load cached data from localStorage on startup
+    function loadCacheFromLocalStorage() {
+        try {
+            const cached = localStorage.getItem(LS_CACHE_KEYS.lightearthData);
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                const age = Date.now() - parsed.timestamp;
+                if (age < LIGHTEARTH_CACHE_TTL) {
+                    console.log(`📦 Loaded Lightearth cache from localStorage (age: ${Math.round(age/1000)}s)`);
+                    lightearthCache = parsed;
+                } else {
+                    console.log('⚠️ LocalStorage cache expired, clearing');
+                    localStorage.removeItem(LS_CACHE_KEYS.lightearthData);
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to load cache from localStorage:', e);
+        }
+    }
+    
+    // Save cache to localStorage
+    function saveCacheToLocalStorage() {
+        try {
+            if (lightearthCache.data) {
+                localStorage.setItem(LS_CACHE_KEYS.lightearthData, JSON.stringify(lightearthCache));
+            }
+        } catch (e) {
+            console.warn('Failed to save cache to localStorage:', e);
+        }
+    }
+    
+    // Initialize cache from localStorage
+    loadCacheFromLocalStorage();
     
     // Cache for summary data per device (persists until device changes)
     // IMPORTANT: Must be defined before fetchData() is called
@@ -860,7 +900,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         date: queryDate,
                         timestamp: now
                     };
-                    console.log("💾 HA chart data cached (TTL: 10 minutes)");
+                    console.log("💾 HA chart data cached (TTL: 30 minutes)");
+                    saveCacheToLocalStorage(); // Persist to localStorage
                     
                     // Update chart with HA data
                     updateChartFromHAData(haChartData);
@@ -869,6 +910,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 } else {
                     console.warn("⚠️ [Priority 2] HA Power History returned no data");
                 }
+            } else if (haResponse.status === 429) {
+                // Rate limited - don't try fallback APIs, they use same Cloudflare Worker
+                console.error("⛔ [Rate Limited] Cloudflare Worker returned 429 - skipping all fallback APIs");
+                console.warn("💡 Tip: Wait 5 minutes or check Cloudflare Worker limits");
+                // Show user-friendly message
+                showRateLimitWarning();
+                return; // Don't try fallback APIs
             } else {
                 console.warn(`⚠️ [Priority 2] HA Power History API returned status ${haResponse.status}`);
             }
@@ -877,6 +925,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         
         // STEP 3: Fallback to Lightearth API for chart data
+        // Skip if we recently got rate limited (within last 5 minutes)
+        const rateLimitKey = 'solar_rate_limit_until';
+        const rateLimitUntil = parseInt(localStorage.getItem(rateLimitKey) || '0');
+        if (Date.now() < rateLimitUntil) {
+            console.warn("⏳ Skipping Lightearth API - rate limit cooldown active");
+            return;
+        }
+        
         try {
             // Use Lightearth API - fetch all 3 endpoints in parallel
             console.log("📊 [Priority 3] Fetching chart data from Lightearth API (fallback)...");
@@ -886,6 +942,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 fetch(LIGHTEARTH_API.pv(deviceId, queryDate)),
                 fetch(LIGHTEARTH_API.other(deviceId, queryDate))
             ]);
+            
+            // Check for rate limiting (429)
+            if (batResponse.status === 429 || pvResponse.status === 429 || otherResponse.status === 429) {
+                console.error("⛔ [Rate Limited] Lightearth API returned 429 - setting cooldown");
+                localStorage.setItem(rateLimitKey, String(Date.now() + 5 * 60 * 1000)); // 5 min cooldown
+                showRateLimitWarning();
+                return;
+            }
             
             const [batData, pvData, otherData] = await Promise.all([
                 batResponse.json(),
@@ -907,7 +971,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 date: queryDate,
                 timestamp: now
             };
-            console.log("💾 Lightearth data cached (TTL: 10 minutes)");
+            console.log("💾 Lightearth data cached (TTL: 30 minutes)");
+            saveCacheToLocalStorage(); // Persist to localStorage
             
             // Update UI with chart data (this also updates summary, overwriting Railway data if available)
             updateSummaryFromLightearthData(lightearthCache.data);
@@ -921,6 +986,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 const dayApiUrl = `https://solar-proxy.applike098.workers.dev/api/day/${deviceId}/${queryDate}`;
                 const response = await fetch(dayApiUrl);
                 
+                if (response.status === 429) {
+                    console.error("⛔ [Rate Limited] solar-proxy also returned 429");
+                    localStorage.setItem(rateLimitKey, String(Date.now() + 5 * 60 * 1000));
+                    showRateLimitWarning();
+                    return;
+                }
                 if (!response.ok) {
                     throw new Error(`Day data API error: ${response.status}`);
                 }
@@ -3139,6 +3210,35 @@ document.addEventListener('DOMContentLoaded', function () {
         if (element) {
             element.classList.remove('hidden');
         }
+    }
+    
+    // Show rate limit warning to user (Cloudflare 429 error)
+    function showRateLimitWarning() {
+        // Check if warning already shown recently
+        const lastWarning = parseInt(localStorage.getItem('solar_rate_limit_warning') || '0');
+        if (Date.now() - lastWarning < 60000) return; // Only show once per minute
+        
+        localStorage.setItem('solar_rate_limit_warning', String(Date.now()));
+        
+        // Create toast notification
+        const toast = document.createElement('div');
+        toast.className = 'fixed bottom-4 right-4 bg-yellow-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 max-w-sm';
+        toast.innerHTML = `
+            <div class="flex items-start gap-3">
+                <span class="text-2xl">⚠️</span>
+                <div>
+                    <p class="font-bold">API Rate Limited</p>
+                    <p class="text-sm mt-1">Quá nhiều requests. Dữ liệu sẽ được tải từ cache. Vui lòng đợi 5 phút.</p>
+                </div>
+                <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-white hover:text-gray-200">&times;</button>
+            </div>
+        `;
+        document.body.appendChild(toast);
+        
+        // Auto remove after 10 seconds
+        setTimeout(() => toast.remove(), 10000);
+        
+        console.warn('⚠️ Rate limit warning shown to user');
     }
 
     function updateValue(elementId, value) {
