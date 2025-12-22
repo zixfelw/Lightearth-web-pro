@@ -333,14 +333,14 @@ public class RealtimeController : ControllerBase
     [HttpGet("device/{deviceId}")]
     public async Task<IActionResult> GetDeviceById(string deviceId)
     {
-        _logger.LogInformation("Fetching data for device: {DeviceId}", deviceId);
+        _logger.LogDebug("Fetching data for device: {DeviceId}", deviceId);
 
         if (_multiDeviceHaClient == null)
         {
             return Ok(new
             {
                 success = false,
-                message = "Home Assistant client not configured",
+                message = "Home Assistant client not configured. Check HomeAssistant__Url and HomeAssistant__Token environment variables.",
                 deviceId = deviceId,
                 timestamp = DateTime.Now
             });
@@ -348,36 +348,25 @@ public class RealtimeController : ControllerBase
 
         try
         {
-            // Check if device exists in Home Assistant
-            var deviceExists = await _multiDeviceHaClient.DeviceExistsAsync(deviceId);
-            
-            if (!deviceExists)
-            {
-                _logger.LogWarning("Device {DeviceId} not found in Home Assistant", deviceId);
-                return Ok(new
-                {
-                    success = false,
-                    message = $"Device {deviceId} not found in Home Assistant. Please add it first.",
-                    deviceId = deviceId,
-                    knownDevices = _multiDeviceHaClient.KnownDevices.ToList(),
-                    timestamp = DateTime.Now
-                });
-            }
-
-            // Get device data
+            // Get device data directly (GetDeviceDataAsync will refresh cache)
             var deviceData = await _multiDeviceHaClient.GetDeviceDataAsync(deviceId);
-            var cellData = await _multiDeviceHaClient.GetBatteryCellDataAsync(deviceId);
-
-            if (deviceData == null)
+            
+            if (deviceData == null || deviceData.BatteryChargePercentage == null)
             {
+                // Device not found - get known devices for helpful message
+                var knownDevices = await _multiDeviceHaClient.ScanDevicesAsync();
+                _logger.LogWarning("Device {DeviceId} not found. Known devices: {Devices}", deviceId, string.Join(", ", knownDevices));
                 return Ok(new
                 {
                     success = false,
-                    message = $"No data available for device {deviceId}",
+                    message = $"Device {deviceId} not found in Home Assistant. Known devices: {string.Join(", ", knownDevices)}",
                     deviceId = deviceId,
+                    knownDevices = knownDevices.ToList(),
                     timestamp = DateTime.Now
                 });
             }
+
+            var cellData = await _multiDeviceHaClient.GetBatteryCellDataAsync(deviceId);
 
             return Ok(new
             {

@@ -88,47 +88,41 @@ public class MultiDeviceHomeAssistantClient : IDisposable
     }
 
     /// <summary>
-    /// Scan Home Assistant for all Lumentree devices
+    /// Scan Home Assistant for all Lumentree devices (uses states cache)
     /// </summary>
     public async Task<HashSet<string>> ScanDevicesAsync()
     {
         if (DateTime.Now - _lastDeviceScan < _deviceScanInterval && _knownDevices.Count > 0)
             return _knownDevices;
 
+        // Use states cache instead of separate API call
+        await RefreshStatesCacheAsync();
+        
         try
         {
-            var request = new RestRequest("/api/states", Method.Get);
-            var response = await _client.ExecuteAsync(request);
+            var devices = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             
-            if (response.IsSuccessful && !string.IsNullOrEmpty(response.Content))
+            foreach (var entityId in _statesCache.Keys)
             {
-                var states = JsonSerializer.Deserialize<List<HaEntityState>>(response.Content);
-                if (states != null)
+                // Match pattern: sensor.device_p250801055_xxx
+                if (entityId.StartsWith("sensor.device_", StringComparison.OrdinalIgnoreCase))
                 {
-                    var devices = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    
-                    foreach (var state in states)
+                    var parts = entityId.Split('_');
+                    if (parts.Length >= 2)
                     {
-                        if (state.EntityId == null) continue;
-                        
-                        // Match pattern: sensor.device_p250801055_xxx
-                        if (state.EntityId.StartsWith("sensor.device_", StringComparison.OrdinalIgnoreCase))
-                        {
-                            var parts = state.EntityId.Split('_');
-                            if (parts.Length >= 2)
-                            {
-                                // Extract device ID (e.g., "p250801055" from "sensor.device_p250801055_pv_power")
-                                var deviceId = parts[1].ToUpper(); // P250801055
-                                devices.Add(deviceId);
-                            }
-                        }
+                        // Extract device ID (e.g., "p250801055" from "sensor.device_p250801055_pv_power")
+                        var deviceId = parts[1].ToUpper(); // P250801055
+                        devices.Add(deviceId);
                     }
-                    
-                    _knownDevices = devices;
-                    _lastDeviceScan = DateTime.Now;
-                    
-                    Log.Information($"Found {_knownDevices.Count} Lumentree devices in Home Assistant: {string.Join(", ", _knownDevices)}");
                 }
+            }
+            
+            _knownDevices = devices;
+            _lastDeviceScan = DateTime.Now;
+            
+            if (devices.Count > 0)
+            {
+                Log.Information($"Found {_knownDevices.Count} Lumentree devices: {string.Join(", ", _knownDevices)}");
             }
         }
         catch (Exception ex)
@@ -140,22 +134,26 @@ public class MultiDeviceHomeAssistantClient : IDisposable
     }
 
     /// <summary>
-    /// Check if a specific device exists in Home Assistant
+    /// Check if a specific device exists in Home Assistant (uses cache)
     /// </summary>
     public async Task<bool> DeviceExistsAsync(string deviceSn)
     {
-        // Refresh device list if needed
-        await ScanDevicesAsync();
+        // Always refresh states cache first (single API call, cached for 10s)
+        await RefreshStatesCacheAsync();
         
-        // Check if device is in known list
-        if (_knownDevices.Contains(deviceSn))
+        // Check in states cache directly
+        var testEntity = $"sensor.device_{deviceSn.ToLower()}_battery_soc";
+        if (_statesCache.TryGetValue(testEntity, out var state) && 
+            state.State != "unavailable" && state.State != "unknown")
+        {
+            _knownDevices.Add(deviceSn.ToUpper());
             return true;
+        }
         
-        // Double check by trying to get a sensor for this device
-        var testEntity = $"sensor.device_{deviceSn.ToLower()}_pv_power";
-        var state = await GetEntityStateAsync(testEntity);
-        
-        if (state != null && state.State != "unavailable" && state.State != "unknown")
+        // Also check pv_power as fallback
+        testEntity = $"sensor.device_{deviceSn.ToLower()}_pv_power";
+        if (_statesCache.TryGetValue(testEntity, out state) && 
+            state.State != "unavailable" && state.State != "unknown")
         {
             _knownDevices.Add(deviceSn.ToUpper());
             return true;
