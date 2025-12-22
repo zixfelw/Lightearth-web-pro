@@ -10,722 +10,291 @@
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            50: '#f0f9ff',
-                            100: '#e0f2fe',
-                            500: '#0ea5e9',
-                            600: '#0284c7',
-                            700: '#0369a1',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
     
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     
-    <!-- Favicons -->
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
     
     <style>
         * { font-family: 'Inter', sans-serif; }
         
-        .gradient-brand {
-            background: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 50%, #ec4899 100%);
-        }
-        
-        .gradient-dark {
-            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
-        }
-        
-        /* Card hover effects */
         .device-card {
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
         }
         
         .device-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+            transform: scale(1.02);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
         }
         
-        /* Status indicator animation */
         .status-online {
             background-color: #10b981;
-            animation: pulse-green 2s infinite;
+            box-shadow: 0 0 6px #10b981;
         }
         
         .status-offline {
             background-color: #ef4444;
         }
         
-        @@keyframes pulse-green {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        
-        /* Loading spinner */
         .spinner {
-            border: 3px solid rgba(0, 0, 0, 0.1);
-            border-left-color: #0ea5e9;
+            border: 2px solid rgba(255,255,255,0.1);
+            border-left-color: #14b8a6;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
+            width: 24px;
+            height: 24px;
+            animation: spin 0.8s linear infinite;
         }
         
         @@keyframes spin {
             to { transform: rotate(360deg); }
         }
-        
-        /* Auto refresh indicator */
-        .refresh-indicator {
-            animation: fadeInOut 5s infinite;
-        }
-        
-        @@keyframes fadeInOut {
-            0%, 100% { opacity: 0.5; }
-            50% { opacity: 1; }
-        }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen">
-    <!-- Header -->
-    <header class="bg-slate-800 border-b border-slate-700 sticky top-0 z-50">
-        <div class="container mx-auto px-4 py-3">
+<body class="bg-slate-900 text-gray-100 min-h-screen">
+    <!-- Compact Header -->
+    <header class="bg-slate-800/80 backdrop-blur border-b border-slate-700 sticky top-0 z-50">
+        <div class="max-w-[1800px] mx-auto px-3 py-2">
             <div class="flex items-center justify-between">
-                <!-- Logo + Brand -->
-                <div class="flex items-center gap-3">
-                    <img src="/logo.png" alt="LightEarth" class="w-10 h-10 rounded-xl shadow-lg">
-                    <div>
-                        <h1 class="text-lg font-bold">
-                            <span class="bg-gradient-to-r from-teal-400 via-emerald-400 to-indigo-400 bg-clip-text text-transparent">LightEarth</span>
-                            <span class="text-slate-300 font-medium ml-1">Private</span>
-                        </h1>
-                        <p class="text-xs text-slate-400 flex items-center gap-1">
-                            <i data-lucide="lock" class="w-3 h-3"></i>
-                            <span>Home Assistant Device Management</span>
-                        </p>
-                    </div>
+                <div class="flex items-center gap-2">
+                    <img src="/logo.png" alt="LightEarth" class="w-7 h-7 rounded-lg">
+                    <span class="text-sm font-bold text-teal-400">Private</span>
+                    <span id="deviceCount" class="text-xs text-slate-400 ml-2">--</span>
                 </div>
                 
-                <!-- Right side -->
-                <div class="flex items-center gap-3">
-                    <!-- Auto Refresh Toggle -->
-                    <div class="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-1.5">
-                        <span class="text-xs text-slate-300">Auto</span>
-                        <button id="autoRefreshBtn" onclick="toggleAutoRefresh()" class="relative w-10 h-5 bg-slate-600 rounded-full transition-colors" title="Toggle auto refresh">
-                            <span id="autoRefreshDot" class="absolute left-0.5 top-0.5 w-4 h-4 bg-slate-400 rounded-full transition-transform"></span>
-                        </button>
-                    </div>
-                    
-                    <!-- Refresh Button -->
-                    <button onclick="loadDevices()" class="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-white px-3 py-1.5 rounded-lg transition-all">
-                        <i data-lucide="refresh-cw" class="w-4 h-4" id="refreshIcon"></i>
-                        <span class="text-sm font-medium hidden sm:inline">Refresh</span>
+                <div class="flex items-center gap-2">
+                    <!-- Auto Toggle -->
+                    <button id="autoRefreshBtn" onclick="toggleAutoRefresh()" 
+                            class="flex items-center gap-1 px-2 py-1 text-xs rounded bg-slate-700 hover:bg-slate-600 transition-colors">
+                        <span id="autoText" class="text-slate-400">Auto</span>
                     </button>
                     
-                    <!-- Back to Home -->
-                    <a href="/" class="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg transition-all">
-                        <i data-lucide="home" class="w-4 h-4"></i>
-                        <span class="text-sm font-medium hidden sm:inline">Home</span>
+                    <!-- Refresh -->
+                    <button onclick="loadDevices()" class="p-1.5 bg-teal-600 hover:bg-teal-500 rounded transition-colors">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="refreshIcon"></i>
+                    </button>
+                    
+                    <!-- Home -->
+                    <a href="/" class="p-1.5 bg-slate-700 hover:bg-slate-600 rounded transition-colors">
+                        <i data-lucide="home" class="w-3.5 h-3.5"></i>
                     </a>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Status Bar -->
-    <div class="bg-slate-800/50 border-b border-slate-700/50 py-2">
-        <div class="container mx-auto px-4">
-            <div class="flex items-center justify-between text-sm">
-                <div class="flex items-center gap-4">
-                    <span id="deviceCount" class="text-slate-400">-- devices</span>
-                    <span id="haStatus" class="flex items-center gap-1.5">
-                        <span class="w-2 h-2 rounded-full bg-slate-500"></span>
-                        <span class="text-slate-400">Checking Home Assistant...</span>
-                    </span>
-                </div>
-                <div class="flex items-center gap-2 text-slate-400">
-                    <i data-lucide="clock" class="w-3 h-3"></i>
-                    <span id="lastUpdate">--</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Main Content -->
-    <main class="container mx-auto px-4 py-6">
-        <!-- Loading State -->
-        <div id="loadingState" class="flex flex-col items-center justify-center py-20">
-            <div class="spinner mb-4"></div>
-            <p class="text-slate-400">Loading devices from Home Assistant...</p>
+    <main class="max-w-[1800px] mx-auto px-2 py-3">
+        <!-- Loading -->
+        <div id="loadingState" class="flex items-center justify-center py-12">
+            <div class="spinner"></div>
         </div>
         
-        <!-- Error State -->
-        <div id="errorState" class="hidden">
-            <div class="bg-red-900/30 border border-red-700 rounded-xl p-6 text-center">
-                <i data-lucide="alert-triangle" class="w-12 h-12 text-red-500 mx-auto mb-4"></i>
-                <h2 class="text-xl font-bold text-red-400 mb-2">Connection Error</h2>
-                <p id="errorMessage" class="text-red-300 mb-4">Unable to connect to Home Assistant</p>
-                <button onclick="loadDevices()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg transition-colors">
-                    Try Again
-                </button>
-            </div>
+        <!-- Error -->
+        <div id="errorState" class="hidden text-center py-8">
+            <div class="text-red-400 text-sm mb-2" id="errorMessage">Error</div>
+            <button onclick="loadDevices()" class="text-xs bg-red-600 hover:bg-red-500 px-3 py-1 rounded">Retry</button>
         </div>
         
-        <!-- Empty State -->
-        <div id="emptyState" class="hidden">
-            <div class="bg-slate-800/50 border border-slate-700 rounded-xl p-8 text-center">
-                <i data-lucide="inbox" class="w-16 h-16 text-slate-500 mx-auto mb-4"></i>
-                <h2 class="text-xl font-bold text-slate-300 mb-2">No Devices Found</h2>
-                <p class="text-slate-400 mb-4">No Lumentree devices are registered in Home Assistant</p>
-                <p class="text-sm text-slate-500">Make sure your devices are properly configured in Home Assistant</p>
-            </div>
+        <!-- Empty -->
+        <div id="emptyState" class="hidden text-center py-8 text-slate-500 text-sm">
+            No devices found
         </div>
         
-        <!-- Devices Grid -->
-        <div id="devicesGrid" class="hidden grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            <!-- Device cards will be inserted here -->
-        </div>
+        <!-- Devices Grid: 4 cols mobile, 8 cols PC -->
+        <div id="devicesGrid" class="hidden grid grid-cols-4 lg:grid-cols-8 gap-1.5 sm:gap-2"></div>
         
-        <!-- Summary Stats (shown when devices loaded) -->
-        <div id="summarySection" class="hidden mt-6">
-            <div class="bg-slate-800 rounded-xl p-4 border border-slate-700">
-                <h3 class="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
-                    <i data-lucide="bar-chart-2" class="w-4 h-4 text-teal-500"></i>
-                    Summary Statistics
-                </h3>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div class="bg-slate-700/50 rounded-lg p-3 text-center">
-                        <div class="text-xs text-amber-400 font-medium">Total PV Power</div>
-                        <div id="totalPv" class="text-lg font-bold text-white">-- W</div>
-                    </div>
-                    <div class="bg-slate-700/50 rounded-lg p-3 text-center">
-                        <div class="text-xs text-emerald-400 font-medium">Total Battery</div>
-                        <div id="totalBattery" class="text-lg font-bold text-white">-- W</div>
-                    </div>
-                    <div class="bg-slate-700/50 rounded-lg p-3 text-center">
-                        <div class="text-xs text-purple-400 font-medium">Total Grid</div>
-                        <div id="totalGrid" class="text-lg font-bold text-white">-- W</div>
-                    </div>
-                    <div class="bg-slate-700/50 rounded-lg p-3 text-center">
-                        <div class="text-xs text-blue-400 font-medium">Total Load</div>
-                        <div id="totalLoad" class="text-lg font-bold text-white">-- W</div>
-                    </div>
+        <!-- Summary Row -->
+        <div id="summarySection" class="hidden mt-3">
+            <div class="flex flex-wrap justify-center gap-2 sm:gap-4 text-xs">
+                <div class="flex items-center gap-1.5 bg-slate-800/50 px-3 py-1.5 rounded-full">
+                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span class="text-slate-400">PV:</span>
+                    <span id="totalPv" class="font-bold text-amber-400">--</span>
+                </div>
+                <div class="flex items-center gap-1.5 bg-slate-800/50 px-3 py-1.5 rounded-full">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span class="text-slate-400">Pin:</span>
+                    <span id="totalBattery" class="font-bold text-emerald-400">--</span>
+                </div>
+                <div class="flex items-center gap-1.5 bg-slate-800/50 px-3 py-1.5 rounded-full">
+                    <span class="w-2 h-2 rounded-full bg-violet-500"></span>
+                    <span class="text-slate-400">EVN:</span>
+                    <span id="totalGrid" class="font-bold text-violet-400">--</span>
+                </div>
+                <div class="flex items-center gap-1.5 bg-slate-800/50 px-3 py-1.5 rounded-full">
+                    <span class="w-2 h-2 rounded-full bg-sky-500"></span>
+                    <span class="text-slate-400">Tải:</span>
+                    <span id="totalLoad" class="font-bold text-sky-400">--</span>
                 </div>
             </div>
         </div>
     </main>
-    
-    <!-- Device Detail Modal -->
-    <div id="deviceModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-        <div class="bg-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-auto border border-slate-700">
-            <div class="p-4 border-b border-slate-700 flex items-center justify-between sticky top-0 bg-slate-800 z-10">
-                <h2 class="text-lg font-bold text-white flex items-center gap-2">
-                    <i data-lucide="cpu" class="w-5 h-5 text-teal-500"></i>
-                    <span id="modalDeviceId">Device Details</span>
-                </h2>
-                <button onclick="closeDeviceModal()" class="p-2 hover:bg-slate-700 rounded-lg transition-colors">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
-            <div id="modalContent" class="p-4">
-                <!-- Modal content will be inserted here -->
-            </div>
-        </div>
-    </div>
 
     <script>
-        // Initialize Lucide icons
         lucide.createIcons();
         
-        // State variables
         let autoRefresh = false;
         let refreshInterval = null;
-        let devices = [];
         
-        // Load devices on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            loadDevices();
-        });
+        document.addEventListener('DOMContentLoaded', loadDevices);
         
-        // Toggle auto refresh
         function toggleAutoRefresh() {
             autoRefresh = !autoRefresh;
             const btn = document.getElementById('autoRefreshBtn');
-            const dot = document.getElementById('autoRefreshDot');
+            const text = document.getElementById('autoText');
             
             if (autoRefresh) {
-                btn.classList.remove('bg-slate-600');
+                btn.classList.remove('bg-slate-700');
                 btn.classList.add('bg-teal-600');
-                dot.classList.remove('bg-slate-400');
-                dot.classList.add('bg-white', 'translate-x-5');
-                
-                // Start auto refresh every 10 seconds
+                text.classList.remove('text-slate-400');
+                text.classList.add('text-white');
                 refreshInterval = setInterval(loadDevices, 10000);
             } else {
-                btn.classList.add('bg-slate-600');
+                btn.classList.add('bg-slate-700');
                 btn.classList.remove('bg-teal-600');
-                dot.classList.add('bg-slate-400');
-                dot.classList.remove('bg-white', 'translate-x-5');
-                
-                if (refreshInterval) {
-                    clearInterval(refreshInterval);
-                    refreshInterval = null;
-                }
+                text.classList.add('text-slate-400');
+                text.classList.remove('text-white');
+                if (refreshInterval) clearInterval(refreshInterval);
             }
         }
         
-        // Load devices from API
         async function loadDevices() {
-            const refreshIcon = document.getElementById('refreshIcon');
-            refreshIcon.classList.add('animate-spin');
+            const icon = document.getElementById('refreshIcon');
+            icon.classList.add('animate-spin');
             
             try {
-                showLoading();
+                const resp = await fetch('/api/ha/devices');
+                const data = await resp.json();
                 
-                const response = await fetch('/api/ha/devices');
-                const data = await response.json();
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('errorState').classList.add('hidden');
+                document.getElementById('emptyState').classList.add('hidden');
                 
                 if (!data.success) {
-                    showError(data.error || 'Failed to load devices');
+                    document.getElementById('errorState').classList.remove('hidden');
+                    document.getElementById('errorMessage').textContent = data.error;
                     return;
                 }
                 
                 if (data.devices.length === 0) {
-                    showEmpty();
+                    document.getElementById('emptyState').classList.remove('hidden');
                     return;
                 }
                 
-                devices = data.devices;
+                document.getElementById('deviceCount').textContent = `${data.count} devices`;
                 renderDevices(data.devices);
                 updateSummary(data.devices);
-                updateStatus(true, data.count);
                 
-            } catch (error) {
-                console.error('Error loading devices:', error);
-                showError(error.message);
+            } catch (e) {
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('errorState').classList.remove('hidden');
+                document.getElementById('errorMessage').textContent = e.message;
             } finally {
-                refreshIcon.classList.remove('animate-spin');
-                document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('vi-VN');
+                icon.classList.remove('animate-spin');
             }
         }
         
-        // Show loading state
-        function showLoading() {
-            document.getElementById('loadingState').classList.remove('hidden');
-            document.getElementById('errorState').classList.add('hidden');
-            document.getElementById('emptyState').classList.add('hidden');
-            document.getElementById('devicesGrid').classList.add('hidden');
-            document.getElementById('summarySection').classList.add('hidden');
-        }
-        
-        // Show error state
-        function showError(message) {
-            document.getElementById('loadingState').classList.add('hidden');
-            document.getElementById('errorState').classList.remove('hidden');
-            document.getElementById('emptyState').classList.add('hidden');
-            document.getElementById('devicesGrid').classList.add('hidden');
-            document.getElementById('summarySection').classList.add('hidden');
-            document.getElementById('errorMessage').textContent = message;
-            updateStatus(false, 0);
-        }
-        
-        // Show empty state
-        function showEmpty() {
-            document.getElementById('loadingState').classList.add('hidden');
-            document.getElementById('errorState').classList.add('hidden');
-            document.getElementById('emptyState').classList.remove('hidden');
-            document.getElementById('devicesGrid').classList.add('hidden');
-            document.getElementById('summarySection').classList.add('hidden');
-            updateStatus(true, 0);
-        }
-        
-        // Update HA status indicator
-        function updateStatus(connected, count) {
-            const haStatus = document.getElementById('haStatus');
-            const deviceCount = document.getElementById('deviceCount');
-            
-            if (connected) {
-                haStatus.innerHTML = `
-                    <span class="w-2 h-2 rounded-full status-online"></span>
-                    <span class="text-emerald-400">Home Assistant Connected</span>
-                `;
-            } else {
-                haStatus.innerHTML = `
-                    <span class="w-2 h-2 rounded-full status-offline"></span>
-                    <span class="text-red-400">Home Assistant Disconnected</span>
-                `;
-            }
-            
-            deviceCount.textContent = `${count} device${count !== 1 ? 's' : ''}`;
-        }
-        
-        // Render device cards
         function renderDevices(devices) {
-            document.getElementById('loadingState').classList.add('hidden');
-            document.getElementById('errorState').classList.add('hidden');
-            document.getElementById('emptyState').classList.add('hidden');
-            document.getElementById('devicesGrid').classList.remove('hidden');
+            const grid = document.getElementById('devicesGrid');
+            grid.classList.remove('hidden');
             document.getElementById('summarySection').classList.remove('hidden');
             
-            const grid = document.getElementById('devicesGrid');
-            grid.innerHTML = devices.map(device => createDeviceCard(device)).join('');
-            
-            // Re-initialize icons after DOM update
+            grid.innerHTML = devices.map(d => createCard(d)).join('');
             lucide.createIcons();
         }
         
-        // Create device card HTML
-        function createDeviceCard(device) {
-            const isOnline = device.isOnline;
-            const rt = device.realtime || {};
-            const de = device.dailyEnergy || {};
+        function createCard(d) {
+            const on = d.isOnline;
+            const rt = d.realtime || {};
+            const soc = rt.batterySoc || 0;
+            const pv = rt.pvPower || 0;
+            const bat = rt.batteryPower || 0;
+            const grid = rt.gridPower || 0;
+            const load = rt.loadPower || 0;
             
-            const statusClass = isOnline ? 'status-online' : 'status-offline';
-            const statusText = isOnline ? 'Online' : 'Offline';
+            // Short device ID
+            const shortId = d.deviceId.length > 8 ? d.deviceId.slice(-8) : d.deviceId;
             
-            // Battery status icon
-            const batPower = rt.batteryPower || 0;
-            const batIcon = batPower < 0 ? 'battery-charging' : (batPower > 0 ? 'battery' : 'battery-medium');
-            const batColor = batPower < 0 ? 'text-emerald-400' : (batPower > 0 ? 'text-red-400' : 'text-slate-400');
-            
-            // Grid status
-            const gridPower = rt.gridPower || 0;
-            const gridIcon = gridPower > 0 ? 'arrow-down-circle' : (gridPower < 0 ? 'arrow-up-circle' : 'circle');
-            const gridColor = gridPower > 0 ? 'text-purple-400' : (gridPower < 0 ? 'text-emerald-400' : 'text-slate-400');
+            // SOC color
+            const socColor = soc >= 80 ? 'text-emerald-400' : (soc >= 30 ? 'text-amber-400' : 'text-red-400');
+            const socBg = soc >= 80 ? 'bg-emerald-500' : (soc >= 30 ? 'bg-amber-500' : 'bg-red-500');
             
             return `
-                <div class="device-card bg-slate-800 rounded-xl border border-slate-700 overflow-hidden cursor-pointer" onclick="openDeviceModal('${device.deviceId}')">
-                    <!-- Header -->
-                    <div class="p-4 bg-gradient-to-r from-slate-700/50 to-slate-800/50 border-b border-slate-700">
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <i data-lucide="cpu" class="w-5 h-5 text-teal-500"></i>
-                                <span class="font-bold text-white">${device.deviceId}</span>
+                <a href="/?deviceId=${d.deviceId}" 
+                   class="device-card block bg-slate-800 rounded-lg overflow-hidden border border-slate-700/50 hover:border-teal-500/50">
+                    <!-- Header: ID + Status -->
+                    <div class="px-2 py-1.5 bg-slate-700/30 flex items-center justify-between">
+                        <span class="text-[10px] sm:text-xs font-semibold text-slate-200 truncate">${shortId}</span>
+                        <span class="w-1.5 h-1.5 rounded-full flex-shrink-0 ${on ? 'status-online' : 'status-offline'}"></span>
+                    </div>
+                    
+                    ${on ? `
+                        <!-- SOC Bar -->
+                        <div class="px-2 pt-1.5">
+                            <div class="flex items-center justify-between mb-0.5">
+                                <span class="text-[9px] text-slate-500">SOC</span>
+                                <span class="text-[10px] font-bold ${socColor}">${soc}%</span>
                             </div>
-                            <div class="flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full ${statusClass}"></span>
-                                <span class="text-xs ${isOnline ? 'text-emerald-400' : 'text-red-400'}">${statusText}</span>
+                            <div class="h-1 bg-slate-700 rounded-full overflow-hidden">
+                                <div class="${socBg} h-full rounded-full transition-all" style="width:${soc}%"></div>
                             </div>
                         </div>
-                    </div>
-                    
-                    <!-- Realtime Data -->
-                    <div class="p-4">
-                        ${isOnline ? `
-                            <!-- Power Flow Grid -->
-                            <div class="grid grid-cols-2 gap-3 mb-4">
-                                <!-- PV Power -->
-                                <div class="bg-amber-500/10 rounded-lg p-2.5 text-center">
-                                    <div class="flex items-center justify-center gap-1 text-xs text-amber-400 mb-1">
-                                        <i data-lucide="sun" class="w-3 h-3"></i>
-                                        <span>PV</span>
-                                    </div>
-                                    <div class="text-lg font-bold text-amber-300">${formatPower(rt.pvPower)}</div>
-                                </div>
-                                
-                                <!-- Battery -->
-                                <div class="bg-emerald-500/10 rounded-lg p-2.5 text-center">
-                                    <div class="flex items-center justify-center gap-1 text-xs ${batColor} mb-1">
-                                        <i data-lucide="${batIcon}" class="w-3 h-3"></i>
-                                        <span>Pin ${rt.batterySoc || 0}%</span>
-                                    </div>
-                                    <div class="text-lg font-bold ${batPower < 0 ? 'text-emerald-300' : 'text-red-300'}">${formatPower(Math.abs(batPower))}</div>
-                                </div>
-                                
-                                <!-- Grid -->
-                                <div class="bg-purple-500/10 rounded-lg p-2.5 text-center">
-                                    <div class="flex items-center justify-center gap-1 text-xs ${gridColor} mb-1">
-                                        <i data-lucide="${gridIcon}" class="w-3 h-3"></i>
-                                        <span>EVN</span>
-                                    </div>
-                                    <div class="text-lg font-bold ${gridPower > 0 ? 'text-purple-300' : 'text-emerald-300'}">${formatPower(Math.abs(gridPower))}</div>
-                                </div>
-                                
-                                <!-- Load -->
-                                <div class="bg-blue-500/10 rounded-lg p-2.5 text-center">
-                                    <div class="flex items-center justify-center gap-1 text-xs text-blue-400 mb-1">
-                                        <i data-lucide="home" class="w-3 h-3"></i>
-                                        <span>Load</span>
-                                    </div>
-                                    <div class="text-lg font-bold text-blue-300">${formatPower(rt.loadPower)}</div>
-                                </div>
+                        
+                        <!-- Power Values -->
+                        <div class="p-2 grid grid-cols-2 gap-1">
+                            <div class="text-center">
+                                <div class="text-[9px] text-amber-500">PV</div>
+                                <div class="text-[10px] sm:text-xs font-bold text-amber-400">${formatPw(pv)}</div>
                             </div>
-                            
-                            <!-- Daily Energy -->
-                            ${de && (de.pvDay || de.loadDay) ? `
-                                <div class="border-t border-slate-700 pt-3">
-                                    <div class="text-xs text-slate-400 mb-2">Daily Energy (kWh)</div>
-                                    <div class="flex justify-between text-xs">
-                                        <span class="text-amber-400">PV: ${de.pvDay || 0}</span>
-                                        <span class="text-emerald-400">Charge: ${de.chargeDay || 0}</span>
-                                        <span class="text-blue-400">Load: ${de.loadDay || 0}</span>
-                                    </div>
-                                </div>
-                            ` : ''}
-                        ` : `
-                            <div class="text-center py-6">
-                                <i data-lucide="wifi-off" class="w-10 h-10 text-slate-600 mx-auto mb-2"></i>
-                                <p class="text-slate-500 text-sm">Device offline</p>
+                            <div class="text-center">
+                                <div class="text-[9px] ${bat < 0 ? 'text-emerald-500' : 'text-rose-500'}">${bat < 0 ? 'Sạc' : 'Xả'}</div>
+                                <div class="text-[10px] sm:text-xs font-bold ${bat < 0 ? 'text-emerald-400' : 'text-rose-400'}">${formatPw(Math.abs(bat))}</div>
                             </div>
-                        `}
-                    </div>
-                    
-                    <!-- Footer -->
-                    <div class="px-4 py-2 bg-slate-900/50 border-t border-slate-700 flex items-center justify-between">
-                        <span class="text-xs text-slate-500">Click for details</span>
-                        <a href="/?deviceId=${device.deviceId}" onclick="event.stopPropagation()" 
-                           class="text-xs text-teal-400 hover:text-teal-300 flex items-center gap-1">
-                            <span>Open Dashboard</span>
-                            <i data-lucide="external-link" class="w-3 h-3"></i>
-                        </a>
-                    </div>
-                </div>
+                            <div class="text-center">
+                                <div class="text-[9px] text-violet-500">EVN</div>
+                                <div class="text-[10px] sm:text-xs font-bold text-violet-400">${formatPw(Math.abs(grid))}</div>
+                            </div>
+                            <div class="text-center">
+                                <div class="text-[9px] text-sky-500">Tải</div>
+                                <div class="text-[10px] sm:text-xs font-bold text-sky-400">${formatPw(load)}</div>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="p-3 text-center">
+                            <i data-lucide="wifi-off" class="w-5 h-5 text-slate-600 mx-auto"></i>
+                            <div class="text-[10px] text-slate-500 mt-1">Offline</div>
+                        </div>
+                    `}
+                </a>
             `;
         }
         
-        // Format power value
-        function formatPower(value) {
-            if (value === null || value === undefined) return '--';
-            if (value >= 1000) {
-                return (value / 1000).toFixed(1) + ' kW';
-            }
-            return value + ' W';
+        function formatPw(v) {
+            if (v == null) return '--';
+            if (v >= 1000) return (v/1000).toFixed(1) + 'k';
+            return v + '';
         }
         
-        // Update summary statistics
         function updateSummary(devices) {
-            let totalPv = 0, totalBat = 0, totalGrid = 0, totalLoad = 0;
-            
+            let pv = 0, bat = 0, grid = 0, load = 0;
             devices.forEach(d => {
                 if (d.isOnline && d.realtime) {
-                    totalPv += d.realtime.pvPower || 0;
-                    totalBat += d.realtime.batteryPower || 0;
-                    totalGrid += d.realtime.gridPower || 0;
-                    totalLoad += d.realtime.loadPower || 0;
+                    pv += d.realtime.pvPower || 0;
+                    bat += d.realtime.batteryPower || 0;
+                    grid += d.realtime.gridPower || 0;
+                    load += d.realtime.loadPower || 0;
                 }
             });
             
-            document.getElementById('totalPv').textContent = formatPower(totalPv);
-            document.getElementById('totalBattery').textContent = formatPower(totalBat);
-            document.getElementById('totalGrid').textContent = formatPower(totalGrid);
-            document.getElementById('totalLoad').textContent = formatPower(totalLoad);
+            document.getElementById('totalPv').textContent = formatPw(pv) + 'W';
+            document.getElementById('totalBattery').textContent = formatPw(Math.abs(bat)) + 'W';
+            document.getElementById('totalGrid').textContent = formatPw(Math.abs(grid)) + 'W';
+            document.getElementById('totalLoad').textContent = formatPw(load) + 'W';
         }
-        
-        // Open device detail modal
-        async function openDeviceModal(deviceId) {
-            const modal = document.getElementById('deviceModal');
-            const modalContent = document.getElementById('modalContent');
-            const modalTitle = document.getElementById('modalDeviceId');
-            
-            modalTitle.textContent = deviceId;
-            modalContent.innerHTML = `
-                <div class="flex items-center justify-center py-8">
-                    <div class="spinner"></div>
-                </div>
-            `;
-            
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            document.body.style.overflow = 'hidden';
-            
-            try {
-                const response = await fetch(`/api/ha/device/${deviceId}`);
-                const data = await response.json();
-                
-                if (!data.success) {
-                    modalContent.innerHTML = `
-                        <div class="text-center py-8 text-red-400">
-                            <i data-lucide="alert-circle" class="w-12 h-12 mx-auto mb-4"></i>
-                            <p>${data.error}</p>
-                        </div>
-                    `;
-                    lucide.createIcons();
-                    return;
-                }
-                
-                renderModalContent(data);
-                
-            } catch (error) {
-                modalContent.innerHTML = `
-                    <div class="text-center py-8 text-red-400">
-                        <p>Error loading device details: ${error.message}</p>
-                    </div>
-                `;
-            }
-        }
-        
-        // Render modal content
-        function renderModalContent(data) {
-            const rt = data.realtime || {};
-            const de = data.dailyEnergy || {};
-            const cell = data.cellData || null;
-            
-            const modalContent = document.getElementById('modalContent');
-            
-            modalContent.innerHTML = `
-                <!-- Realtime Power -->
-                <div class="mb-6">
-                    <h3 class="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
-                        <i data-lucide="zap" class="w-4 h-4 text-teal-500"></i>
-                        Realtime Power
-                    </h3>
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        <div class="bg-amber-500/10 rounded-lg p-3 text-center border border-amber-500/20">
-                            <div class="text-xs text-amber-400 mb-1">PV Total</div>
-                            <div class="text-xl font-bold text-amber-300">${formatPower(rt.pvPower)}</div>
-                            <div class="text-[10px] text-amber-500 mt-1">PV1: ${formatPower(rt.pv1Power)} | PV2: ${formatPower(rt.pv2Power)}</div>
-                        </div>
-                        
-                        <div class="bg-emerald-500/10 rounded-lg p-3 text-center border border-emerald-500/20">
-                            <div class="text-xs text-emerald-400 mb-1">Battery (${rt.batterySoc || 0}%)</div>
-                            <div class="text-xl font-bold ${rt.batteryPower < 0 ? 'text-emerald-300' : 'text-red-300'}">${formatPower(Math.abs(rt.batteryPower))}</div>
-                            <div class="text-[10px] ${rt.batteryPower < 0 ? 'text-emerald-500' : 'text-red-500'} mt-1">${rt.batteryStatus || '--'}</div>
-                        </div>
-                        
-                        <div class="bg-purple-500/10 rounded-lg p-3 text-center border border-purple-500/20">
-                            <div class="text-xs text-purple-400 mb-1">Grid (${rt.gridVoltage?.toFixed(0) || '--'}V)</div>
-                            <div class="text-xl font-bold ${rt.gridPower > 0 ? 'text-purple-300' : 'text-emerald-300'}">${formatPower(Math.abs(rt.gridPower))}</div>
-                            <div class="text-[10px] ${rt.gridPower > 0 ? 'text-purple-500' : 'text-emerald-500'} mt-1">${rt.gridStatus || '--'}</div>
-                        </div>
-                        
-                        <div class="bg-blue-500/10 rounded-lg p-3 text-center border border-blue-500/20">
-                            <div class="text-xs text-blue-400 mb-1">Load</div>
-                            <div class="text-xl font-bold text-blue-300">${formatPower(rt.loadPower)}</div>
-                        </div>
-                        
-                        <div class="bg-cyan-500/10 rounded-lg p-3 text-center border border-cyan-500/20">
-                            <div class="text-xs text-cyan-400 mb-1">Essential</div>
-                            <div class="text-xl font-bold text-cyan-300">${formatPower(rt.essentialPower)}</div>
-                        </div>
-                        
-                        <div class="bg-red-500/10 rounded-lg p-3 text-center border border-red-500/20">
-                            <div class="text-xs text-red-400 mb-1">Temperature</div>
-                            <div class="text-xl font-bold text-red-300">${rt.temperature?.toFixed(1) || '--'}C</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Daily Energy -->
-                ${de ? `
-                    <div class="mb-6">
-                        <h3 class="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
-                            <i data-lucide="bar-chart-2" class="w-4 h-4 text-teal-500"></i>
-                            Daily Energy (kWh)
-                        </h3>
-                        <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                            <div class="bg-slate-700/50 rounded-lg p-2 text-center">
-                                <div class="text-xs text-amber-400">PV</div>
-                                <div class="font-bold text-white">${de.pvDay || 0}</div>
-                            </div>
-                            <div class="bg-slate-700/50 rounded-lg p-2 text-center">
-                                <div class="text-xs text-emerald-400">Charge</div>
-                                <div class="font-bold text-white">${de.chargeDay || 0}</div>
-                            </div>
-                            <div class="bg-slate-700/50 rounded-lg p-2 text-center">
-                                <div class="text-xs text-red-400">Discharge</div>
-                                <div class="font-bold text-white">${de.dischargeDay || 0}</div>
-                            </div>
-                            <div class="bg-slate-700/50 rounded-lg p-2 text-center">
-                                <div class="text-xs text-purple-400">Grid</div>
-                                <div class="font-bold text-white">${de.gridDay || 0}</div>
-                            </div>
-                            <div class="bg-slate-700/50 rounded-lg p-2 text-center">
-                                <div class="text-xs text-blue-400">Load</div>
-                                <div class="font-bold text-white">${de.loadDay || 0}</div>
-                            </div>
-                        </div>
-                    </div>
-                ` : ''}
-                
-                <!-- Battery Cells -->
-                ${cell && cell.numberOfCells > 0 ? `
-                    <div class="mb-6">
-                        <h3 class="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
-                            <i data-lucide="battery" class="w-4 h-4 text-teal-500"></i>
-                            Battery Cells (${cell.numberOfCells} cells)
-                        </h3>
-                        <div class="grid grid-cols-4 gap-2 mb-3">
-                            <div class="bg-slate-700/50 rounded-lg p-2 text-center">
-                                <div class="text-xs text-slate-400">Avg</div>
-                                <div class="font-bold text-teal-400">${cell.averageVoltage?.toFixed(3) || '--'}V</div>
-                            </div>
-                            <div class="bg-slate-700/50 rounded-lg p-2 text-center">
-                                <div class="text-xs text-slate-400">Min</div>
-                                <div class="font-bold text-amber-400">${cell.minVoltage?.toFixed(3) || '--'}V</div>
-                            </div>
-                            <div class="bg-slate-700/50 rounded-lg p-2 text-center">
-                                <div class="text-xs text-slate-400">Max</div>
-                                <div class="font-bold text-blue-400">${cell.maxVoltage?.toFixed(3) || '--'}V</div>
-                            </div>
-                            <div class="bg-slate-700/50 rounded-lg p-2 text-center">
-                                <div class="text-xs text-slate-400">Diff</div>
-                                <div class="font-bold ${(cell.voltageDiff || 0) > 0.05 ? 'text-red-400' : 'text-emerald-400'}">${cell.voltageDiff?.toFixed(3) || '--'}V</div>
-                            </div>
-                        </div>
-                        ${cell.cells ? `
-                            <div class="grid grid-cols-4 sm:grid-cols-8 gap-1 text-xs">
-                                ${Object.entries(cell.cells).map(([name, voltage]) => `
-                                    <div class="bg-slate-700/30 rounded p-1.5 text-center">
-                                        <div class="text-slate-500 text-[9px]">${name.replace('Cell ', 'C')}</div>
-                                        <div class="font-mono font-bold text-slate-300">${voltage.toFixed(3)}</div>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        ` : ''}
-                    </div>
-                ` : ''}
-                
-                <!-- Actions -->
-                <div class="flex gap-3 pt-4 border-t border-slate-700">
-                    <a href="/?deviceId=${data.deviceId}" class="flex-1 bg-teal-600 hover:bg-teal-500 text-white py-2 rounded-lg text-center text-sm font-medium transition-colors">
-                        Open Full Dashboard
-                    </a>
-                    <button onclick="closeDeviceModal()" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors">
-                        Close
-                    </button>
-                </div>
-            `;
-            
-            // Re-initialize icons
-            lucide.createIcons();
-        }
-        
-        // Close device modal
-        function closeDeviceModal() {
-            const modal = document.getElementById('deviceModal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-            document.body.style.overflow = '';
-        }
-        
-        // Close modal on escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                closeDeviceModal();
-            }
-        });
-        
-        // Close modal on overlay click
-        document.getElementById('deviceModal').addEventListener('click', (e) => {
-            if (e.target.id === 'deviceModal') {
-                closeDeviceModal();
-            }
-        });
     </script>
 </body>
 </html>
