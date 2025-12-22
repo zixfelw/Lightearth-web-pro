@@ -120,6 +120,14 @@ document.addEventListener('DOMContentLoaded', function () {
     };
     const LIGHTEARTH_CACHE_TTL = 10 * 60 * 1000; // 10 minutes in milliseconds
     
+    // Cache for summary data per device (persists until device changes)
+    // IMPORTANT: Must be defined before fetchData() is called
+    let summaryDataCache = {
+        deviceId: null,
+        data: null,
+        timestamp: 0
+    };
+    
     // SOC API - Use Railway primary, fallback to solar-proxy
     const SOC_API_RAILWAY = SOC_API_PRIMARY;
     const SOC_API_WORKERS = SOC_API_FALLBACK;
@@ -620,13 +628,6 @@ document.addEventListener('DOMContentLoaded', function () {
         // FAST LOAD: Call realtime API first for instant display
         fetchRealtimeFirst(deviceId, date);
     }
-    
-    // Cache for summary data per device (persists until device changes)
-    let summaryDataCache = {
-        deviceId: null,
-        data: null,
-        timestamp: 0
-    };
     
     // Fast load: Optimized data loading with minimal API calls
     async function fetchRealtimeFirst(deviceId, date) {
