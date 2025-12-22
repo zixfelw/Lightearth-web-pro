@@ -1957,7 +1957,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const compactSearch = document.getElementById('compactSearch');
         const deviceIdDisplay = document.getElementById('deviceIdDisplay');
         const dateDisplay = document.getElementById('dateDisplay');
-        const fixedCalculateBtn = document.getElementById('fixedCalculateBtn');
         const compactDateDisplay = document.getElementById('compactDateDisplay');
         const compactDateInput = document.getElementById('compactDateInput');
 
@@ -1985,10 +1984,6 @@ document.addEventListener('DOMContentLoaded', function () {
         // Sync compact date input value
         if (compactDateInput && date) {
             compactDateInput.value = date;
-        }
-        // Show fixed calculate button
-        if (fixedCalculateBtn) {
-            fixedCalculateBtn.classList.remove('hidden');
         }
     }
 
