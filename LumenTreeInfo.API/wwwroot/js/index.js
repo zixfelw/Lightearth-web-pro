@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13130 - Home Assistant chart data integration via Cloudflare Worker
+ * Version: 13131 - Fix chart: null for future slots, no forward-fill beyond data range
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1094,10 +1094,14 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log(`📊 Converting HA data to chart format: ${timeline.length} data points`);
         
         // Create 288 slots for each 5-minute interval (00:00 to 23:55)
-        const pvData = new Array(288).fill(0);
-        const batData = new Array(288).fill(0);
-        const loadData = new Array(288).fill(0);
-        const gridData = new Array(288).fill(0);
+        // Use null for slots without data - Chart.js will skip these points
+        const pvData = new Array(288).fill(null);
+        const batData = new Array(288).fill(null);
+        const loadData = new Array(288).fill(null);
+        const gridData = new Array(288).fill(null);
+        
+        // Track the last slot with actual data
+        let lastDataSlot = -1;
         
         // Fill in data from timeline
         timeline.forEach(point => {
@@ -1112,19 +1116,39 @@ document.addEventListener('DOMContentLoaded', function () {
                 batData[slotIndex] = point.battery || 0;
                 loadData[slotIndex] = point.load || 0;
                 gridData[slotIndex] = point.grid || 0;
+                
+                // Track the last slot that has data
+                if (slotIndex > lastDataSlot) {
+                    lastDataSlot = slotIndex;
+                }
             }
         });
         
-        // Forward-fill gaps (use previous value for missing data points)
-        for (let i = 1; i < 288; i++) {
-            if (pvData[i] === 0 && pvData[i-1] !== 0) pvData[i] = pvData[i-1];
-            if (loadData[i] === 0 && loadData[i-1] !== 0) loadData[i] = loadData[i-1];
-            if (gridData[i] === 0 && gridData[i-1] !== 0) gridData[i] = gridData[i-1];
-            // Battery data: 0 is valid, don't forward fill
+        console.log(`📊 Last data slot: ${lastDataSlot} (${Math.floor(lastDataSlot/12)}:${String((lastDataSlot%12)*5).padStart(2,'0')})`);
+        
+        // Forward-fill gaps ONLY within the data range (not beyond lastDataSlot)
+        // This fills missing 5-min intervals between actual data points
+        for (let i = 1; i <= lastDataSlot; i++) {
+            // Only fill if current is null AND previous has valid data
+            if (pvData[i] === null && pvData[i-1] !== null) pvData[i] = pvData[i-1];
+            if (loadData[i] === null && loadData[i-1] !== null) loadData[i] = loadData[i-1];
+            if (gridData[i] === null && gridData[i-1] !== null) gridData[i] = gridData[i-1];
+            if (batData[i] === null && batData[i-1] !== null) batData[i] = batData[i-1];
         }
         
-        console.log(`📊 HA data converted: ${timeline.length} points -> 288 chart slots`);
-        console.log("📊 Sample data - PV max:", Math.max(...pvData), "Load max:", Math.max(...loadData));
+        // Convert null to 0 for slots within data range (start to lastDataSlot)
+        // Keep null for slots beyond lastDataSlot (future time - no data yet)
+        for (let i = 0; i <= lastDataSlot; i++) {
+            if (pvData[i] === null) pvData[i] = 0;
+            if (batData[i] === null) batData[i] = 0;
+            if (loadData[i] === null) loadData[i] = 0;
+            if (gridData[i] === null) gridData[i] = 0;
+        }
+        
+        // Count non-null values for logging
+        const nonNullCount = pvData.filter(v => v !== null).length;
+        console.log(`📊 HA data converted: ${timeline.length} points -> ${nonNullCount} chart slots (0-${lastDataSlot})`);
+        console.log("📊 Sample data - PV max:", Math.max(...pvData.filter(v => v !== null)), "Load max:", Math.max(...loadData.filter(v => v !== null)));
         
         // Convert to chart format and update
         const chartData = {
@@ -1132,7 +1156,7 @@ document.addEventListener('DOMContentLoaded', function () {
             bat: { tableValueInfo: batData },
             load: { tableValueInfo: loadData },
             grid: { tableValueInfo: gridData },
-            essentialLoad: { tableValueInfo: new Array(288).fill(0) } // Not available from HA
+            essentialLoad: { tableValueInfo: new Array(288).fill(null) } // Not available from HA
         };
         
         console.log("📊 Updating combined energy chart with Home Assistant data");
@@ -2333,7 +2357,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         pointHoverRadius: 6,
                         pointHoverBackgroundColor: 'rgb(245, 158, 11)',
                         pointHoverBorderColor: '#fff',
-                        pointHoverBorderWidth: 2
+                        pointHoverBorderWidth: 2,
+                        spanGaps: false  // Don't draw line through null values
                     },
                     {
                         label: 'Sạc Pin (W)',
@@ -2347,7 +2372,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         pointHoverRadius: 6,
                         pointHoverBackgroundColor: 'rgb(34, 197, 94)',
                         pointHoverBorderColor: '#fff',
-                        pointHoverBorderWidth: 2
+                        pointHoverBorderWidth: 2,
+                        spanGaps: false
                     },
                     {
                         label: 'Xả Pin (W)',
@@ -2361,7 +2387,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         pointHoverRadius: 6,
                         pointHoverBackgroundColor: 'rgb(239, 68, 68)',
                         pointHoverBorderColor: '#fff',
-                        pointHoverBorderWidth: 2
+                        pointHoverBorderWidth: 2,
+                        spanGaps: false
                     },
                     {
                         label: 'Điện Tiêu Thụ (W)',
@@ -2375,7 +2402,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         pointHoverRadius: 6,
                         pointHoverBackgroundColor: 'rgb(59, 130, 246)',
                         pointHoverBorderColor: '#fff',
-                        pointHoverBorderWidth: 2
+                        pointHoverBorderWidth: 2,
+                        spanGaps: false
                     },
                     {
                         label: 'Điện Lưới EVN (W)',
@@ -2389,7 +2417,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         pointHoverRadius: 6,
                         pointHoverBackgroundColor: 'rgb(168, 85, 247)',
                         pointHoverBorderColor: '#fff',
-                        pointHoverBorderWidth: 2
+                        pointHoverBorderWidth: 2,
+                        spanGaps: false
                     },
                     {
                         label: 'Điện Dự Phòng (W)',
@@ -2403,7 +2432,8 @@ document.addEventListener('DOMContentLoaded', function () {
                         pointHoverRadius: 6,
                         pointHoverBackgroundColor: 'rgb(6, 182, 212)',
                         pointHoverBorderColor: '#fff',
-                        pointHoverBorderWidth: 2
+                        pointHoverBorderWidth: 2,
+                        spanGaps: false
                     }
                 ]
             },
@@ -2793,14 +2823,22 @@ document.addEventListener('DOMContentLoaded', function () {
     function processBatteryChargingData(data) {
         if (!data) return [];
         // Battery convention: POSITIVE = charging (power flowing INTO battery)
-        return data.map(value => value > 0 ? value : 0);
+        // Preserve null values for future time slots
+        return data.map(value => {
+            if (value === null) return null;  // Keep null for no-data slots
+            return value > 0 ? value : 0;
+        });
     }
 
     function processBatteryDischargingData(data) {
         if (!data) return [];
         // Battery convention: NEGATIVE = discharging (power flowing OUT of battery)
         // We show as positive value in chart
-        return data.map(value => value < 0 ? Math.abs(value) : 0);
+        // Preserve null values for future time slots
+        return data.map(value => {
+            if (value === null) return null;  // Keep null for no-data slots
+            return value < 0 ? Math.abs(value) : 0;
+        });
     }
 
     // ========================================
