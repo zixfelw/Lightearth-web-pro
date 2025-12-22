@@ -1,5 +1,5 @@
 /**
- * Lightearth Proxy Worker v3.0 (based on v2.6)
+ * Lightearth Proxy Worker v3.1 (based on v3.0)
  * - Proxy to lesvr.suntcn.com
  * - Proxy to Home Assistant
  * - Optimized: O(n log n) power history processing to avoid Worker timeout
@@ -9,7 +9,8 @@
  * - Added: HA devices list endpoint
  * - Added: HA monthly energy endpoint
  * 
- * SECURITY FEATURES (v3.0):
+ * SECURITY FEATURES (v3.1):
+ * - GEO BLOCKING: Only allow requests from Vietnam (VN)
  * - Rate limiting per IP (60 requests/minute)
  * - CORS protection with allowed origins whitelist
  * - User-Agent validation (block bots/scrapers)
@@ -26,6 +27,9 @@ const VN_OFFSET_HOURS = 7;
 
 // ============ SECURITY CONFIGURATION ============
 const SECURITY_CONFIG = {
+  // GEO BLOCKING - Only allow these countries
+  allowedCountries: ['VN'], // Vietnam only
+  
   // Allowed origins - add your domains here
   allowedOrigins: [
     'https://lumentree.net',
@@ -122,6 +126,18 @@ function getClientIP(request) {
          'unknown';
 }
 
+// Get country code from Cloudflare header
+function getClientCountry(request) {
+  return request.headers.get('CF-IPCountry') || 'XX';
+}
+
+// Check if country is allowed
+function isCountryAllowed(country) {
+  // Allow unknown country (XX) for localhost/development
+  if (country === 'XX' || country === 'T1') return true; // T1 = Tor exit node, XX = unknown
+  return SECURITY_CONFIG.allowedCountries.includes(country);
+}
+
 function isOriginAllowed(origin) {
   if (!origin) return true; // Allow requests without origin (direct API calls)
   return SECURITY_CONFIG.allowedOrigins.some(allowed => 
@@ -162,6 +178,7 @@ export default {
     const origin = request.headers.get('Origin');
     const userAgent = request.headers.get('User-Agent');
     const clientIP = getClientIP(request);
+    const clientCountry = getClientCountry(request);
     
     const headers = createSecurityHeaders(origin);
 
@@ -170,9 +187,21 @@ export default {
       return new Response(null, { headers });
     }
 
+    // ========== GEO BLOCKING - FIRST CHECK ==========
+    // Block requests from outside Vietnam
+    if (!isCountryAllowed(clientCountry)) {
+      console.log(`[GEO BLOCKED] IP ${clientIP} from country ${clientCountry} - Access denied`);
+      return new Response(JSON.stringify({ 
+        error: 'Access denied. This service is only available in Vietnam.',
+        code: 'GEO_BLOCKED',
+        country: clientCountry,
+        allowedCountries: SECURITY_CONFIG.allowedCountries
+      }), { status: 403, headers });
+    }
+
     // Security: Block suspicious User-Agents
     if (isUserAgentBlocked(userAgent)) {
-      console.log(`[BLOCKED] Suspicious User-Agent from ${clientIP}: ${userAgent}`);
+      console.log(`[BLOCKED] Suspicious User-Agent from ${clientIP} (${clientCountry}): ${userAgent}`);
       return new Response(JSON.stringify({ 
         error: 'Access denied',
         code: 'BLOCKED_USER_AGENT'
@@ -216,10 +245,12 @@ export default {
     if (path === '/' || path === '/health') {
       return new Response(JSON.stringify({
         status: 'ok',
-        version: '3.0-secured',
+        version: '3.1-geo-secured',
         ha_configured: !!(HA_URL && HA_TOKEN),
         timezone: 'UTC+7 (Vietnam)',
+        yourCountry: clientCountry,
         security: {
+          geoBlocking: 'Vietnam only (VN)',
           rateLimit: `${SECURITY_CONFIG.rateLimit.maxRequests} requests/minute`,
           corsProtected: true
         },
