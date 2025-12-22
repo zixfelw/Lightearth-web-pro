@@ -49,6 +49,17 @@ public class HomeController : Controller
     }
 
     /// <summary>
+    /// Returns the private device management page
+    /// Accessible via URL: /?deviceId=xxx/private
+    /// </summary>
+    [Route("/private")]
+    public IActionResult Private()
+    {
+        Log.Information("Rendering private device management page");
+        return View("Private");
+    }
+
+    /// <summary>
     /// Gets and returns device information and energy data
     /// </summary>
     /// <param name="deviceId">The device ID to get information for</param>
@@ -897,6 +908,179 @@ public class HomeController : Controller
     public async Task<IActionResult> GetSOCDataByPath(string deviceId, string date)
     {
         return await GetSOCData(deviceId, date);
+    }
+
+    /// <summary>
+    /// Gets all devices registered in Home Assistant
+    /// Returns list of device IDs with their current status
+    /// </summary>
+    [Route("/api/ha/devices")]
+    public async Task<IActionResult> GetHomeAssistantDevices()
+    {
+        try
+        {
+            var haUrl = Environment.GetEnvironmentVariable("HomeAssistant__Url");
+            var haToken = Environment.GetEnvironmentVariable("HomeAssistant__Token");
+
+            if (string.IsNullOrEmpty(haUrl) || string.IsNullOrEmpty(haToken))
+            {
+                Log.Warning("Home Assistant not configured");
+                return Json(new { 
+                    success = false, 
+                    error = "Home Assistant not configured",
+                    devices = new List<object>()
+                });
+            }
+
+            var haClient = new MultiDeviceHomeAssistantClient(haUrl, haToken);
+            
+            if (!await haClient.CheckAvailabilityAsync())
+            {
+                Log.Warning("Home Assistant is not available");
+                return Json(new { 
+                    success = false, 
+                    error = "Home Assistant is not available",
+                    devices = new List<object>()
+                });
+            }
+
+            var deviceIds = await haClient.ScanDevicesAsync();
+            var devices = new List<object>();
+
+            foreach (var deviceId in deviceIds)
+            {
+                try
+                {
+                    var deviceData = await haClient.GetDeviceDataAsync(deviceId);
+                    var dailyEnergy = await haClient.GetDailyEnergyAsync(deviceId);
+                    
+                    devices.Add(new {
+                        deviceId = deviceId,
+                        isOnline = deviceData != null,
+                        lastUpdate = deviceData?.Timestamp,
+                        realtime = deviceData != null ? new {
+                            pvPower = deviceData.TotalPvPower ?? 0,
+                            batteryPower = deviceData.BatteryPower ?? 0,
+                            batterySoc = deviceData.BatteryChargePercentage ?? 0,
+                            gridPower = deviceData.GridPower ?? 0,
+                            loadPower = deviceData.HomeLoad ?? 0,
+                            temperature = deviceData.TemperatureCelsius ?? 0,
+                            batteryStatus = deviceData.BatteryStatus ?? "--",
+                            gridStatus = deviceData.GridStatus ?? "--"
+                        } : null,
+                        dailyEnergy = dailyEnergy != null ? new {
+                            pvDay = Math.Round(dailyEnergy.PvDay, 2),
+                            chargeDay = Math.Round(dailyEnergy.ChargeDay, 2),
+                            dischargeDay = Math.Round(dailyEnergy.DischargeDay, 2),
+                            gridDay = Math.Round(dailyEnergy.GridDay, 2),
+                            loadDay = Math.Round(dailyEnergy.TotalLoadDay, 2)
+                        } : null
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning($"Error getting data for device {deviceId}: {ex.Message}");
+                    devices.Add(new {
+                        deviceId = deviceId,
+                        isOnline = false,
+                        error = ex.Message
+                    });
+                }
+            }
+
+            Log.Information($"Found {devices.Count} devices in Home Assistant");
+            return Json(new {
+                success = true,
+                count = devices.Count,
+                devices = devices,
+                timestamp = DateTime.Now
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error getting Home Assistant devices");
+            return Json(new { 
+                success = false, 
+                error = ex.Message,
+                devices = new List<object>()
+            });
+        }
+    }
+
+    /// <summary>
+    /// Gets detailed device data from Home Assistant for a specific device
+    /// </summary>
+    [Route("/api/ha/device/{deviceId}")]
+    public async Task<IActionResult> GetHomeAssistantDevice(string deviceId)
+    {
+        try
+        {
+            var haUrl = Environment.GetEnvironmentVariable("HomeAssistant__Url");
+            var haToken = Environment.GetEnvironmentVariable("HomeAssistant__Token");
+
+            if (string.IsNullOrEmpty(haUrl) || string.IsNullOrEmpty(haToken))
+            {
+                return Json(new { success = false, error = "Home Assistant not configured" });
+            }
+
+            var haClient = new MultiDeviceHomeAssistantClient(haUrl, haToken);
+            
+            if (!await haClient.CheckAvailabilityAsync())
+            {
+                return Json(new { success = false, error = "Home Assistant is not available" });
+            }
+
+            var deviceData = await haClient.GetDeviceDataAsync(deviceId);
+            var dailyEnergy = await haClient.GetDailyEnergyAsync(deviceId);
+            var cellData = await haClient.GetBatteryCellDataAsync(deviceId);
+
+            if (deviceData == null)
+            {
+                return Json(new { success = false, error = $"Device {deviceId} not found in Home Assistant" });
+            }
+
+            return Json(new {
+                success = true,
+                deviceId = deviceId,
+                timestamp = DateTime.Now,
+                realtime = new {
+                    pvPower = deviceData.TotalPvPower ?? 0,
+                    pv1Power = deviceData.Pv1Power ?? 0,
+                    pv2Power = deviceData.Pv2Power ?? 0,
+                    batteryPower = deviceData.BatteryPower ?? 0,
+                    batterySoc = deviceData.BatteryChargePercentage ?? 0,
+                    batteryVoltage = deviceData.BatteryVoltage ?? 0,
+                    batteryStatus = deviceData.BatteryStatus ?? "--",
+                    gridPower = deviceData.GridPower ?? 0,
+                    gridVoltage = deviceData.AcInputVoltage ?? 0,
+                    gridStatus = deviceData.GridStatus ?? "--",
+                    loadPower = deviceData.HomeLoad ?? 0,
+                    essentialPower = deviceData.AcOutputPower ?? 0,
+                    temperature = deviceData.TemperatureCelsius ?? 0
+                },
+                dailyEnergy = dailyEnergy != null ? new {
+                    pvDay = Math.Round(dailyEnergy.PvDay, 2),
+                    chargeDay = Math.Round(dailyEnergy.ChargeDay, 2),
+                    dischargeDay = Math.Round(dailyEnergy.DischargeDay, 2),
+                    gridDay = Math.Round(dailyEnergy.GridDay, 2),
+                    loadDay = Math.Round(dailyEnergy.TotalLoadDay, 2),
+                    essentialDay = Math.Round(dailyEnergy.EssentialDay, 2)
+                } : null,
+                cellData = cellData != null ? new {
+                    numberOfCells = cellData.NumberOfCells,
+                    averageVoltage = cellData.AverageVoltage,
+                    minVoltage = cellData.MinimumVoltage,
+                    maxVoltage = cellData.MaximumVoltage,
+                    voltageDiff = cellData.VoltageDifference,
+                    cells = cellData.CellVoltages
+                } : null
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error getting Home Assistant device {DeviceId}", deviceId);
+            return Json(new { success = false, error = ex.Message });
+        }
     }
 
     /// <summary>
