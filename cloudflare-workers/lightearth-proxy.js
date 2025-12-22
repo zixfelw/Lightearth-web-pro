@@ -1,7 +1,8 @@
 /**
- * Lightearth Proxy Worker v2.1
+ * Lightearth Proxy Worker v2.2
  * - Proxy to lesvr.suntcn.com
  * - Proxy to Home Assistant
+ * - Optimized: O(n log n) power history processing to avoid Worker timeout
  * 
  * Environment Variables needed:
  * - HA_URL: Home Assistant URL (e.g., https://xxx.trycloudflare.com)
@@ -41,7 +42,7 @@ export default {
     if (path === '/' || path === '/health') {
       return new Response(JSON.stringify({
         status: 'ok',
-        version: '2.1',
+        version: '2.2',
         ha_configured: !!(HA_URL && HA_TOKEN)
       }), { headers });
     }
@@ -189,34 +190,52 @@ async function fetchHAPowerHistory(haUrl, haToken, deviceId, queryDate) {
   const startTime = `${queryDate}T00:00:00`;
   const endTime = `${queryDate}T23:59:59`;
   const entityIds = Object.values(sensors).join(',');
-  const historyUrl = `${haUrl}/api/history/period/${startTime}?end_time=${endTime}&filter_entity_id=${entityIds}&minimal_response`;
+  const historyUrl = `${haUrl}/api/history/period/${startTime}?end_time=${endTime}&filter_entity_id=${entityIds}&minimal_response&significant_changes_only`;
 
   const response = await fetch(historyUrl, { headers: haHeaders });
   if (!response.ok) throw new Error(`HA API error: ${response.status}`);
 
   const historyData = await response.json();
-  const sensorDataMap = {};
-  historyData.forEach(sensorHistory => {
-    if (sensorHistory.length > 0) {
-      sensorDataMap[sensorHistory[0].entity_id] = sensorHistory;
-    }
-  });
+  
+  // Pre-process: Create sorted arrays of {time, value} for each sensor
+  // This is O(n log n) instead of O(n * m * k)
+  const sensorTimelines = {};
+  const sensorKeys = Object.keys(sensors);
+  
+  for (const sensorHistory of historyData) {
+    if (!sensorHistory || sensorHistory.length === 0) continue;
+    const entityId = sensorHistory[0].entity_id;
+    const key = sensorKeys.find(k => sensors[k] === entityId);
+    if (!key) continue;
+    
+    // Convert to sorted array of {time, value}
+    sensorTimelines[key] = sensorHistory
+      .map(entry => ({
+        time: new Date(entry.last_changed || entry.last_updated).getTime(),
+        value: parseFloat(entry.state)
+      }))
+      .filter(e => !isNaN(e.value))
+      .sort((a, b) => a.time - b.time);
+  }
 
+  // Create 288 time slots (every 5 minutes)
   const timeline = [];
-  const lastValues = { pv: 0, battery: 0, grid: 0, load: 0 };
   const interval = 5 * 60 * 1000;
   const dayStart = new Date(`${queryDate}T00:00:00`).getTime();
   const dayEnd = new Date(`${queryDate}T23:59:59`).getTime();
+  
+  // Track current index in each sensor's timeline for efficient lookup
+  const indices = { pv: 0, battery: 0, grid: 0, load: 0 };
+  const lastValues = { pv: 0, battery: 0, grid: 0, load: 0 };
 
   for (let time = dayStart; time <= dayEnd; time += interval) {
-    for (const [key, entityId] of Object.entries(sensors)) {
-      const sensorHistory = sensorDataMap[entityId] || [];
-      for (const entry of sensorHistory) {
-        const entryTime = new Date(entry.last_changed || entry.last_updated).getTime();
-        if (entryTime <= time) {
-          const value = parseFloat(entry.state);
-          if (!isNaN(value)) lastValues[key] = value;
-        }
+    // For each sensor, find the latest value before or at this time
+    for (const key of sensorKeys) {
+      const sensorData = sensorTimelines[key] || [];
+      // Advance index while entries are before or at current time
+      while (indices[key] < sensorData.length && sensorData[indices[key]].time <= time) {
+        lastValues[key] = sensorData[indices[key]].value;
+        indices[key]++;
       }
     }
     timeline.push({ time: new Date(time).toISOString(), ...lastValues });
