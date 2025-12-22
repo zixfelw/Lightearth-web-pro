@@ -900,61 +900,90 @@
             </div>
         </div>
         
-        <!-- Công Suất Cao Nhất - Show max power + time -->
-        <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
-            <!-- PV Cao Nhất -->
-            <div class="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-900/20 dark:to-amber-800/20 rounded-xl p-2 sm:p-3 text-center border border-amber-200/50 dark:border-amber-700/30">
-                <div class="flex items-center justify-center gap-1 mb-1">
-                    <i data-lucide="sun" class="w-3 h-3 text-amber-500"></i>
-                    <span class="text-[8px] sm:text-[9px] font-bold text-amber-600 dark:text-amber-400 uppercase">PV Cao Nhất</span>
+        <!-- Công Suất Cao Nhất - 3 khung gộp đôi -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 mb-4">
+            <!-- Khung 1: PV + EVN (Nguồn vào) -->
+            <div class="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/50 rounded-xl p-3 border border-slate-200 dark:border-slate-600">
+                <div class="flex items-center gap-1.5 mb-2 pb-2 border-b border-slate-200 dark:border-slate-600">
+                    <i data-lucide="arrow-down-circle" class="w-4 h-4 text-amber-500"></i>
+                    <span class="text-[10px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Nguồn Vào</span>
                 </div>
-                <div class="text-xs sm:text-sm font-black text-amber-700 dark:text-amber-300" id="chart-pv-peak">--</div>
-                <div class="text-[10px] sm:text-xs font-bold text-amber-600 dark:text-amber-400" id="chart-pv-time">--:--</div>
+                <div class="grid grid-cols-2 gap-2">
+                    <!-- PV -->
+                    <div class="bg-amber-500/10 dark:bg-amber-500/20 rounded-lg p-2 text-center">
+                        <div class="flex items-center justify-center gap-1 mb-1">
+                            <i data-lucide="sun" class="w-3 h-3 text-amber-500"></i>
+                            <span class="text-[9px] font-bold text-amber-600 dark:text-amber-400">PV</span>
+                        </div>
+                        <div class="text-sm sm:text-base font-black text-amber-600 dark:text-amber-300" id="chart-pv-peak">--</div>
+                        <div class="text-[10px] font-semibold text-amber-500 dark:text-amber-400" id="chart-pv-time">--:--</div>
+                    </div>
+                    <!-- EVN -->
+                    <div class="bg-purple-500/10 dark:bg-purple-500/20 rounded-lg p-2 text-center">
+                        <div class="flex items-center justify-center gap-1 mb-1">
+                            <i data-lucide="plug" class="w-3 h-3 text-purple-500"></i>
+                            <span class="text-[9px] font-bold text-purple-600 dark:text-purple-400">EVN</span>
+                        </div>
+                        <div class="text-sm sm:text-base font-black text-purple-600 dark:text-purple-300" id="chart-grid-peak">--</div>
+                        <div class="text-[10px] font-semibold text-purple-500 dark:text-purple-400" id="chart-grid-time">--:--</div>
+                    </div>
+                </div>
             </div>
-            <!-- Sạc Cao Nhất -->
-            <div class="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-xl p-2 sm:p-3 text-center border border-green-200/50 dark:border-green-700/30">
-                <div class="flex items-center justify-center gap-1 mb-1">
-                    <i data-lucide="battery-charging" class="w-3 h-3 text-green-500"></i>
-                    <span class="text-[8px] sm:text-[9px] font-bold text-green-600 dark:text-green-400 uppercase">Sạc Cao Nhất</span>
+            
+            <!-- Khung 2: Sạc + Xả (Pin) -->
+            <div class="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/50 rounded-xl p-3 border border-slate-200 dark:border-slate-600">
+                <div class="flex items-center gap-1.5 mb-2 pb-2 border-b border-slate-200 dark:border-slate-600">
+                    <i data-lucide="battery" class="w-4 h-4 text-emerald-500"></i>
+                    <span class="text-[10px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Pin Lưu Trữ</span>
                 </div>
-                <div class="text-xs sm:text-sm font-black text-green-700 dark:text-green-300" id="chart-charge-peak">--</div>
-                <div class="text-[10px] sm:text-xs font-bold text-green-600 dark:text-green-400" id="chart-charge-time">--:--</div>
+                <div class="grid grid-cols-2 gap-2">
+                    <!-- Sạc -->
+                    <div class="bg-green-500/10 dark:bg-green-500/20 rounded-lg p-2 text-center">
+                        <div class="flex items-center justify-center gap-1 mb-1">
+                            <i data-lucide="battery-charging" class="w-3 h-3 text-green-500"></i>
+                            <span class="text-[9px] font-bold text-green-600 dark:text-green-400">Sạc</span>
+                        </div>
+                        <div class="text-sm sm:text-base font-black text-green-600 dark:text-green-300" id="chart-charge-peak">--</div>
+                        <div class="text-[10px] font-semibold text-green-500 dark:text-green-400" id="chart-charge-time">--:--</div>
+                    </div>
+                    <!-- Xả -->
+                    <div class="bg-red-500/10 dark:bg-red-500/20 rounded-lg p-2 text-center">
+                        <div class="flex items-center justify-center gap-1 mb-1">
+                            <i data-lucide="zap" class="w-3 h-3 text-red-500"></i>
+                            <span class="text-[9px] font-bold text-red-600 dark:text-red-400">Xả</span>
+                        </div>
+                        <div class="text-sm sm:text-base font-black text-red-600 dark:text-red-300" id="chart-discharge-peak">--</div>
+                        <div class="text-[10px] font-semibold text-red-500 dark:text-red-400" id="chart-discharge-time">--:--</div>
+                    </div>
+                </div>
             </div>
-            <!-- Xả Cao Nhất -->
-            <div class="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 rounded-xl p-2 sm:p-3 text-center border border-red-200/50 dark:border-red-700/30">
-                <div class="flex items-center justify-center gap-1 mb-1">
-                    <i data-lucide="zap" class="w-3 h-3 text-red-500"></i>
-                    <span class="text-[8px] sm:text-[9px] font-bold text-red-600 dark:text-red-400 uppercase">Xả Cao Nhất</span>
+            
+            <!-- Khung 3: Tải + Dự phòng (Tiêu thụ) -->
+            <div class="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-700/50 rounded-xl p-3 border border-slate-200 dark:border-slate-600">
+                <div class="flex items-center gap-1.5 mb-2 pb-2 border-b border-slate-200 dark:border-slate-600">
+                    <i data-lucide="arrow-up-circle" class="w-4 h-4 text-blue-500"></i>
+                    <span class="text-[10px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Tiêu Thụ</span>
                 </div>
-                <div class="text-xs sm:text-sm font-black text-red-700 dark:text-red-300" id="chart-discharge-peak">--</div>
-                <div class="text-[10px] sm:text-xs font-bold text-red-600 dark:text-red-400" id="chart-discharge-time">--:--</div>
-            </div>
-            <!-- Tải Cao Nhất -->
-            <div class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl p-2 sm:p-3 text-center border border-blue-200/50 dark:border-blue-700/30">
-                <div class="flex items-center justify-center gap-1 mb-1">
-                    <i data-lucide="home" class="w-3 h-3 text-blue-500"></i>
-                    <span class="text-[8px] sm:text-[9px] font-bold text-blue-600 dark:text-blue-400 uppercase">Tải Cao Nhất</span>
+                <div class="grid grid-cols-2 gap-2">
+                    <!-- Tải -->
+                    <div class="bg-blue-500/10 dark:bg-blue-500/20 rounded-lg p-2 text-center">
+                        <div class="flex items-center justify-center gap-1 mb-1">
+                            <i data-lucide="home" class="w-3 h-3 text-blue-500"></i>
+                            <span class="text-[9px] font-bold text-blue-600 dark:text-blue-400">Tải</span>
+                        </div>
+                        <div class="text-sm sm:text-base font-black text-blue-600 dark:text-blue-300" id="chart-load-peak">--</div>
+                        <div class="text-[10px] font-semibold text-blue-500 dark:text-blue-400" id="chart-load-time">--:--</div>
+                    </div>
+                    <!-- Dự phòng -->
+                    <div class="bg-cyan-500/10 dark:bg-cyan-500/20 rounded-lg p-2 text-center">
+                        <div class="flex items-center justify-center gap-1 mb-1">
+                            <i data-lucide="shield" class="w-3 h-3 text-cyan-500"></i>
+                            <span class="text-[9px] font-bold text-cyan-600 dark:text-cyan-400">Dự phòng</span>
+                        </div>
+                        <div class="text-sm sm:text-base font-black text-cyan-600 dark:text-cyan-300" id="chart-essential-peak">--</div>
+                        <div class="text-[10px] font-semibold text-cyan-500 dark:text-cyan-400" id="chart-essential-time">--:--</div>
+                    </div>
                 </div>
-                <div class="text-xs sm:text-sm font-black text-blue-700 dark:text-blue-300" id="chart-load-peak">--</div>
-                <div class="text-[10px] sm:text-xs font-bold text-blue-600 dark:text-blue-400" id="chart-load-time">--:--</div>
-            </div>
-            <!-- EVN Cao Nhất -->
-            <div class="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-xl p-2 sm:p-3 text-center border border-purple-200/50 dark:border-purple-700/30">
-                <div class="flex items-center justify-center gap-1 mb-1">
-                    <i data-lucide="plug" class="w-3 h-3 text-purple-500"></i>
-                    <span class="text-[8px] sm:text-[9px] font-bold text-purple-600 dark:text-purple-400 uppercase">EVN Cao Nhất</span>
-                </div>
-                <div class="text-xs sm:text-sm font-black text-purple-700 dark:text-purple-300" id="chart-grid-peak">--</div>
-                <div class="text-[10px] sm:text-xs font-bold text-purple-600 dark:text-purple-400" id="chart-grid-time">--:--</div>
-            </div>
-            <!-- Dự Phòng Cao Nhất -->
-            <div class="bg-gradient-to-br from-cyan-50 to-cyan-100 dark:from-cyan-900/20 dark:to-cyan-800/20 rounded-xl p-2 sm:p-3 text-center border border-cyan-200/50 dark:border-cyan-700/30">
-                <div class="flex items-center justify-center gap-1 mb-1">
-                    <i data-lucide="shield" class="w-3 h-3 text-cyan-500"></i>
-                    <span class="text-[8px] sm:text-[9px] font-bold text-cyan-600 dark:text-cyan-400 uppercase">Dự Phòng</span>
-                </div>
-                <div class="text-xs sm:text-sm font-black text-cyan-700 dark:text-cyan-300" id="chart-essential-peak">--</div>
-                <div class="text-[10px] sm:text-xs font-bold text-cyan-600 dark:text-cyan-400" id="chart-essential-time">--:--</div>
             </div>
         </div>
         
