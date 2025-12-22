@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13133 - Fix timezone: HA data now uses Vietnam local time (UTC+7)
+ * Version: 13134 - Add hover markers (circles + vertical line) to combined chart
  * 
  * Features:
  * - Real-time data via SignalR
@@ -2431,11 +2431,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         fill: true,
                         tension: 0.4,
                         pointRadius: 0,
-                        pointHoverRadius: 6,
+                        pointHitRadius: 10,
+                        pointHoverRadius: 8,
                         pointHoverBackgroundColor: 'rgb(245, 158, 11)',
                         pointHoverBorderColor: '#fff',
-                        pointHoverBorderWidth: 2,
-                        spanGaps: false  // Don't draw line through null values
+                        pointHoverBorderWidth: 3,
+                        spanGaps: false
                     },
                     {
                         label: 'Sạc Pin (W)',
@@ -2446,10 +2447,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         fill: true,
                         tension: 0.4,
                         pointRadius: 0,
-                        pointHoverRadius: 6,
+                        pointHitRadius: 10,
+                        pointHoverRadius: 8,
                         pointHoverBackgroundColor: 'rgb(34, 197, 94)',
                         pointHoverBorderColor: '#fff',
-                        pointHoverBorderWidth: 2,
+                        pointHoverBorderWidth: 3,
                         spanGaps: false
                     },
                     {
@@ -2461,10 +2463,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         fill: true,
                         tension: 0.4,
                         pointRadius: 0,
-                        pointHoverRadius: 6,
+                        pointHitRadius: 10,
+                        pointHoverRadius: 8,
                         pointHoverBackgroundColor: 'rgb(239, 68, 68)',
                         pointHoverBorderColor: '#fff',
-                        pointHoverBorderWidth: 2,
+                        pointHoverBorderWidth: 3,
                         spanGaps: false
                     },
                     {
@@ -2476,10 +2479,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         fill: true,
                         tension: 0.4,
                         pointRadius: 0,
-                        pointHoverRadius: 6,
+                        pointHitRadius: 10,
+                        pointHoverRadius: 8,
                         pointHoverBackgroundColor: 'rgb(59, 130, 246)',
                         pointHoverBorderColor: '#fff',
-                        pointHoverBorderWidth: 2,
+                        pointHoverBorderWidth: 3,
                         spanGaps: false
                     },
                     {
@@ -2491,10 +2495,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         fill: true,
                         tension: 0.4,
                         pointRadius: 0,
-                        pointHoverRadius: 6,
+                        pointHitRadius: 10,
+                        pointHoverRadius: 8,
                         pointHoverBackgroundColor: 'rgb(168, 85, 247)',
                         pointHoverBorderColor: '#fff',
-                        pointHoverBorderWidth: 2,
+                        pointHoverBorderWidth: 3,
                         spanGaps: false
                     },
                     {
@@ -2506,10 +2511,11 @@ document.addEventListener('DOMContentLoaded', function () {
                         fill: true,
                         tension: 0.4,
                         pointRadius: 0,
-                        pointHoverRadius: 6,
+                        pointHitRadius: 10,
+                        pointHoverRadius: 8,
                         pointHoverBackgroundColor: 'rgb(6, 182, 212)',
                         pointHoverBorderColor: '#fff',
-                        pointHoverBorderWidth: 2,
+                        pointHoverBorderWidth: 3,
                         spanGaps: false
                     }
                 ]
@@ -2557,7 +2563,58 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 interaction: { mode: 'index', intersect: false },
                 hover: { mode: 'index', intersect: false }
-            }
+            },
+            plugins: [{
+                // Custom plugin to draw vertical line and hover circles
+                id: 'hoverLine',
+                afterDraw: (chart) => {
+                    const activeElements = chart.getActiveElements();
+                    if (activeElements.length === 0) return;
+                    
+                    const ctx = chart.ctx;
+                    const chartArea = chart.chartArea;
+                    const x = activeElements[0].element.x;
+                    
+                    // Draw vertical dashed line
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
+                    ctx.lineWidth = 1;
+                    ctx.moveTo(x, chartArea.top);
+                    ctx.lineTo(x, chartArea.bottom);
+                    ctx.stroke();
+                    ctx.restore();
+                    
+                    // Draw circles at each data point
+                    activeElements.forEach((element, index) => {
+                        const dataset = chart.data.datasets[index];
+                        if (!dataset.hidden) {
+                            const y = element.element.y;
+                            const color = dataset.borderColor;
+                            
+                            // Outer glow
+                            ctx.save();
+                            ctx.beginPath();
+                            ctx.arc(x, y, 10, 0, Math.PI * 2);
+                            ctx.fillStyle = color.replace('rgb', 'rgba').replace(')', ', 0.2)');
+                            ctx.fill();
+                            ctx.restore();
+                            
+                            // Main circle with white border
+                            ctx.save();
+                            ctx.beginPath();
+                            ctx.arc(x, y, 6, 0, Math.PI * 2);
+                            ctx.fillStyle = color;
+                            ctx.fill();
+                            ctx.strokeStyle = '#fff';
+                            ctx.lineWidth = 2;
+                            ctx.stroke();
+                            ctx.restore();
+                        }
+                    });
+                }
+            }]
         });
         
         // Mouse leave handler for tooltip
