@@ -215,22 +215,39 @@ document.addEventListener('DOMContentLoaded', function () {
     // LocalStorage cache keys for persistent caching across page reloads
     const LS_CACHE_KEYS = {
         lightearthData: 'solar_lightearth_cache',
-        chartData: 'solar_chart_cache'
+        chartData: 'solar_chart_cache',
+        summaryData: 'solar_summary_cache'
     };
     
     // Load cached data from localStorage on startup
     function loadCacheFromLocalStorage() {
         try {
+            // Load chart/lightearth cache
             const cached = localStorage.getItem(LS_CACHE_KEYS.lightearthData);
             if (cached) {
                 const parsed = JSON.parse(cached);
                 const age = Date.now() - parsed.timestamp;
                 if (age < LIGHTEARTH_CACHE_TTL) {
-                    console.log(`📦 Loaded Lightearth cache from localStorage (age: ${Math.round(age/1000)}s)`);
+                    console.log(`📦 Loaded Lightearth cache from localStorage (age: ${Math.round(age/1000)}s, device: ${parsed.deviceId}, date: ${parsed.date})`);
                     lightearthCache = parsed;
                 } else {
                     console.log('⚠️ LocalStorage cache expired, clearing');
                     localStorage.removeItem(LS_CACHE_KEYS.lightearthData);
+                }
+            }
+            
+            // Load summary cache
+            const summaryCached = localStorage.getItem(LS_CACHE_KEYS.summaryData);
+            if (summaryCached) {
+                const parsed = JSON.parse(summaryCached);
+                const age = Date.now() - parsed.timestamp;
+                // Summary cache valid for 30 minutes
+                if (age < LIGHTEARTH_CACHE_TTL) {
+                    console.log(`📦 Loaded Summary cache from localStorage (age: ${Math.round(age/1000)}s, device: ${parsed.deviceId})`);
+                    summaryDataCache = parsed;
+                } else {
+                    console.log('⚠️ Summary cache expired, clearing');
+                    localStorage.removeItem(LS_CACHE_KEYS.summaryData);
                 }
             }
         } catch (e) {
@@ -243,9 +260,22 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             if (lightearthCache.data) {
                 localStorage.setItem(LS_CACHE_KEYS.lightearthData, JSON.stringify(lightearthCache));
+                console.log(`💾 Chart cache saved to localStorage (device: ${lightearthCache.deviceId})`);
             }
         } catch (e) {
             console.warn('Failed to save cache to localStorage:', e);
+        }
+    }
+    
+    // Save summary cache to localStorage
+    function saveSummaryCacheToLocalStorage() {
+        try {
+            if (summaryDataCache.data) {
+                localStorage.setItem(LS_CACHE_KEYS.summaryData, JSON.stringify(summaryDataCache));
+                console.log(`💾 Summary cache saved to localStorage (device: ${summaryDataCache.deviceId})`);
+            }
+        } catch (e) {
+            console.warn('Failed to save summary cache to localStorage:', e);
         }
     }
     
@@ -814,7 +844,12 @@ document.addEventListener('DOMContentLoaded', function () {
         
         if (hasCachedChart) {
             console.log('📦 Using cached chart data for instant display');
-            updateSummaryFromLightearthData(lightearthCache.data);
+            // Apply cached data based on source type
+            if (lightearthCache.data.dataSource === 'HomeAssistant') {
+                updateChartFromHAData(lightearthCache.data);
+            } else {
+                updateSummaryFromLightearthData(lightearthCache.data);
+            }
         } else {
             // Show loading chart placeholder while fetching
             showLoadingChart();
@@ -823,17 +858,30 @@ document.addEventListener('DOMContentLoaded', function () {
         // Fetch summary data (updates 3 cards: Năng Lượng, Pin Lưu Trữ, Nguồn Điện)
         fetchRealtimeDataForSummary(deviceId);
         
-        // Fetch SOC data in background (for SOC chart)
+        // ALWAYS fetch SOC data (for SOC chart) - even if we have cache
+        // This ensures SOC chart is always displayed
+        console.log('📊 Fetching SOC data for chart...');
         fetchSOCData().catch(err => console.warn('SOC fetch error:', err));
         
-        // Fetch temperature min/max in background
-        fetchTemperatureMinMax(deviceId, date);
+        // ALWAYS fetch temperature min/max - even if we have cache
+        console.log('🌡️ Fetching temperature data...');
+        fetchTemperatureMinMax(deviceId, queryDate);
         
         // Fetch device info (inverter model) from HA
         fetchDeviceInfo(deviceId);
         
-        // Fetch chart data (lower priority)
-        fetchDayDataInBackground(deviceId, date).catch(err => console.warn('Day data error:', err));
+        // ALWAYS fetch chart data if cache is empty or stale
+        // This ensures charts are always populated
+        if (!hasCachedChart) {
+            console.log('📊 No valid cache, fetching fresh chart data...');
+            fetchDayDataInBackground(deviceId, queryDate).catch(err => console.warn('Day data error:', err));
+        } else {
+            // Even with cache, refresh data in background for freshness
+            console.log('📊 Refreshing chart data in background...');
+            setTimeout(() => {
+                fetchDayDataInBackground(deviceId, queryDate).catch(err => console.warn('Background refresh error:', err));
+            }, 2000); // Delay 2s to not block initial render
+        }
     }
     
     // Helper to apply summary data to UI
@@ -875,6 +923,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     data: cacheData,
                     timestamp: Date.now()
                 };
+                saveSummaryCacheToLocalStorage(); // Persist to localStorage
                 
                 // Update UI immediately
                 applySummaryData(cacheData);
@@ -932,6 +981,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         
                         // Cache and update
                         summaryDataCache = { deviceId, data: cacheData, timestamp: Date.now() };
+                        saveSummaryCacheToLocalStorage(); // Persist to localStorage
                         applySummaryData(cacheData);
                         
                         console.log("✅ [Priority 1] Railway API SUCCESS:", summary);
