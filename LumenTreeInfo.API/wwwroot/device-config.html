@@ -935,7 +935,10 @@
             showNotification('Da them template thiet bi moi! Vui long cap nhat thong tin.', 'info');
         }
         
-        // Fetch HA device info
+        // Device info cache TTL: 24 hours
+        const DEVICE_INFO_CACHE_TTL = 24 * 60 * 60 * 1000;
+        
+        // Fetch HA device info with caching
         async function fetchHADeviceInfo() {
             const deviceId = document.getElementById('haDeviceId').value.trim();
             const infoDiv = document.getElementById('haDeviceInfo');
@@ -945,6 +948,27 @@
                 return;
             }
             
+            // Check localStorage cache first
+            const cacheKey = `deviceInfo_${deviceId}`;
+            const cached = localStorage.getItem(cacheKey);
+            
+            if (cached) {
+                try {
+                    const cachedData = JSON.parse(cached);
+                    const cacheAge = Date.now() - cachedData.timestamp;
+                    
+                    // Use cache if not expired (24 hours)
+                    if (cacheAge < DEVICE_INFO_CACHE_TTL && cachedData.raw) {
+                        const cacheAgeMin = Math.round(cacheAge / 60000);
+                        console.log(`Using cached device info for ${deviceId} (age: ${cacheAgeMin} min)`);
+                        displayDeviceInfo(deviceId, cachedData.raw, true, cacheAgeMin);
+                        return;
+                    }
+                } catch (e) {
+                    console.warn('Invalid cache data');
+                }
+            }
+            
             infoDiv.innerHTML = '<div class="alert alert-info">Dang lay thong tin tu Home Assistant...</div>';
             
             try {
@@ -952,25 +976,19 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    infoDiv.innerHTML = `
-                        <div class="device-card" style="max-width: 100%;">
-                            <h4>Thong Tin Thiet Bi: ${deviceId}</h4>
-                            <div class="info">
-                                ${data.model ? `<strong>Model:</strong> <span style="color: var(--warning);">${data.model}</span><br>` : ''}
-                                ${data.manufacturer ? `<strong>Nha san xuat:</strong> <span>${data.manufacturer}</span><br>` : ''}
-                                ${data.sw_version ? `<strong>Phan mem:</strong> <span>${data.sw_version}</span><br>` : ''}
-                                ${data.hw_version ? `<strong>Phan cung:</strong> <span>${data.hw_version}</span><br>` : ''}
-                                ${data.name ? `<strong>Ten:</strong> <span>${data.name}</span><br>` : ''}
-                                ${data.friendly_name ? `<strong>Ten hien thi:</strong> <span>${data.friendly_name}</span><br>` : ''}
-                                ${data.entity_id ? `<strong>Entity ID:</strong> <span style="color: var(--text-muted);">${data.entity_id}</span><br>` : ''}
-                            </div>
-                            <div class="btn-group" style="margin-top: 12px;">
-                                <button class="btn btn-primary" onclick="useHAInfo('${deviceId}', '${data.model || ''}', '${data.manufacturer || ''}', '${data.sw_version || ''}', '${data.hw_version || ''}')">
-                                    Su Dung Thong Tin Nay
-                                </button>
-                            </div>
-                        </div>
-                    `;
+                    // Cache to localStorage
+                    try {
+                        localStorage.setItem(cacheKey, JSON.stringify({
+                            model: data.model || data.friendly_name?.split(' ')[0] || null,
+                            timestamp: Date.now(),
+                            raw: data
+                        }));
+                        console.log(`Device info cached for ${deviceId}`);
+                    } catch (e) {
+                        console.warn('Could not cache device info');
+                    }
+                    
+                    displayDeviceInfo(deviceId, data, false);
                 } else {
                     infoDiv.innerHTML = `
                         <div class="alert alert-danger">
@@ -979,12 +997,62 @@
                     `;
                 }
             } catch (error) {
+                // Try to use expired cache as fallback
+                if (cached) {
+                    try {
+                        const cachedData = JSON.parse(cached);
+                        if (cachedData.raw) {
+                            console.log(`Using expired cache as fallback for ${deviceId}`);
+                            displayDeviceInfo(deviceId, cachedData.raw, true, 'expired');
+                            showNotification('Su dung du lieu cache (API khong phan hoi)', 'warning');
+                            return;
+                        }
+                    } catch (e) {
+                        // Ignore
+                    }
+                }
+                
                 infoDiv.innerHTML = `
                     <div class="alert alert-danger">
                         Loi ket noi: ${error.message}
                     </div>
                 `;
             }
+        }
+        
+        // Display device info in UI
+        function displayDeviceInfo(deviceId, data, fromCache, cacheAge = null) {
+            const infoDiv = document.getElementById('haDeviceInfo');
+            const cacheIndicator = fromCache ? `<span style="color: var(--text-muted); font-size: 11px;">(tu cache${cacheAge ? ': ' + cacheAge + ' phut truoc' : ''})</span>` : '';
+            
+            infoDiv.innerHTML = `
+                <div class="device-card" style="max-width: 100%;">
+                    <h4>Thong Tin Thiet Bi: ${deviceId} ${cacheIndicator}</h4>
+                    <div class="info">
+                        ${data.model ? `<strong>Model:</strong> <span style="color: var(--warning);">${data.model}</span><br>` : ''}
+                        ${data.manufacturer ? `<strong>Nha san xuat:</strong> <span>${data.manufacturer}</span><br>` : ''}
+                        ${data.sw_version ? `<strong>Phan mem:</strong> <span>${data.sw_version}</span><br>` : ''}
+                        ${data.hw_version ? `<strong>Phan cung:</strong> <span>${data.hw_version}</span><br>` : ''}
+                        ${data.name ? `<strong>Ten:</strong> <span>${data.name}</span><br>` : ''}
+                        ${data.friendly_name ? `<strong>Ten hien thi:</strong> <span>${data.friendly_name}</span><br>` : ''}
+                        ${data.entity_id ? `<strong>Entity ID:</strong> <span style="color: var(--text-muted);">${data.entity_id}</span><br>` : ''}
+                    </div>
+                    <div class="btn-group" style="margin-top: 12px;">
+                        <button class="btn btn-primary" onclick="useHAInfo('${deviceId}', '${data.model || ''}', '${data.manufacturer || ''}', '${data.sw_version || ''}', '${data.hw_version || ''}')">
+                            Su Dung Thong Tin Nay
+                        </button>
+                        ${fromCache ? `<button class="btn btn-outline" onclick="refreshDeviceInfoFromAPI('${deviceId}')">Lam Moi Tu API</button>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Force refresh device info from API (bypass cache)
+        async function refreshDeviceInfoFromAPI(deviceId) {
+            const cacheKey = `deviceInfo_${deviceId}`;
+            localStorage.removeItem(cacheKey);
+            document.getElementById('haDeviceId').value = deviceId;
+            await fetchHADeviceInfo();
         }
         
         // Use HA info to fill editor

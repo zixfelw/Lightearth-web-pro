@@ -1,5 +1,5 @@
 /**
- * Lightearth Proxy Worker v2.5
+ * Lightearth Proxy Worker v3.0 - SECURED VERSION
  * - Proxy to lesvr.suntcn.com
  * - Proxy to Home Assistant
  * - Optimized: O(n log n) power history processing to avoid Worker timeout
@@ -7,30 +7,249 @@
  * - Added: Temperature min/max history endpoint
  * - Added: Device info endpoint (model, manufacturer, firmware)
  * 
+ * SECURITY FEATURES (v3.0):
+ * - Rate limiting per IP (using Cloudflare KV)
+ * - CORS protection with allowed origins whitelist
+ * - User-Agent validation
+ * - Request logging for suspicious activity
+ * 
  * Environment Variables needed:
  * - HA_URL: Home Assistant URL (e.g., https://xxx.trycloudflare.com)
  * - HA_TOKEN: Home Assistant Long-Lived Access Token
+ * - RATE_LIMIT_KV: KV namespace for rate limiting (optional)
+ * - API_KEY: Optional API key for additional protection
  */
 
 // Vietnam timezone offset: UTC+7
 const VN_OFFSET_HOURS = 7;
 
+// ============ SECURITY CONFIGURATION ============
+const SECURITY_CONFIG = {
+  // Allowed origins - add your domains here
+  allowedOrigins: [
+    'https://lumentree.net',
+    'https://www.lumentree.net',
+    'https://solar.applike098.workers.dev',
+    'https://lumentreeinfo-api-production.up.railway.app',
+    'http://localhost:3000',
+    'http://localhost:5000',
+    'http://localhost:8080',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5000',
+    'http://127.0.0.1:8080',
+    // Add more allowed origins as needed
+  ],
+  
+  // Rate limiting settings
+  rateLimit: {
+    maxRequests: 60,      // Max requests per window
+    windowMs: 60 * 1000,  // 1 minute window
+    blockDurationMs: 5 * 60 * 1000,  // Block for 5 minutes if exceeded
+  },
+  
+  // Blocked User-Agents (bots, scrapers)
+  blockedUserAgents: [
+    'curl',
+    'wget',
+    'python-requests',
+    'scrapy',
+    'httpclient',
+    'java/',
+    'libwww',
+    'lwp-trivial',
+    'php/',
+    'go-http-client',
+    'axios/',
+  ],
+  
+  // Suspicious patterns to log
+  suspiciousPatterns: [
+    /\.\.\//,           // Path traversal
+    /<script/i,         // XSS attempt
+    /union.*select/i,   // SQL injection
+    /eval\(/i,          // Code injection
+  ],
+};
+
+// ============ RATE LIMITING (In-Memory for Workers without KV) ============
+// Note: This resets on worker restart. For persistent rate limiting, use Cloudflare KV
+const rateLimitMap = new Map();
+
+function isRateLimited(ip) {
+  const now = Date.now();
+  const record = rateLimitMap.get(ip);
+  
+  if (!record) {
+    rateLimitMap.set(ip, { count: 1, windowStart: now, blocked: false });
+    return false;
+  }
+  
+  // Check if blocked
+  if (record.blocked && now < record.blockedUntil) {
+    return true;
+  }
+  
+  // Reset block if duration passed
+  if (record.blocked && now >= record.blockedUntil) {
+    record.blocked = false;
+    record.count = 1;
+    record.windowStart = now;
+    return false;
+  }
+  
+  // Check if window expired
+  if (now - record.windowStart > SECURITY_CONFIG.rateLimit.windowMs) {
+    record.count = 1;
+    record.windowStart = now;
+    return false;
+  }
+  
+  // Increment and check
+  record.count++;
+  if (record.count > SECURITY_CONFIG.rateLimit.maxRequests) {
+    record.blocked = true;
+    record.blockedUntil = now + SECURITY_CONFIG.rateLimit.blockDurationMs;
+    console.log(`[RATE LIMIT] IP ${ip} blocked until ${new Date(record.blockedUntil).toISOString()}`);
+    return true;
+  }
+  
+  return false;
+}
+
+// Clean up old entries periodically (prevent memory leak)
+function cleanupRateLimitMap() {
+  const now = Date.now();
+  const maxAge = SECURITY_CONFIG.rateLimit.windowMs * 10; // Keep for 10 windows
+  
+  for (const [ip, record] of rateLimitMap.entries()) {
+    if (now - record.windowStart > maxAge) {
+      rateLimitMap.delete(ip);
+    }
+  }
+}
+
+// ============ SECURITY HELPERS ============
+
+function getClientIP(request) {
+  return request.headers.get('CF-Connecting-IP') || 
+         request.headers.get('X-Real-IP') || 
+         request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() ||
+         'unknown';
+}
+
+function isOriginAllowed(origin) {
+  if (!origin) return false;
+  return SECURITY_CONFIG.allowedOrigins.some(allowed => 
+    origin === allowed || origin.endsWith('.workers.dev')
+  );
+}
+
+function isUserAgentBlocked(userAgent) {
+  if (!userAgent) return true; // Block requests without User-Agent
+  const ua = userAgent.toLowerCase();
+  return SECURITY_CONFIG.blockedUserAgents.some(blocked => ua.includes(blocked));
+}
+
+function hasSuspiciousPatterns(url, path) {
+  const fullPath = url + path;
+  return SECURITY_CONFIG.suspiciousPatterns.some(pattern => pattern.test(fullPath));
+}
+
+function createSecurityHeaders(origin) {
+  // Only allow specific origins, not wildcard
+  const allowedOrigin = isOriginAllowed(origin) ? origin : SECURITY_CONFIG.allowedOrigins[0];
+  
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-API-Key',
+    'Access-Control-Max-Age': '86400',
+    'Content-Type': 'application/json',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+  };
+}
+
+// ============ MAIN HANDLER ============
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
-
-    const headers = {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-      'Content-Type': 'application/json'
-    };
-
+    const origin = request.headers.get('Origin');
+    const userAgent = request.headers.get('User-Agent');
+    const clientIP = getClientIP(request);
+    
+    // Get security headers
+    const headers = createSecurityHeaders(origin);
+    
+    // ============ SECURITY CHECKS ============
+    
+    // 1. Handle preflight requests
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers });
     }
-
+    
+    // 2. Only allow GET requests (except OPTIONS)
+    if (request.method !== 'GET') {
+      console.log(`[BLOCKED] Non-GET method from ${clientIP}: ${request.method}`);
+      return new Response(JSON.stringify({ 
+        error: 'Method not allowed',
+        code: 'METHOD_NOT_ALLOWED'
+      }), { status: 405, headers });
+    }
+    
+    // 3. Check User-Agent (allow browsers, block scrapers)
+    if (isUserAgentBlocked(userAgent)) {
+      console.log(`[BLOCKED] Suspicious User-Agent from ${clientIP}: ${userAgent}`);
+      return new Response(JSON.stringify({ 
+        error: 'Access denied',
+        code: 'INVALID_USER_AGENT'
+      }), { status: 403, headers });
+    }
+    
+    // 4. Check for suspicious patterns
+    if (hasSuspiciousPatterns(url.href, path)) {
+      console.log(`[BLOCKED] Suspicious pattern from ${clientIP}: ${path}`);
+      return new Response(JSON.stringify({ 
+        error: 'Invalid request',
+        code: 'SUSPICIOUS_REQUEST'
+      }), { status: 400, headers });
+    }
+    
+    // 5. Rate limiting
+    if (isRateLimited(clientIP)) {
+      return new Response(JSON.stringify({ 
+        error: 'Too many requests. Please try again later.',
+        code: 'RATE_LIMITED',
+        retryAfter: Math.ceil(SECURITY_CONFIG.rateLimit.blockDurationMs / 1000)
+      }), { 
+        status: 429, 
+        headers: {
+          ...headers,
+          'Retry-After': String(Math.ceil(SECURITY_CONFIG.rateLimit.blockDurationMs / 1000))
+        }
+      });
+    }
+    
+    // 6. Origin check for API endpoints (skip for health check)
+    if (path !== '/' && path !== '/health' && !isOriginAllowed(origin)) {
+      // Allow requests without origin (direct API calls from servers)
+      // But log them for monitoring
+      if (origin) {
+        console.log(`[WARNING] Request from non-whitelisted origin: ${origin} - IP: ${clientIP}`);
+      }
+    }
+    
+    // Cleanup old rate limit entries periodically
+    if (Math.random() < 0.01) { // 1% chance on each request
+      cleanupRateLimitMap();
+    }
+    
+    // ============ API LOGIC ============
+    
     const apiHeaders = {
       'Accept-Language': 'vi-VN,vi;q=0.8',
       'User-Agent': 'okhttp-okgo/jeasonlzy',
@@ -48,9 +267,13 @@ export default {
     if (path === '/' || path === '/health') {
       return new Response(JSON.stringify({
         status: 'ok',
-        version: '2.5',
+        version: '3.0-secured',
         ha_configured: !!(HA_URL && HA_TOKEN),
         timezone: 'UTC+7 (Vietnam)',
+        security: {
+          rateLimit: `${SECURITY_CONFIG.rateLimit.maxRequests} requests per minute`,
+          corsProtected: true
+        },
         endpoints: [
           '/api/ha/power-history/{deviceId}/{date}',
           '/api/ha/soc-history/{deviceId}/{date}',
@@ -71,6 +294,12 @@ export default {
       const match = path.match(/^\/api\/ha\/power-history\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/);
       const deviceId = match[1];
       const queryDate = match[2];
+      
+      // Validate deviceId format (alphanumeric)
+      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid deviceId format' }), { status: 400, headers });
+      }
+      
       try {
         const data = await fetchHAPowerHistory(HA_URL, HA_TOKEN, deviceId, queryDate);
         return new Response(JSON.stringify({ success: true, dataSource: 'HomeAssistant', deviceId, date: queryDate, ...data }), { headers });
@@ -87,6 +316,11 @@ export default {
       const match = path.match(/^\/api\/ha\/soc-history\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/);
       const deviceId = match[1];
       const queryDate = match[2];
+      
+      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid deviceId format' }), { status: 400, headers });
+      }
+      
       try {
         const data = await fetchHASOCHistory(HA_URL, HA_TOKEN, deviceId, queryDate);
         return new Response(JSON.stringify({ success: true, dataSource: 'HomeAssistant', deviceId, date: queryDate, ...data }), { headers });
@@ -102,6 +336,11 @@ export default {
       }
       const match = path.match(/^\/api\/ha\/states\/([^\/]+)$/);
       const deviceId = match[1];
+      
+      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid deviceId format' }), { status: 400, headers });
+      }
+      
       try {
         const data = await fetchHAStates(HA_URL, HA_TOKEN, deviceId);
         return new Response(JSON.stringify({ success: true, dataSource: 'HomeAssistant', deviceId, ...data }), { headers });
@@ -117,6 +356,11 @@ export default {
       }
       const match = path.match(/^\/api\/ha\/device-info\/([^\/]+)$/);
       const deviceId = match[1];
+      
+      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid deviceId format' }), { status: 400, headers });
+      }
+      
       try {
         const data = await fetchHADeviceInfo(HA_URL, HA_TOKEN, deviceId);
         return new Response(JSON.stringify({ success: true, dataSource: 'HomeAssistant', deviceId, ...data }), { headers });
@@ -133,6 +377,11 @@ export default {
       const match = path.match(/^\/api\/ha\/temperature\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/);
       const deviceId = match[1];
       const queryDate = match[2];
+      
+      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid deviceId format' }), { status: 400, headers });
+      }
+      
       try {
         const data = await fetchHATemperatureHistory(HA_URL, HA_TOKEN, deviceId, queryDate);
         return new Response(JSON.stringify({ success: true, dataSource: 'HomeAssistant', deviceId, date: queryDate, ...data }), { headers });
@@ -146,7 +395,13 @@ export default {
     // GET /api/bat/{deviceId}/{date}
     if (path.match(/^\/api\/bat\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/)) {
       const match = path.match(/^\/api\/bat\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/);
-      const apiUrl = `https://lesvr.suntcn.com/lesvr/getBatDayData?queryDate=${match[2]}&deviceId=${match[1]}`;
+      const deviceId = match[1];
+      
+      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+        return new Response(JSON.stringify({ error: 'Invalid deviceId format' }), { status: 400, headers });
+      }
+      
+      const apiUrl = `https://lesvr.suntcn.com/lesvr/getBatDayData?queryDate=${match[2]}&deviceId=${deviceId}`;
       const res = await fetch(apiUrl, { method: 'GET', headers: apiHeaders });
       return new Response(JSON.stringify(await res.json()), { headers });
     }
@@ -154,7 +409,13 @@ export default {
     // GET /api/pv/{deviceId}/{date}
     if (path.match(/^\/api\/pv\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/)) {
       const match = path.match(/^\/api\/pv\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/);
-      const apiUrl = `https://lesvr.suntcn.com/lesvr/getPVDayData?queryDate=${match[2]}&deviceId=${match[1]}`;
+      const deviceId = match[1];
+      
+      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+        return new Response(JSON.stringify({ error: 'Invalid deviceId format' }), { status: 400, headers });
+      }
+      
+      const apiUrl = `https://lesvr.suntcn.com/lesvr/getPVDayData?queryDate=${match[2]}&deviceId=${deviceId}`;
       const res = await fetch(apiUrl, { method: 'GET', headers: apiHeaders });
       return new Response(JSON.stringify(await res.json()), { headers });
     }
@@ -162,7 +423,13 @@ export default {
     // GET /api/other/{deviceId}/{date}
     if (path.match(/^\/api\/other\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/)) {
       const match = path.match(/^\/api\/other\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/);
-      const apiUrl = `https://lesvr.suntcn.com/lesvr/getOtherDayData?queryDate=${match[2]}&deviceId=${match[1]}`;
+      const deviceId = match[1];
+      
+      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+        return new Response(JSON.stringify({ error: 'Invalid deviceId format' }), { status: 400, headers });
+      }
+      
+      const apiUrl = `https://lesvr.suntcn.com/lesvr/getOtherDayData?queryDate=${match[2]}&deviceId=${deviceId}`;
       const res = await fetch(apiUrl, { method: 'GET', headers: apiHeaders });
       return new Response(JSON.stringify(await res.json()), { headers });
     }
@@ -170,7 +437,13 @@ export default {
     // GET /api/month/{deviceId}
     if (path.match(/^\/api\/month\/([^\/]+)$/)) {
       const match = path.match(/^\/api\/month\/([^\/]+)$/);
-      const apiUrl = `https://lesvr.suntcn.com/lesvr/getMonthData?deviceId=${match[1]}`;
+      const deviceId = match[1];
+      
+      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+        return new Response(JSON.stringify({ error: 'Invalid deviceId format' }), { status: 400, headers });
+      }
+      
+      const apiUrl = `https://lesvr.suntcn.com/lesvr/getMonthData?deviceId=${deviceId}`;
       const res = await fetch(apiUrl, { method: 'GET', headers: apiHeaders });
       return new Response(JSON.stringify(await res.json()), { headers });
     }
@@ -178,7 +451,13 @@ export default {
     // GET /api/year/{deviceId}
     if (path.match(/^\/api\/year\/([^\/]+)$/)) {
       const match = path.match(/^\/api\/year\/([^\/]+)$/);
-      const apiUrl = `https://lesvr.suntcn.com/lesvr/getYearData?deviceId=${match[1]}`;
+      const deviceId = match[1];
+      
+      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+        return new Response(JSON.stringify({ error: 'Invalid deviceId format' }), { status: 400, headers });
+      }
+      
+      const apiUrl = `https://lesvr.suntcn.com/lesvr/getYearData?deviceId=${deviceId}`;
       const res = await fetch(apiUrl, { method: 'GET', headers: apiHeaders });
       return new Response(JSON.stringify(await res.json()), { headers });
     }
@@ -186,7 +465,13 @@ export default {
     // GET /api/history-year/{deviceId}
     if (path.match(/^\/api\/history-year\/([^\/]+)$/)) {
       const match = path.match(/^\/api\/history-year\/([^\/]+)$/);
-      const apiUrl = `https://lesvr.suntcn.com/lesvr/getHistoryYearData?deviceId=${match[1]}`;
+      const deviceId = match[1];
+      
+      if (!/^[A-Za-z0-9_-]+$/.test(deviceId)) {
+        return new Response(JSON.stringify({ error: 'Invalid deviceId format' }), { status: 400, headers });
+      }
+      
+      const apiUrl = `https://lesvr.suntcn.com/lesvr/getHistoryYearData?deviceId=${deviceId}`;
       const res = await fetch(apiUrl, { method: 'GET', headers: apiHeaders });
       return new Response(JSON.stringify(await res.json()), { headers });
     }

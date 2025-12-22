@@ -1404,10 +1404,36 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // ========================================
     // DEVICE INFO - Get inverter model from HA
+    // With localStorage caching (24h TTL) to reduce API calls
     // ========================================
+    
+    // Device info cache TTL: 24 hours (model/firmware rarely changes)
+    const DEVICE_INFO_CACHE_TTL = 24 * 60 * 60 * 1000;
     
     function fetchDeviceInfo(deviceId) {
         if (!deviceId) return;
+        
+        // Check localStorage cache first
+        const cacheKey = `deviceInfo_${deviceId}`;
+        const cached = localStorage.getItem(cacheKey);
+        
+        if (cached) {
+            try {
+                const cachedData = JSON.parse(cached);
+                const cacheAge = Date.now() - cachedData.timestamp;
+                
+                // Use cache if not expired (24 hours)
+                if (cacheAge < DEVICE_INFO_CACHE_TTL) {
+                    console.log(`📦 Using cached device info for ${deviceId} (age: ${Math.round(cacheAge / 60000)} min)`);
+                    applyDeviceInfo(cachedData.model);
+                    return;
+                } else {
+                    console.log(`📦 Device info cache expired for ${deviceId}, fetching fresh data`);
+                }
+            } catch (e) {
+                console.warn('📦 Invalid cache data, fetching fresh');
+            }
+        }
         
         const deviceInfoUrl = LIGHTEARTH_API.haDeviceInfo(deviceId);
         console.log('📦 Fetching device info from:', deviceInfoUrl);
@@ -1448,22 +1474,50 @@ document.addEventListener('DOMContentLoaded', function () {
                         model = data.model;
                     }
                     
-                    // Update UI - device-type element
-                    const deviceTypeEl = document.getElementById('device-type');
-                    const inverterTypeEl = document.getElementById('inverter-type');
-                    const inverterTypeBasicEl = document.getElementById('inverter-type-basic');
-                    
+                    // Cache to localStorage with timestamp
                     if (model) {
-                        if (deviceTypeEl) deviceTypeEl.textContent = model;
-                        if (inverterTypeEl) inverterTypeEl.textContent = model;
-                        if (inverterTypeBasicEl) inverterTypeBasicEl.textContent = model;
-                        console.log(`✅ Device type updated: ${model}`);
+                        try {
+                            localStorage.setItem(cacheKey, JSON.stringify({
+                                model: model,
+                                timestamp: Date.now(),
+                                raw: data
+                            }));
+                            console.log(`💾 Device info cached for ${deviceId}: ${model}`);
+                        } catch (e) {
+                            console.warn('📦 Could not cache device info:', e.message);
+                        }
                     }
+                    
+                    applyDeviceInfo(model);
                 }
             })
             .catch(error => {
                 console.warn("📦 Device info API unavailable:", error.message);
+                // Try to use expired cache as fallback
+                if (cached) {
+                    try {
+                        const cachedData = JSON.parse(cached);
+                        console.log(`📦 Using expired cache as fallback for ${deviceId}`);
+                        applyDeviceInfo(cachedData.model);
+                    } catch (e) {
+                        // Ignore
+                    }
+                }
             });
+    }
+    
+    // Helper function to apply device info to UI
+    function applyDeviceInfo(model) {
+        if (!model) return;
+        
+        const deviceTypeEl = document.getElementById('device-type');
+        const inverterTypeEl = document.getElementById('inverter-type');
+        const inverterTypeBasicEl = document.getElementById('inverter-type-basic');
+        
+        if (deviceTypeEl) deviceTypeEl.textContent = model;
+        if (inverterTypeEl) inverterTypeEl.textContent = model;
+        if (inverterTypeBasicEl) inverterTypeBasicEl.textContent = model;
+        console.log(`✅ Device type updated: ${model}`);
     }
     
     // ========================================
