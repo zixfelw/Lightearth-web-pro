@@ -621,7 +621,14 @@ document.addEventListener('DOMContentLoaded', function () {
         fetchRealtimeFirst(deviceId, date);
     }
     
-    // Fast load: Skip realtime API (blocked by Cloudflare), load directly from day data APIs
+    // Cache for summary data per device (persists until device changes)
+    let summaryDataCache = {
+        deviceId: null,
+        data: null,
+        timestamp: 0
+    };
+    
+    // Fast load: Fetch realtime data FIRST for instant display
     async function fetchRealtimeFirst(deviceId, date) {
         try {
             console.log(`🚀 Loading data for device: ${deviceId}, date: ${date || 'today'}`);
@@ -640,62 +647,99 @@ document.addEventListener('DOMContentLoaded', function () {
                 remarkName: ''
             });
             
-            // Set summary stats to "Đang tải..." while loading day data
-            updateValue('pv-total', 'Đang tải...');
-            updateValue('bat-charge', 'Đang tải...');
-            updateValue('bat-discharge', 'Đang tải...');
-            updateValue('load-total', 'Đang tải...');
-            updateValue('grid-total', 'Đang tải...');
-            updateValue('essential-total', 'Đang tải...');
-            
-            // Initialize realtime display as empty - will only show data when MQTT realtime arrives
-            // Use null values to indicate "no data" state
-            const initialDisplayData = {
-                pvTotalPower: null,
-                pv1Power: null,
-                pv2Power: null,
-                pv1Voltage: null,
-                pv2Voltage: null,
-                gridValue: null,
-                gridVoltageValue: null,
-                batteryPercent: null,
-                batteryValue: null,
-                batteryVoltage: null,
-                batteryStatus: 'Chờ dữ liệu',
-                deviceTempValue: null,
-                essentialValue: null,
-                loadValue: null,
-                inverterAcOutPower: null,
-                noRealtimeData: true  // Flag to indicate no realtime data
-            };
-            updateRealTimeDisplay(initialDisplayData);
-            
             showCompactSearchBar(deviceId, date);
             showLoading(false);
+            
+            // Check if we have cached summary data for this device
+            const hasCachedData = summaryDataCache.deviceId === deviceId && summaryDataCache.data;
+            
+            if (hasCachedData) {
+                // Use cached data immediately - no "Đang tải..."
+                console.log('📦 Using cached summary data for', deviceId);
+                applySummaryData(summaryDataCache.data);
+            } else {
+                // Only show "Đang tải..." if no cache
+                updateValue('pv-total', 'Đang tải...');
+                updateValue('bat-charge', 'Đang tải...');
+                updateValue('bat-discharge', 'Đang tải...');
+                updateValue('load-total', 'Đang tải...');
+                updateValue('grid-total', 'Đang tải...');
+                updateValue('essential-total', 'Đang tải...');
+            }
+            
+            // PRIORITY: Fetch realtime data IMMEDIATELY for summary cards
+            // This runs in parallel and updates as soon as data arrives
+            fetchRealtimeDataForSummary(deviceId);
             
             // Initialize cells waiting state
             if (!hasCellData) {
                 initializeBatteryCellsWaiting();
             }
             
-            // Fetch SOC data - wrap in try-catch to prevent blocking
-            try {
-                await fetchSOCData();
-            } catch (socErr) {
-                console.warn('SOC fetch error (non-blocking):', socErr);
-            }
+            // Fetch SOC data in background
+            fetchSOCData().catch(err => console.warn('SOC fetch error:', err));
             
-            // Fetch temperature min/max for the day
+            // Fetch temperature min/max in background
             fetchTemperatureMinMax(deviceId, date);
             
-            // Fetch day data - this is the main data source now
-            // It will update both summary stats AND realtime display with latest values
-            await fetchDayDataInBackground(deviceId, date);
+            // Fetch day data for charts (lower priority)
+            fetchDayDataInBackground(deviceId, date);
             
         } catch (error) {
             console.error("Data load failed:", error);
             showLoading(false);
             showError('Không thể tải dữ liệu. Vui lòng kiểm tra Device ID và thử lại.');
+        }
+    }
+    
+    // Helper to apply summary data to UI
+    function applySummaryData(data) {
+        if (!data) return;
+        updateValue('pv-total', (data.pvDay || 0).toFixed(1) + ' kWh');
+        updateValue('bat-charge', (data.chargeDay || 0).toFixed(1) + ' kWh');
+        updateValue('bat-discharge', (data.dischargeDay || 0).toFixed(1) + ' kWh');
+        updateValue('load-total', (data.loadDay || 0).toFixed(1) + ' kWh');
+        updateValue('grid-total', (data.gridDay || 0).toFixed(1) + ' kWh');
+        updateValue('essential-total', (data.essentialDay || 0).toFixed(1) + ' kWh');
+    }
+    
+    // Fetch realtime data specifically for summary cards (fast path)
+    async function fetchRealtimeDataForSummary(deviceId) {
+        try {
+            // Try Railway daily-energy API first (Home Assistant)
+            const haEnergyUrl = `${currentOrigin}/api/realtime/daily-energy/${deviceId}`;
+            console.log('⚡ Fetching summary from:', haEnergyUrl);
+            
+            const response = await fetch(haEnergyUrl);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            const data = await response.json();
+            
+            if (data.success && data.summary) {
+                const summary = data.summary;
+                const cacheData = {
+                    pvDay: summary.pv_day || 0,
+                    chargeDay: summary.charge_day || 0,
+                    dischargeDay: summary.discharge_day || 0,
+                    loadDay: summary.total_load_day || summary.load_day || 0,
+                    gridDay: summary.grid_day || 0,
+                    essentialDay: summary.essential_day || 0
+                };
+                
+                // Cache the data
+                summaryDataCache = {
+                    deviceId: deviceId,
+                    data: cacheData,
+                    timestamp: Date.now()
+                };
+                
+                // Update UI immediately
+                applySummaryData(cacheData);
+                console.log('✅ Summary data loaded and cached:', cacheData);
+            }
+        } catch (error) {
+            console.warn('⚠️ Summary fetch error:', error.message);
+            // Will fallback to day data API
         }
     }
     
@@ -708,37 +752,55 @@ document.addEventListener('DOMContentLoaded', function () {
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
         const now = Date.now();
         
-        // Clear cache if deviceId changed
+        // Clear chart cache if deviceId changed (summary cache is separate)
         if (lightearthCache.deviceId && lightearthCache.deviceId !== deviceId) {
-            console.log(`🔄 Device changed from ${lightearthCache.deviceId} to ${deviceId}, clearing cache`);
+            console.log(`🔄 Device changed from ${lightearthCache.deviceId} to ${deviceId}, clearing chart cache`);
             lightearthCache = { data: null, deviceId: null, date: null, timestamp: 0 };
         }
         
-        // STEP 1: Always try Railway API first (Home Assistant data - works for all HA devices)
-        let railwayDataLoaded = false;
-        try {
-            console.log("📡 [Priority 1] Trying Railway API (Home Assistant)...");
-            const haEnergyUrl = `${currentOrigin}/api/realtime/daily-energy/${deviceId}`;
-            const haResponse = await fetch(haEnergyUrl);
-            
-            if (haResponse.ok) {
-                const haData = await haResponse.json();
+        // Clear summary cache only if device changed
+        if (summaryDataCache.deviceId && summaryDataCache.deviceId !== deviceId) {
+            console.log(`🔄 Clearing summary cache for new device`);
+            summaryDataCache = { deviceId: null, data: null, timestamp: 0 };
+        }
+        
+        // STEP 1: Skip Railway daily-energy API here - already fetched in fetchRealtimeDataForSummary()
+        // Only fetch if cache is empty (for fallback)
+        let railwayDataLoaded = summaryDataCache.deviceId === deviceId && summaryDataCache.data;
+        
+        if (!railwayDataLoaded) {
+            try {
+                console.log("📡 [Priority 1] Trying Railway API (Home Assistant)...");
+                const haEnergyUrl = `${currentOrigin}/api/realtime/daily-energy/${deviceId}`;
+                const haResponse = await fetch(haEnergyUrl);
                 
-                if (haData.success && haData.summary) {
-                    const summary = haData.summary;
-                    updateValue('pv-total', (summary.pv_day || 0).toFixed(1) + ' kWh');
-                    updateValue('load-total', (summary.total_load_day || summary.load_day || 0).toFixed(1) + ' kWh');
-                    updateValue('grid-total', (summary.grid_day || 0).toFixed(1) + ' kWh');
-                    updateValue('essential-total', (summary.essential_day || 0).toFixed(1) + ' kWh');
-                    updateValue('bat-charge', (summary.charge_day || 0).toFixed(1) + ' kWh');
-                    updateValue('bat-discharge', (summary.discharge_day || 0).toFixed(1) + ' kWh');
+                if (haResponse.ok) {
+                    const haData = await haResponse.json();
                     
-                    console.log("✅ [Priority 1] Railway API SUCCESS - Summary updated from Home Assistant:", summary);
-                    railwayDataLoaded = true;
+                    if (haData.success && haData.summary) {
+                        const summary = haData.summary;
+                        const cacheData = {
+                            pvDay: summary.pv_day || 0,
+                            chargeDay: summary.charge_day || 0,
+                            dischargeDay: summary.discharge_day || 0,
+                            loadDay: summary.total_load_day || summary.load_day || 0,
+                            gridDay: summary.grid_day || 0,
+                            essentialDay: summary.essential_day || 0
+                        };
+                        
+                        // Cache and update
+                        summaryDataCache = { deviceId, data: cacheData, timestamp: Date.now() };
+                        applySummaryData(cacheData);
+                        
+                        console.log("✅ [Priority 1] Railway API SUCCESS:", summary);
+                        railwayDataLoaded = true;
+                    }
                 }
+            } catch (haError) {
+                console.warn("⚠️ [Priority 1] Railway API failed:", haError.message);
             }
-        } catch (haError) {
-            console.warn("⚠️ [Priority 1] Railway API failed:", haError.message);
+        } else {
+            console.log("📦 [Priority 1] Using cached summary data, skipping Railway API");
         }
         
         // STEP 2: Try Railway Power History API for chart data (Home Assistant history)
