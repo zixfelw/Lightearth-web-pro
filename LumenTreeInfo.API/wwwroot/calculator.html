@@ -4604,114 +4604,47 @@
     </script>
     -->
     
-    <!-- Lumentree Sync Modal -->
+    <!-- Lightearth Sync Modal - Simplified -->
     <div id="lumentreeModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                <h2>☀️ Đồng Bộ Từ Lumentree</h2>
+            <div class="modal-header" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                <h2>☀️ Dong Bo Lightearth</h2>
                 <button class="modal-close" onclick="closeLumentreeModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <p style="text-align: center; color: #cbd5e0; margin-bottom: 20px; font-size: 0.95em;">
-                    Lấy dữ liệu từ Lumentree Dashboard về ứng dụng
+                    Lay du lieu thang tu Lightearth API
                 </p>
                 
-                <!-- Tab buttons -->
-                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-                    <button id="tabDashboard" class="evn-btn-calculate" onclick="switchLumentreeTab('dashboard')" style="flex: 1; min-width: 100px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-                        🏠 Từ Dashboard
-                    </button>
-                    <button id="tabAuto" class="evn-btn-calculate" onclick="switchLumentreeTab('auto')" style="flex: 1; min-width: 100px; background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);">
-                        🔄 Từ Lumentree
-                    </button>
-                    <button id="tabManual" class="evn-btn-calculate" onclick="switchLumentreeTab('manual')" style="flex: 1; min-width: 100px; background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);">
-                        📋 Thủ Công
-                    </button>
+                <div class="evn-warning" style="border-color: #f59e0b; background: rgba(245, 158, 11, 0.15); color: #fbbf24;">
+                    <strong>⚡ Lightearth API:</strong> Lay du lieu truc tiep tu server.<br>
+                    Chi ho tro cac device da dang ky trong he thong.
                 </div>
                 
-                <!-- Tab Dashboard (Proxy to Lumentree) -->
-                <div id="lumentreeTabDashboard">
-                    <div class="evn-warning" style="border-color: #f59e0b; background: rgba(245, 158, 11, 0.15); color: #fbbf24;">
-                        <strong>⚡ Lấy dữ liệu nhanh:</strong> Proxy qua server, không bị chặn CORS.<br>
-                        Lấy toàn bộ dữ liệu từ Lumentree.net một cách nhanh chóng.
+                <div class="evn-input-section" style="border-color: #f59e0b;">
+                    <h3 style="color: #f59e0b;">🔗 Ket Noi Lightearth</h3>
+                    <div class="evn-input-group">
+                        <label for="lightearthDeviceId">Device ID:</label>
+                        <input type="text" id="lightearthDeviceId" placeholder="Vi du: P250801055" style="text-transform: uppercase;">
                     </div>
-                    
-                    <div class="evn-input-section" style="border-color: #f59e0b;">
-                        <h3 style="color: #f59e0b;">🔗 Kết Nối Qua Dashboard</h3>
-                        <div class="evn-input-group">
-                            <label for="dashboardDeviceId">Device ID:</label>
-                            <input type="text" id="dashboardDeviceId" placeholder="Ví dụ: P250801055" style="text-transform: uppercase;">
-                        </div>
-                        <button class="evn-btn-calculate" onclick="fetchDashboardData()" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-                            ⚡ Lấy Toàn Bộ Dữ Liệu
-                        </button>
-                        <div style="margin: 12px 0 0 0; font-size: 0.75em; color: #9ca3af; text-align: left; line-height: 1.6;">
-                            <p style="margin: 0;">⚡ <em>Nhanh và ổn định - Lấy trực tiếp qua server proxy</em></p>
-                            <p style="margin: 6px 0 0 0;">📊 <em>Lấy toàn bộ dữ liệu có sẵn từ Lumentree.net</em></p>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Tab Auto -->
-                <div id="lumentreeTabAuto" style="display: none;">
-                    <div class="evn-warning" style="border-color: #10b981; background: rgba(16, 185, 129, 0.15); color: #6ee7b7;">
-                        <strong>📌 Từ Lumentree.net:</strong> Nhập Device ID để lấy dữ liệu từ server Lumentree.<br>
-                        VD: URL <code>lumentree.net/dashboard/P250801055</code> → ID là <code>P250801055</code>
-                    </div>
-                    
-                    <div class="evn-input-section" style="border-color: #10b981;">
-                        <h3 style="color: #10b981;">🔗 Kết Nối Lumentree</h3>
-                        <div class="evn-input-group">
-                            <label for="lumentreeDeviceId">Device ID:</label>
-                            <input type="text" id="lumentreeDeviceId" placeholder="Ví dụ: P250801055" style="text-transform: uppercase;">
-                        </div>
-                        <button class="evn-btn-calculate" onclick="fetchLumentreeData()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                            🔄 Lấy Dữ Liệu
-                        </button>
-                        <div style="margin: 12px 0 0 0; font-size: 0.75em; color: #9ca3af; text-align: left; line-height: 1.6;">
-                            <p style="margin: 0 0 6px 0;">💡 <em>Nếu chưa có data, hãy vào <a href="https://lumentree.net" target="_blank" style="color: #10b981; text-decoration: underline;">lumentree.net</a> để kích hoạt ID thiết bị trước, chờ 5-10 phút rồi thử lại.</em></p>
-                            <p style="margin: 0;">🔄 <em>Nếu không lấy được, hãy thử lại 4-5 lần hoặc chuyển sang tab <strong style="color: #f59e0b;">📋 Thủ Công</strong></em></p>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Tab Manual -->
-                <div id="lumentreeTabManual" style="display: none;">
-                    <div class="evn-warning" style="border-color: #f59e0b; background: rgba(245, 158, 11, 0.15); color: #fbbf24;">
-                        <strong>📌 Hướng dẫn lấy dữ liệu thủ công:</strong><br>
-                        1. Nhập Device ID và bấm nút "Mở Link API":<br>
-                        <div style="display: flex; gap: 8px; align-items: center; margin: 8px 0;">
-                            <input type="text" id="manualDeviceId" placeholder="VD: P250801050" 
-                                style="flex: 1; padding: 8px 12px; border: 2px solid #f59e0b; border-radius: 8px; background: rgba(0,0,0,0.3); color: #fbbf24; font-family: monospace; font-weight: bold;">
-                            <button onclick="openLumentreeAPI()" style="padding: 8px 16px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border: none; border-radius: 8px; color: white; cursor: pointer; font-weight: bold; white-space: nowrap;">
-                                🔗 Mở Link API
-                            </button>
-                        </div>
-                        2. Bấm <kbd>Ctrl+A</kbd> để chọn tất cả, <kbd>Ctrl+C</kbd> để copy<br>
-                        3. Quay lại đây và Paste vào ô bên dưới bằng <kbd>Ctrl+V</kbd>
-                    </div>
-                    
-                    <div class="evn-input-section" style="border-color: #f59e0b;">
-                        <h3 style="color: #f59e0b;">📋 Paste JSON Data</h3>
-                        <div class="evn-input-group">
-                            <label for="lumentreeJsonInput">Dữ liệu JSON từ Lumentree:</label>
-                            <textarea id="lumentreeJsonInput" placeholder='[{"month":"2025-10","load":827.4,"grid":236.0,"pv":686.0,"backup":0.4}, ...]' style="width: 100%; min-height: 120px; padding: 12px; border: 2px solid #4a5568; border-radius: 10px; background: rgba(26, 32, 44, 0.8); color: #e2e8f0; font-family: monospace; font-size: 0.85em; resize: vertical;"></textarea>
-                        </div>
-                        <button class="evn-btn-calculate" onclick="parseManualLumentreeData()" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-                            📥 Xử Lý Dữ Liệu
-                        </button>
+                    <button class="evn-btn-calculate" onclick="fetchLightearthData()" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                        ⚡ Lay Du Lieu Thang
+                    </button>
+                    <div style="margin: 12px 0 0 0; font-size: 0.75em; color: #9ca3af; text-align: left; line-height: 1.6;">
+                        <p style="margin: 0;">📊 <em>Lay du lieu 31 ngay trong thang hien tai</em></p>
+                        <p style="margin: 6px 0 0 0;">🔄 <em>Du lieu tu: lightearth.applike098.workers.dev</em></p>
                     </div>
                 </div>
                 
                 <div class="evn-result-section" id="lumentreeResultSection">
-                    <h3 style="margin-bottom: 15px; color: #10b981; font-size: 1.1em;">📋 Dữ Liệu Từ Lumentree</h3>
+                    <h3 style="margin-bottom: 15px; color: #f59e0b; font-size: 1.1em;">📋 Du Lieu Tu Lightearth</h3>
                     <div id="lumentreePreview"></div>
                     <div style="display: flex; gap: 10px; margin-top: 20px;">
-                        <button class="evn-btn-calculate" onclick="importLumentreeData()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); flex: 1;">
-                            ✅ Nhập Vào Ứng Dụng
+                        <button class="evn-btn-calculate" onclick="importLightearthData()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); flex: 1;">
+                            ✅ Nhap Vao Ung Dung
                         </button>
                         <button class="evn-btn-calculate" onclick="closeLumentreeModal()" style="background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); flex: 1;">
-                            ❌ Hủy
+                            ❌ Huy
                         </button>
                     </div>
                 </div>
@@ -4720,49 +4653,24 @@
     </div>
     
     <script>
-        // ==================== LUMENTREE SYNC ====================
-        let lumentreeData = null;
+        // ==================== LIGHTEARTH SYNC ====================
+        const LIGHTEARTH_API_BASE = 'https://lightearth.applike098.workers.dev';
+        let lightearthData = null;
         
         function openLumentreeModal() {
             document.getElementById('lumentreeModal').classList.add('show');
             document.body.style.overflow = 'hidden';
             
-            // Load saved device ID
-            const savedDeviceId = localStorage.getItem('lumentreeDeviceId');
-            if (savedDeviceId) {
-                document.getElementById('dashboardDeviceId').value = savedDeviceId;
-                document.getElementById('lumentreeDeviceId').value = savedDeviceId;
-                document.getElementById('manualDeviceId').value = savedDeviceId;
-            }
-            
-            // Also try to get deviceId from URL
+            // Priority: URL param > localStorage > empty
             const urlParams = new URLSearchParams(window.location.search);
             const deviceIdParam = urlParams.get('deviceId');
-            if (deviceIdParam) {
-                document.getElementById('dashboardDeviceId').value = deviceIdParam;
-                document.getElementById('lumentreeDeviceId').value = deviceIdParam;
-                document.getElementById('manualDeviceId').value = deviceIdParam;
-            }
-        }
-        
-        // Mở link API trong tab mới
-        function openLumentreeAPI() {
-            let deviceId = document.getElementById('manualDeviceId').value.trim().toUpperCase();
-            if (!deviceId) {
-                // Fallback to auto tab device ID
-                deviceId = document.getElementById('lumentreeDeviceId').value.trim().toUpperCase();
-            }
-            if (!deviceId) {
-                showNotification('⚠️ Vui lòng nhập Device ID!', 'error');
-                return;
-            }
-            // Save device ID
-            localStorage.setItem('lumentreeDeviceId', deviceId);
-            document.getElementById('lumentreeDeviceId').value = deviceId;
+            const savedDeviceId = localStorage.getItem('lumentreeDeviceId');
+            const deviceId = deviceIdParam || savedDeviceId || '';
             
-            const apiUrl = `https://lumentree.net/api/monthly/${deviceId}`;
-            window.open(apiUrl, '_blank');
-            showNotification(`🔗 Đã mở API cho thiết bị ${deviceId}. Copy dữ liệu và paste vào ô bên dưới!`, 'info');
+            const input = document.getElementById('lightearthDeviceId');
+            if (input && deviceId) {
+                input.value = deviceId.toUpperCase();
+            }
         }
         
         function closeLumentreeModal() {
@@ -4770,11 +4678,12 @@
             document.body.style.overflow = 'auto';
         }
         
-        async function fetchLumentreeData() {
-            const deviceId = document.getElementById('lumentreeDeviceId').value.trim().toUpperCase();
+        // Fetch data from Lightearth API
+        async function fetchLightearthData() {
+            const deviceId = document.getElementById('lightearthDeviceId').value.trim().toUpperCase();
             
             if (!deviceId) {
-                showNotification('⚠️ Vui lòng nhập Device ID!', 'error');
+                showNotification('⚠️ Vui long nhap Device ID!', 'error');
                 return;
             }
             
@@ -4782,135 +4691,160 @@
             localStorage.setItem('lumentreeDeviceId', deviceId);
             
             try {
-                showNotification('🔄 Đang lấy dữ liệu từ Lumentree...', 'info');
+                showNotification('🔄 Dang lay du lieu tu Lightearth...', 'info');
+                const startTime = Date.now();
                 
-                // Sử dụng CORS proxy để bypass CORS restriction
-                const targetUrl = `https://lumentree.net/api/monthly/${deviceId}`;
+                // Fetch from Lightearth Worker API
+                const response = await fetch(`${LIGHTEARTH_API_BASE}/api/month/${deviceId}`);
                 
-                // Thử nhiều proxy khác nhau (theo thứ tự ưu tiên - nhanh nhất trước)
-                const proxies = [
-                    { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`, name: 'codetabs' },
-                    { url: `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`, name: 'corsproxy.io' },
-                    { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`, name: 'allorigins-raw' },
-                    { url: `https://proxy.cors.sh/${targetUrl}`, name: 'cors.sh' },
-                    { url: `https://crossorigin.me/${targetUrl}`, name: 'crossorigin.me' }
-                ];
+                if (!response.ok) {
+                    throw new Error(`Server tra ve loi: ${response.status}`);
+                }
                 
-                let data = null;
-                let lastError = null;
+                const result = await response.json();
+                const elapsed = Date.now() - startTime;
                 
-                // Helper function với timeout
-                const fetchWithTimeout = (url, timeout = 8000) => {
-                    return Promise.race([
-                        fetch(url, {
-                            method: 'GET',
-                            headers: { 'Accept': 'application/json' }
-                        }),
-                        new Promise((_, reject) => 
-                            setTimeout(() => reject(new Error('Timeout')), timeout)
-                        )
-                    ]);
-                };
+                // Check for API error
+                if (result.returnValue !== 1) {
+                    throw new Error(result.msg || 'Khong co quyen truy cap device nay');
+                }
                 
-                for (const proxy of proxies) {
-                    try {
-                        console.log(`🔄 Trying proxy: ${proxy.name}`);
-                        const startTime = Date.now();
-                        
-                        const response = await fetchWithTimeout(proxy.url, 8000);
-                        
-                        if (!response.ok) {
-                            console.log(`❌ ${proxy.name}: HTTP ${response.status}`);
-                            continue;
-                        }
-                        
-                        let text = await response.text();
-                        
-                        // Check if it's valid JSON array
-                        if (text.trim().startsWith('[')) {
-                            data = JSON.parse(text);
-                            const elapsed = Date.now() - startTime;
-                            console.log(`✅ Success with ${proxy.name} in ${elapsed}ms`);
-                            showNotification(`✅ Kết nối thành công qua ${proxy.name} (${elapsed}ms)`, 'success');
-                            break;
-                        } else {
-                            console.log(`❌ ${proxy.name}: Invalid response format`);
-                        }
-                    } catch (e) {
-                        lastError = e;
-                        console.log(`❌ ${proxy.name}: ${e.message}`);
-                        continue;
+                // Parse the data
+                const data = result.data;
+                if (!data || !data.pv || !data.homeload) {
+                    throw new Error('Khong co du lieu tu thiet bi nay');
+                }
+                
+                // Convert to monthly format (values need to be divided by 10)
+                const currentDate = new Date();
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth() + 1;
+                const daysInMonth = new Date(year, month, 0).getDate();
+                
+                // Create daily data for current month
+                const dailyData = [];
+                let totalPv = 0, totalLoad = 0, totalGrid = 0, totalBat = 0;
+                
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const idx = day - 1;
+                    const pv = (data.pv?.tableValueInfo?.[idx] || 0) / 10;
+                    const load = (data.homeload?.tableValueInfo?.[idx] || 0) / 10;
+                    const grid = (data.grid?.tableValueInfo?.[idx] || 0) / 10;
+                    const bat = (data.bat?.tableValueInfo?.[idx] || 0) / 10;
+                    
+                    if (pv > 0 || load > 0) {
+                        dailyData.push({
+                            day: day,
+                            date: `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`,
+                            pv: pv,
+                            load: load,
+                            grid: grid,
+                            bat: bat
+                        });
+                        totalPv += pv;
+                        totalLoad += load;
+                        totalGrid += grid;
+                        totalBat += bat;
                     }
                 }
                 
-                if (!data) {
-                    // Nếu tất cả proxy đều fail, gợi ý dùng tab thủ công
-                    throw new Error(`Không thể kết nối tự động. Vui lòng chuyển sang tab "📋 Thủ Công" và paste dữ liệu JSON.`);
-                }
-                
-                if (!Array.isArray(data) || data.length === 0) {
-                    throw new Error('Không có dữ liệu từ thiết bị này');
-                }
-                
-                lumentreeData = data;
-                
-                // Filter only months with data
-                const monthsWithData = data.filter(m => m.load > 0 || m.grid > 0 || m.pv > 0);
+                // Store for import
+                lightearthData = {
+                    deviceId: deviceId,
+                    month: `${year}-${String(month).padStart(2,'0')}`,
+                    daily: dailyData,
+                    summary: {
+                        pv: Math.round(totalPv * 10) / 10,
+                        load: Math.round(totalLoad * 10) / 10,
+                        grid: Math.round(totalGrid * 10) / 10,
+                        bat: Math.round(totalBat * 10) / 10
+                    }
+                };
                 
                 // Display preview
                 let previewHtml = `
-                    <div style="background: rgba(16, 185, 129, 0.1); padding: 15px; border-radius: 10px; margin-bottom: 15px;">
-                        <div style="font-size: 1.1em; font-weight: bold; color: #10b981; margin-bottom: 10px;">
-                            📡 Thiết bị: ${deviceId}
+                    <div style="background: rgba(245, 158, 11, 0.1); padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                        <div style="font-size: 1.1em; font-weight: bold; color: #f59e0b; margin-bottom: 10px;">
+                            ⚡ Device: ${deviceId} - Thang ${month}/${year}
                         </div>
-                        <div style="color: #cbd5e0;">
-                            📅 Tìm thấy <strong>${monthsWithData.length}</strong> tháng có dữ liệu
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; color: #cbd5e0;">
+                            <div>☀️ PV: <strong style="color: #f59e0b;">${lightearthData.summary.pv} kWh</strong></div>
+                            <div>🏠 Load: <strong>${lightearthData.summary.load} kWh</strong></div>
+                            <div>🔌 Grid: <strong>${lightearthData.summary.grid} kWh</strong></div>
+                            <div>🔋 Battery: <strong>${lightearthData.summary.bat} kWh</strong></div>
+                        </div>
+                        <div style="margin-top: 10px; color: #9ca3af; font-size: 0.85em;">
+                            📅 ${dailyData.length} ngay co du lieu (${elapsed}ms)
                         </div>
                     </div>
-                    <div style="max-height: 300px; overflow-y: auto;">
+                    <div style="max-height: 250px; overflow-y: auto;">
                         <table style="width: 100%; border-collapse: collapse; font-size: 0.85em;">
                             <thead>
-                                <tr style="background: rgba(16, 185, 129, 0.2);">
-                                    <th style="padding: 8px; text-align: left; border-bottom: 2px solid #10b981;">Tháng</th>
-                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #10b981;">Load</th>
-                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #10b981;">Grid</th>
-                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #10b981;">PV</th>
-                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #10b981;">Backup</th>
+                                <tr style="background: rgba(245, 158, 11, 0.2);">
+                                    <th style="padding: 8px; text-align: left; border-bottom: 2px solid #f59e0b;">Ngay</th>
+                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #f59e0b;">PV</th>
+                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #f59e0b;">Load</th>
+                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #f59e0b;">Grid</th>
+                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #f59e0b;">Bat</th>
                                 </tr>
                             </thead>
                             <tbody>
                 `;
                 
-                data.forEach(m => {
-                    const hasData = m.load > 0 || m.grid > 0 || m.pv > 0;
-                    const rowStyle = hasData ? '' : 'opacity: 0.4;';
+                dailyData.forEach(d => {
                     previewHtml += `
-                        <tr style="${rowStyle}">
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568;">${m.month}</td>
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right;">${m.load.toFixed(1)}</td>
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right;">${m.grid.toFixed(1)}</td>
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right; color: #10b981;">${m.pv.toFixed(1)}</td>
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right;">${m.backup.toFixed(1)}</td>
+                        <tr>
+                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568;">${d.date}</td>
+                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right; color: #f59e0b;">${d.pv.toFixed(1)}</td>
+                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right;">${d.load.toFixed(1)}</td>
+                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right;">${d.grid.toFixed(1)}</td>
+                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right;">${d.bat.toFixed(1)}</td>
                         </tr>
                     `;
                 });
                 
-                previewHtml += `
-                            </tbody>
-                        </table>
-                    </div>
-                `;
+                previewHtml += '</tbody></table></div>';
                 
                 document.getElementById('lumentreePreview').innerHTML = previewHtml;
                 document.getElementById('lumentreeResultSection').classList.add('show');
                 
-                showNotification(`✅ Đã lấy dữ liệu ${monthsWithData.length} tháng từ Lumentree!`, 'success');
+                showNotification(`✅ Da lay du lieu thang ${month}/${year} (${elapsed}ms)!`, 'success');
                 
             } catch (error) {
-                console.error('Lumentree fetch error:', error);
-                showNotification(`❌ Lỗi: ${error.message}`, 'error');
+                console.error('Lightearth fetch error:', error);
+                showNotification(`❌ Loi: ${error.message}`, 'error');
             }
         }
+        
+        // Import data into calculator
+        function importLightearthData() {
+            if (!lightearthData || !lightearthData.summary) {
+                showNotification('⚠️ Chua co du lieu de nhap!', 'error');
+                return;
+            }
+            
+            // Convert to format expected by calculator (single month)
+            const monthData = [{
+                month: lightearthData.month,
+                load: lightearthData.summary.load,
+                grid: lightearthData.summary.grid,
+                pv: lightearthData.summary.pv,
+                backup: 0
+            }];
+            
+            // Use the existing import function
+            lumentreeData = monthData;
+            importLumentreeData();
+        }
+        
+        // Enter key handler
+        document.getElementById('lightearthDeviceId')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                fetchLightearthData();
+            }
+        });
+        
+        // fetchLumentreeData removed - now using fetchLightearthData only
         
         function importLumentreeData() {
             if (!lumentreeData || lumentreeData.length === 0) {
@@ -4984,228 +4918,9 @@
             }
         });
         
-        // Enter key to fetch
-        document.getElementById('lumentreeDeviceId').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                fetchLumentreeData();
-            }
-        });
+        // Legacy lumentreeDeviceId event listener removed - using lightearthDeviceId instead
         
-        // Tab switching
-        function switchLumentreeTab(tab) {
-            const tabDashboard = document.getElementById('lumentreeTabDashboard');
-            const tabAuto = document.getElementById('lumentreeTabAuto');
-            const tabManual = document.getElementById('lumentreeTabManual');
-            const btnDashboard = document.getElementById('tabDashboard');
-            const btnAuto = document.getElementById('tabAuto');
-            const btnManual = document.getElementById('tabManual');
-            
-            // Reset all tabs
-            tabDashboard.style.display = 'none';
-            tabAuto.style.display = 'none';
-            tabManual.style.display = 'none';
-            btnDashboard.style.background = 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)';
-            btnAuto.style.background = 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)';
-            btnManual.style.background = 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)';
-            
-            // Sync device IDs
-            const dashboardDeviceId = document.getElementById('dashboardDeviceId').value.trim();
-            const autoDeviceId = document.getElementById('lumentreeDeviceId').value.trim();
-            const manualDeviceId = document.getElementById('manualDeviceId').value.trim();
-            const currentId = dashboardDeviceId || autoDeviceId || manualDeviceId;
-            
-            if (tab === 'dashboard') {
-                tabDashboard.style.display = 'block';
-                btnDashboard.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
-                if (currentId) document.getElementById('dashboardDeviceId').value = currentId;
-            } else if (tab === 'auto') {
-                tabAuto.style.display = 'block';
-                btnAuto.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
-                if (currentId) document.getElementById('lumentreeDeviceId').value = currentId;
-            } else {
-                tabManual.style.display = 'block';
-                btnManual.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
-                if (currentId) document.getElementById('manualDeviceId').value = currentId;
-            }
-            
-            // Hide result section when switching
-            document.getElementById('lumentreeResultSection').classList.remove('show');
-        }
-        
-        // Fetch data from local Dashboard API (proxy to lumentree.net)
-        async function fetchDashboardData() {
-            const deviceId = document.getElementById('dashboardDeviceId').value.trim().toUpperCase();
-            
-            if (!deviceId) {
-                showNotification('⚠️ Vui lòng nhập Device ID!', 'error');
-                return;
-            }
-            
-            // Save device ID
-            localStorage.setItem('lumentreeDeviceId', deviceId);
-            document.getElementById('lumentreeDeviceId').value = deviceId;
-            document.getElementById('manualDeviceId').value = deviceId;
-            
-            try {
-                showNotification(`🔄 Đang lấy dữ liệu từ Lumentree qua Dashboard...`, 'info');
-                
-                const startTime = Date.now();
-                const response = await fetch(`/device/${deviceId}/monthly`);
-                
-                if (!response.ok) {
-                    throw new Error(`Server trả về lỗi: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                const elapsed = Date.now() - startTime;
-                
-                if (!Array.isArray(data) || data.length === 0) {
-                    throw new Error('Không có dữ liệu từ thiết bị này');
-                }
-                
-                lumentreeData = data;
-                
-                // Filter only months with data
-                const monthsWithData = data.filter(m => m.load > 0 || m.grid > 0 || m.pv > 0);
-                
-                // Display preview
-                let previewHtml = `
-                    <div style="background: rgba(245, 158, 11, 0.1); padding: 15px; border-radius: 10px; margin-bottom: 15px;">
-                        <div style="font-size: 1.1em; font-weight: bold; color: #f59e0b; margin-bottom: 10px;">
-                            ⚡ Proxy: ${deviceId}
-                        </div>
-                        <div style="color: #cbd5e0;">
-                            📅 Tìm thấy <strong>${monthsWithData.length}</strong> tháng có dữ liệu (${elapsed}ms)
-                        </div>
-                    </div>
-                    <div style="max-height: 300px; overflow-y: auto;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 0.85em;">
-                            <thead>
-                                <tr style="background: rgba(245, 158, 11, 0.2);">
-                                    <th style="padding: 8px; text-align: left; border-bottom: 2px solid #f59e0b;">Tháng</th>
-                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #f59e0b;">Load</th>
-                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #f59e0b;">Grid</th>
-                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #f59e0b;">PV</th>
-                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #f59e0b;">Backup</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                `;
-                
-                data.forEach(m => {
-                    const hasData = m.load > 0 || m.grid > 0 || m.pv > 0;
-                    const rowStyle = hasData ? '' : 'opacity: 0.4;';
-                    previewHtml += `
-                        <tr style="${rowStyle}">
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568;">${m.month}</td>
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right;">${m.load.toFixed(1)}</td>
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right;">${m.grid.toFixed(1)}</td>
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right; color: #f59e0b;">${m.pv.toFixed(1)}</td>
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right;">${m.backup.toFixed(1)}</td>
-                        </tr>
-                    `;
-                });
-                
-                previewHtml += `
-                            </tbody>
-                        </table>
-                    </div>
-                `;
-                
-                document.getElementById('lumentreePreview').innerHTML = previewHtml;
-                document.getElementById('lumentreeResultSection').classList.add('show');
-                
-                showNotification(`✅ Đã lấy ${monthsWithData.length} tháng từ Lumentree (${elapsed}ms)!`, 'success');
-                
-            } catch (error) {
-                console.error('Dashboard fetch error:', error);
-                showNotification(`❌ Lỗi: ${error.message}`, 'error');
-            }
-        }
-        
-        // Enter key handler for dashboard device ID
-        document.getElementById('dashboardDeviceId')?.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                fetchDashboardData();
-            }
-        });
-        
-        // Parse manual JSON input
-        function parseManualLumentreeData() {
-            const jsonInput = document.getElementById('lumentreeJsonInput').value.trim();
-            
-            if (!jsonInput) {
-                showNotification('⚠️ Vui lòng paste dữ liệu JSON!', 'error');
-                return;
-            }
-            
-            try {
-                const data = JSON.parse(jsonInput);
-                
-                if (!Array.isArray(data) || data.length === 0) {
-                    throw new Error('Dữ liệu phải là một mảng JSON');
-                }
-                
-                // Validate data structure
-                const firstItem = data[0];
-                if (!firstItem.month || firstItem.load === undefined) {
-                    throw new Error('Dữ liệu không đúng định dạng Lumentree');
-                }
-                
-                lumentreeData = data;
-                
-                // Display preview (reuse the same preview function)
-                const monthsWithData = data.filter(m => m.load > 0 || m.grid > 0 || m.pv > 0);
-                
-                let previewHtml = `
-                    <div style="background: rgba(245, 158, 11, 0.1); padding: 15px; border-radius: 10px; margin-bottom: 15px;">
-                        <div style="font-size: 1.1em; font-weight: bold; color: #f59e0b; margin-bottom: 10px;">
-                            📋 Dữ liệu từ JSON
-                        </div>
-                        <div style="color: #cbd5e0;">
-                            📅 Tìm thấy <strong>${monthsWithData.length}</strong> tháng có dữ liệu
-                        </div>
-                    </div>
-                    <div style="max-height: 300px; overflow-y: auto;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 0.85em;">
-                            <thead>
-                                <tr style="background: rgba(245, 158, 11, 0.2);">
-                                    <th style="padding: 8px; text-align: left; border-bottom: 2px solid #f59e0b;">Tháng</th>
-                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #f59e0b;">Load</th>
-                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #f59e0b;">Grid</th>
-                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #f59e0b;">PV</th>
-                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #f59e0b;">Backup</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                `;
-                
-                data.forEach(m => {
-                    const hasData = (m.load || 0) > 0 || (m.grid || 0) > 0 || (m.pv || 0) > 0;
-                    const rowStyle = hasData ? '' : 'opacity: 0.4;';
-                    previewHtml += `
-                        <tr style="${rowStyle}">
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568;">${m.month}</td>
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right;">${(m.load || 0).toFixed(1)}</td>
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right;">${(m.grid || 0).toFixed(1)}</td>
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right; color: #f59e0b;">${(m.pv || 0).toFixed(1)}</td>
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right;">${(m.backup || 0).toFixed(1)}</td>
-                        </tr>
-                    `;
-                });
-                
-                previewHtml += `</tbody></table></div>`;
-                
-                document.getElementById('lumentreePreview').innerHTML = previewHtml;
-                document.getElementById('lumentreeResultSection').classList.add('show');
-                
-                showNotification(`✅ Đã xử lý ${monthsWithData.length} tháng dữ liệu!`, 'success');
-                
-            } catch (error) {
-                console.error('JSON parse error:', error);
-                showNotification(`❌ Lỗi: ${error.message}`, 'error');
-            }
-        }
+        // Legacy tab functions removed - using single Lightearth API connection
         // ==================== END LUMENTREE SYNC ====================
         
         // ==================== TOGGLE FUNCTIONS ====================
