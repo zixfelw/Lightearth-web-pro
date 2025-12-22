@@ -614,36 +614,10 @@ public class RealtimeController : ControllerBase
     [HttpGet("power-history/{deviceId}")]
     public async Task<IActionResult> GetPowerHistory(string deviceId, [FromQuery] string? date = null)
     {
-        _logger.LogInformation("Fetching power history for device: {DeviceId}, date: {Date}", deviceId, date ?? "today");
-
-        if (_multiDeviceHaClient == null)
-        {
-            return Ok(new
-            {
-                success = false,
-                message = "Home Assistant client not configured",
-                deviceId = deviceId,
-                timestamp = DateTime.Now
-            });
-        }
+        _logger.LogDebug("Fetching power history for device: {DeviceId}, date: {Date}", deviceId, date ?? "today");
 
         try
         {
-            // Check if device exists in Home Assistant
-            var deviceExists = await _multiDeviceHaClient.DeviceExistsAsync(deviceId);
-            
-            if (!deviceExists)
-            {
-                _logger.LogWarning("Device {DeviceId} not found in Home Assistant", deviceId);
-                return Ok(new
-                {
-                    success = false,
-                    message = $"Device {deviceId} not found in Home Assistant",
-                    deviceId = deviceId,
-                    timestamp = DateTime.Now
-                });
-            }
-
             // Parse date or use today
             DateTime targetDate;
             if (string.IsNullOrEmpty(date))
@@ -660,18 +634,10 @@ public class RealtimeController : ControllerBase
                 });
             }
 
-            // Try to get power history from HA first
-            var powerHistory = await _multiDeviceHaClient.GetPowerHistoryAsync(deviceId, targetDate);
-            var dataSource = "HomeAssistant";
+            // Use collected data directly (fastest) - skip HA history API which is slow
+            var powerHistory = PowerHistoryCollector.GetPowerHistory(deviceId, targetDate);
+            var dataSource = "Collector";
 
-            // Fallback to collected data if HA history is empty
-            if (powerHistory == null || powerHistory.Count == 0)
-            {
-                _logger.LogInformation("HA power history empty for {DeviceId}, trying collected data...", deviceId);
-                powerHistory = PowerHistoryCollector.GetPowerHistory(deviceId, targetDate);
-                dataSource = "Collector";
-            }
-            
             if (powerHistory == null || powerHistory.Count == 0)
             {
                 // Return available dates for debugging

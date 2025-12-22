@@ -628,68 +628,60 @@ document.addEventListener('DOMContentLoaded', function () {
         timestamp: 0
     };
     
-    // Fast load: Fetch realtime data FIRST for instant display
+    // Fast load: Optimized data loading with minimal API calls
     async function fetchRealtimeFirst(deviceId, date) {
-        try {
-            console.log(`🚀 Loading data for device: ${deviceId}, date: ${date || 'today'}`);
-            
-            // Show UI immediately
-            showElement('deviceInfo');
-            showElement('summaryStats');
-            showElement('chart-section');
-            showElement('realTimeFlow');
-            showElement('batteryCellSection');
-            
-            updateDeviceInfo({
-                deviceId: deviceId,
-                deviceType: 'Lumentree Inverter',
-                onlineStatus: 1,
-                remarkName: ''
-            });
-            
-            showCompactSearchBar(deviceId, date);
-            showLoading(false);
-            
-            // Check if we have cached summary data for this device
-            const hasCachedData = summaryDataCache.deviceId === deviceId && summaryDataCache.data;
-            
-            if (hasCachedData) {
-                // Use cached data immediately - no "Đang tải..."
-                console.log('📦 Using cached summary data for', deviceId);
-                applySummaryData(summaryDataCache.data);
-            } else {
-                // Only show "Đang tải..." if no cache
-                updateValue('pv-total', 'Đang tải...');
-                updateValue('bat-charge', 'Đang tải...');
-                updateValue('bat-discharge', 'Đang tải...');
-                updateValue('load-total', 'Đang tải...');
-                updateValue('grid-total', 'Đang tải...');
-                updateValue('essential-total', 'Đang tải...');
-            }
-            
-            // PRIORITY: Fetch realtime data IMMEDIATELY for summary cards
-            // This runs in parallel and updates as soon as data arrives
-            fetchRealtimeDataForSummary(deviceId);
-            
-            // Initialize cells waiting state
-            if (!hasCellData) {
-                initializeBatteryCellsWaiting();
-            }
-            
-            // Fetch SOC data in background
-            fetchSOCData().catch(err => console.warn('SOC fetch error:', err));
-            
-            // Fetch temperature min/max in background
-            fetchTemperatureMinMax(deviceId, date);
-            
-            // Fetch day data for charts (lower priority)
-            fetchDayDataInBackground(deviceId, date);
-            
-        } catch (error) {
-            console.error("Data load failed:", error);
-            showLoading(false);
-            showError('Không thể tải dữ liệu. Vui lòng kiểm tra Device ID và thử lại.');
+        console.log(`🚀 Loading data for device: ${deviceId}, date: ${date || 'today'}`);
+        
+        // Show UI immediately
+        showElement('deviceInfo');
+        showElement('summaryStats');
+        showElement('chart-section');
+        showElement('realTimeFlow');
+        showElement('batteryCellSection');
+        
+        updateDeviceInfo({
+            deviceId: deviceId,
+            deviceType: 'Lumentree Inverter',
+            onlineStatus: 1,
+            remarkName: ''
+        });
+        
+        showCompactSearchBar(deviceId, date);
+        showLoading(false);
+        
+        // Check if we have cached summary data for this device
+        const hasCachedData = summaryDataCache.deviceId === deviceId && summaryDataCache.data;
+        
+        if (hasCachedData) {
+            // Use cached data immediately - no "Đang tải..."
+            console.log('📦 Using cached summary data for', deviceId);
+            applySummaryData(summaryDataCache.data);
+        } else {
+            // Only show "Đang tải..." if no cache
+            updateValue('pv-total', 'Đang tải...');
+            updateValue('bat-charge', 'Đang tải...');
+            updateValue('bat-discharge', 'Đang tải...');
+            updateValue('load-total', 'Đang tải...');
+            updateValue('grid-total', 'Đang tải...');
+            updateValue('essential-total', 'Đang tải...');
         }
+        
+        // Initialize cells waiting state
+        if (!hasCellData) {
+            initializeBatteryCellsWaiting();
+        }
+        
+        // Fetch summary data (updates 3 cards: Năng Lượng, Pin Lưu Trữ, Nguồn Điện)
+        fetchRealtimeDataForSummary(deviceId);
+        
+        // Fetch SOC data in background (for SOC chart)
+        fetchSOCData().catch(err => console.warn('SOC fetch error:', err));
+        
+        // Fetch temperature min/max in background
+        fetchTemperatureMinMax(deviceId, date);
+        
+        // Fetch chart data (lower priority)
+        fetchDayDataInBackground(deviceId, date).catch(err => console.warn('Day data error:', err));
     }
     
     // Helper to apply summary data to UI
@@ -703,10 +695,9 @@ document.addEventListener('DOMContentLoaded', function () {
         updateValue('essential-total', (data.essentialDay || 0).toFixed(1) + ' kWh');
     }
     
-    // Fetch realtime data specifically for summary cards (fast path)
+    // Fetch summary data for the 3 cards (fast path - single API call)
     async function fetchRealtimeDataForSummary(deviceId) {
         try {
-            // Try Railway daily-energy API first (Home Assistant)
             const haEnergyUrl = `${currentOrigin}/api/realtime/daily-energy/${deviceId}`;
             console.log('⚡ Fetching summary from:', haEnergyUrl);
             
@@ -735,11 +726,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 // Update UI immediately
                 applySummaryData(cacheData);
-                console.log('✅ Summary data loaded and cached:', cacheData);
+                console.log('✅ Summary loaded:', cacheData);
             }
         } catch (error) {
-            console.warn('⚠️ Summary fetch error:', error.message);
-            // Will fallback to day data API
+            console.warn('⚠️ Summary fetch failed:', error.message);
         }
     }
     
@@ -803,37 +793,8 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log("📦 [Priority 1] Using cached summary data, skipping Railway API");
         }
         
-        // STEP 2: Try Railway Power History API for chart data (Home Assistant history)
+        // STEP 2: Skip Railway Power History API (too slow) - go directly to Lightearth
         let chartDataLoaded = false;
-        try {
-            console.log("📊 [Priority 2] Trying Railway Power History API...");
-            const powerHistoryUrl = `${currentOrigin}/api/realtime/power-history/${deviceId}?date=${queryDate}`;
-            const powerResponse = await fetch(powerHistoryUrl);
-            
-            if (powerResponse.ok) {
-                const powerData = await powerResponse.json();
-                
-                if (powerData.success && powerData.timeline && powerData.timeline.length > 0) {
-                    console.log(`✅ [Priority 2] Railway Power History SUCCESS: ${powerData.timeline.length} data points`);
-                    
-                    // Convert Railway data to chart format (288 points for 5-minute intervals)
-                    const chartData = convertRailwayPowerToChartData(powerData.timeline);
-                    updateCharts(chartData);
-                    chartDataLoaded = true;
-                    
-                    // Update peak stats from Railway data
-                    updateEnergyChartPeakStatsFromRailway(powerData);
-                }
-            }
-        } catch (powerError) {
-            console.warn("⚠️ [Priority 2] Railway Power History failed:", powerError.message);
-        }
-        
-        // Skip Lightearth if Railway chart data loaded successfully
-        if (chartDataLoaded) {
-            console.log("ℹ️ Chart data loaded from Railway - skipping Lightearth/Workers API");
-            return;
-        }
         
         // STEP 3: Try Lightearth API for chart data (fallback)
         // Check cache first
