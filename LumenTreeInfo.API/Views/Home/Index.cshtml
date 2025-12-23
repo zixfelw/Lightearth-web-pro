@@ -9,7 +9,7 @@
     <title>Giám Sát Năng Lượng Mặt Trời - LightEarth Web Pro</title>
     
     <!-- Preload critical resources -->
-    <link rel="preload" href="/css/index.css?v=20015" as="style">
+    <link rel="preload" href="/css/index.css?v=20016" as="style">
     <link rel="preload" href="/logo.png" as="image">
     
     <!-- Tailwind CSS with custom config -->
@@ -724,8 +724,8 @@
                 <!-- Khoảng trống giữa -->
                 <div></div>
                 
-                <!-- Lưới EVN - Style giống Tải hòa lưới (emerald) -->
-                <div class="flow-item bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/30 dark:to-green-900/30 rounded-xl p-2.5 sm:p-3 border border-emerald-300 dark:border-emerald-700">
+                <!-- Lưới EVN - Style màu vàng tia sét (amber/yellow) -->
+                <div class="flow-item bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/30 dark:to-yellow-900/30 rounded-xl p-2.5 sm:p-3 border border-amber-300 dark:border-amber-700">
                     <div class="flex flex-col items-center text-center">
                         <div class="icon-glow-container icon-glow-evn" id="evn-icon-container">
                             <div class="icon-glow-aura"></div>
@@ -740,9 +740,9 @@
                                 <img src="/icons/evn-grid.png" loading="lazy" alt="Lưới EVN" class="icon-glow-img">
                             </picture>
                         </div>
-                        <div class="text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Lưới EVN</div>
-                        <div class="text-lg sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="grid-power">--</div>
-                        <div class="text-xs sm:text-sm font-medium text-emerald-500 dark:text-emerald-400 mt-0.5" id="grid-voltage">--</div>
+                        <div class="text-xs font-semibold text-amber-700 dark:text-amber-300 mb-1">Lưới EVN</div>
+                        <div class="text-lg sm:text-xl font-black text-amber-600 dark:text-amber-400" id="grid-power">--</div>
+                        <div class="text-xs sm:text-sm font-medium text-amber-500 dark:text-amber-400 mt-0.5" id="grid-voltage">--</div>
                     </div>
                 </div>
             </div>
@@ -880,7 +880,7 @@
                     </div>
                 </div>
                 
-                <div class="flow-item bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-xl p-2.5 sm:p-3 border border-orange-200 dark:border-orange-800">
+                <div class="flow-item bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/30 dark:to-yellow-900/30 rounded-xl p-2.5 sm:p-3 border border-amber-300 dark:border-amber-700">
                     <div class="flex flex-col items-center">
                         <div class="w-12 h-12 sm:w-14 sm:h-14 mb-1.5 flex items-center justify-center relative" id="evn-icon-container-basic">
                             <div class="evn-spark-container" id="evn-spark-basic">
@@ -894,9 +894,9 @@
                                 <img src="/icons/evn-grid.png" loading="lazy" alt="Lưới EVN" class="w-full h-full object-contain drop-shadow-md">
                             </picture>
                         </div>
-                        <div class="text-xs font-semibold text-orange-700 dark:text-orange-300 text-center">Lưới EVN</div>
-                        <div class="text-base sm:text-lg font-black text-orange-600 dark:text-orange-400" id="grid-power-basic">--</div>
-                        <div class="text-[10px] text-slate-500" id="grid-voltage-basic">--</div>
+                        <div class="text-xs font-semibold text-amber-700 dark:text-amber-300 text-center">Lưới EVN</div>
+                        <div class="text-base sm:text-lg font-black text-amber-600 dark:text-amber-400" id="grid-power-basic">--</div>
+                        <div class="text-[10px] text-amber-500 dark:text-amber-400" id="grid-voltage-basic">--</div>
                     </div>
                 </div>
                 
@@ -1417,7 +1417,7 @@
     
     
     <!-- CSS first for fast rendering -->
-    <link href="/css/index.css?v=20015" rel="stylesheet" />
+    <link href="/css/index.css?v=20016" rel="stylesheet" />
     
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
