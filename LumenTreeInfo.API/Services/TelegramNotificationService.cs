@@ -244,7 +244,8 @@ public class TelegramNotificationService : BackgroundService
                       $"• Battery: {data.BatteryChargePercentage ?? 0}%";
         }
         
-        await SendTelegramMessageAsync(message);
+        // Send to the user who added this device
+        await SendMessageToDeviceOwnerAsync(deviceId, message);
     }
 
     private async Task SendLowBatteryNotificationAsync(string deviceId, SolarInverterMonitor.DeviceData data, BatteryAlertLevel level)
@@ -288,14 +289,21 @@ public class TelegramNotificationService : BackgroundService
                       $"• Load: {data.HomeLoad ?? 0}W\n\n" +
                       $"{warning}";
         
-        await SendTelegramMessageAsync(message);
+        // Send to the user who added this device
+        await SendMessageToDeviceOwnerAsync(deviceId, message);
     }
 
     public async Task<bool> SendTelegramMessageAsync(string message)
     {
-        if (!_enabled || string.IsNullOrEmpty(_botToken) || string.IsNullOrEmpty(_chatId))
+        // Send to default chat ID (admin)
+        return await SendTelegramMessageAsync(message, _chatId);
+    }
+    
+    public async Task<bool> SendTelegramMessageAsync(string message, string? chatId)
+    {
+        if (!_enabled || string.IsNullOrEmpty(_botToken) || string.IsNullOrEmpty(chatId))
         {
-            _logger.LogWarning("Cannot send Telegram message - not configured");
+            _logger.LogWarning("Cannot send Telegram message - not configured or no chatId");
             return false;
         }
         
@@ -304,7 +312,7 @@ public class TelegramNotificationService : BackgroundService
             var url = $"https://api.telegram.org/bot{_botToken}/sendMessage";
             var payload = new
             {
-                chat_id = _chatId,
+                chat_id = chatId,
                 text = message,
                 parse_mode = "Markdown"
             };
@@ -316,21 +324,35 @@ public class TelegramNotificationService : BackgroundService
             
             if (response.IsSuccessStatusCode)
             {
-                _logger.LogInformation("Telegram notification sent successfully");
+                _logger.LogInformation("Telegram notification sent to {ChatId}", chatId);
                 return true;
             }
             else
             {
                 var error = await response.Content.ReadAsStringAsync();
-                _logger.LogError("Failed to send Telegram notification: {Error}", error);
+                _logger.LogError("Failed to send Telegram notification to {ChatId}: {Error}", chatId, error);
                 return false;
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error sending Telegram notification");
+            _logger.LogError(ex, "Error sending Telegram notification to {ChatId}", chatId);
             return false;
         }
+    }
+    
+    /// <summary>
+    /// Send message to a specific device's owner
+    /// </summary>
+    public async Task<bool> SendMessageToDeviceOwnerAsync(string deviceId, string message)
+    {
+        var chatId = TelegramBotCommandService.GetDeviceChatId(deviceId);
+        if (chatId.HasValue)
+        {
+            return await SendTelegramMessageAsync(message, chatId.Value.ToString());
+        }
+        // Fallback to default chat ID if device owner not found
+        return await SendTelegramMessageAsync(message);
     }
 
     /// <summary>

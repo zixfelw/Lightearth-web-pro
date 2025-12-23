@@ -261,6 +261,7 @@ public class TelegramBotCommandService : BackgroundService
         {
             DeviceId = deviceId,
             AddedAt = DateTime.UtcNow,
+            ChatId = chatId,  // Store the user's Telegram Chat ID
             AddedBy = chatId.ToString(),
             ExistsInHA = deviceExists
         };
@@ -551,6 +552,26 @@ public class TelegramBotCommandService : BackgroundService
     public static int GetMonitoredDevicesCount() => _monitoredDevices.Count;
     
     /// <summary>
+    /// Get Chat ID for a specific device (returns the user who added it)
+    /// </summary>
+    public static long? GetDeviceChatId(string deviceId)
+    {
+        if (_monitoredDevices.TryGetValue(deviceId, out var device))
+        {
+            return device.ChatId;
+        }
+        return null;
+    }
+    
+    /// <summary>
+    /// Get all unique Chat IDs that are monitoring devices
+    /// </summary>
+    public static IReadOnlyCollection<long> GetAllChatIds()
+    {
+        return _monitoredDevices.Values.Select(d => d.ChatId).Distinct().ToList().AsReadOnly();
+    }
+    
+    /// <summary>
     /// Handle conversation response from user
     /// </summary>
     private async Task HandleConversationResponseAsync(long chatId, string text, UserConversationState state)
@@ -602,7 +623,8 @@ public class MonitoredDevice
 {
     public string DeviceId { get; set; } = string.Empty;
     public DateTime AddedAt { get; set; }
-    public string AddedBy { get; set; } = string.Empty;
+    public long ChatId { get; set; }  // Telegram Chat ID of the user who added this device
+    public string AddedBy { get; set; } = string.Empty;  // Username or display name
     public bool ExistsInHA { get; set; }
 }
 
