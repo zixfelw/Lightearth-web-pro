@@ -268,7 +268,7 @@ public class TelegramBotCommandService : BackgroundService
         _monitoredDevices[deviceId] = device;
         
         var statusIcon = deviceExists ? "✅" : "⚠️";
-        var statusText = deviceExists ? "Đã tìm thấy trong Home Assistant" : "Chưa có trong Home Assistant";
+        var statusText = deviceExists ? "Đã tìm thấy trong Hệ thống" : "Chưa có trong Hệ thống";
         
         await SendMessageAsync(chatId, 
             $"✅ Đã thêm thiết bị `{deviceId}` vào danh sách theo dõi!\n\n" +
@@ -334,7 +334,7 @@ public class TelegramBotCommandService : BackgroundService
             index++;
         }
         
-        sb.AppendLine("\n🟢 Có trong HA | 🟡 Chưa có trong HA");
+        sb.AppendLine("\n🟢 Có trong Hệ thống | 🟡 Chưa có trong Hệ thống");
         
         await SendMessageAsync(chatId, sb.ToString());
     }
@@ -354,12 +354,12 @@ public class TelegramBotCommandService : BackgroundService
         {
             var isAvailable = await haClient.CheckAvailabilityAsync();
             var haStatus = isAvailable ? "🟢 Kết nối" : "🔴 Mất kết nối";
-            sb.AppendLine($"🏠 Home Assistant: {haStatus}");
+            sb.AppendLine($"🖥️ Hệ thống: {haStatus}");
             
             if (isAvailable)
             {
                 var devices = await haClient.ScanDevicesAsync();
-                sb.AppendLine($"📡 Thiết bị trong HA: *{devices.Count}*");
+                sb.AppendLine($"📡 Thiết bị trong Hệ thống: *{devices.Count}*");
             }
         }
         
@@ -385,7 +385,7 @@ public class TelegramBotCommandService : BackgroundService
         
         if (haClient == null)
         {
-            await SendMessageAsync(chatId, "❌ Không thể kết nối Home Assistant");
+            await SendMessageAsync(chatId, "❌ Không thể kết nối Hệ thống");
             return;
         }
         
@@ -393,7 +393,7 @@ public class TelegramBotCommandService : BackgroundService
         
         if (deviceData == null)
         {
-            await SendMessageAsync(chatId, $"❌ Không tìm thấy thiết bị `{deviceId}` trong Home Assistant");
+            await SendMessageAsync(chatId, $"❌ Không tìm thấy thiết bị `{deviceId}` trong Hệ thống");
             return;
         }
         
