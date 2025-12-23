@@ -15,8 +15,9 @@ public class TelegramNotificationService : BackgroundService
     private readonly IConfiguration _configuration;
     private readonly HttpClient _httpClient;
     
-    // Check interval
-    private readonly TimeSpan _checkInterval = TimeSpan.FromSeconds(30);
+    // Check interval - 15 seconds for faster outage detection
+    // Note: With 100+ devices, consider increasing to 60-90s or upgrade Cloudflare
+    private readonly TimeSpan _checkInterval = TimeSpan.FromSeconds(15);
     
     // Track power outage state per device to avoid spam
     private static readonly ConcurrentDictionary<string, PowerOutageState> _deviceStates = new();
