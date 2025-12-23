@@ -221,6 +221,9 @@ public class NotificationController : ControllerBase
 
     /// <summary>
     /// Simulate low battery notification (TEST ONLY)
+    /// Level 1: 20% - Pin bắt đầu hết nhanh
+    /// Level 2: 5% - Pin gần cạn
+    /// Level 3: 1% - Pin đã cạn
     /// </summary>
     [HttpPost("simulate/low-battery")]
     public async Task<IActionResult> SimulateLowBattery([FromBody] SimulateLowBatteryRequest? request)
@@ -229,22 +232,54 @@ public class NotificationController : ControllerBase
         {
             var deviceId = request?.DeviceId ?? "TEST-DEVICE";
             var batterySoc = request?.BatterySoc ?? 15;
-            var gridPower = request?.GridPower ?? 0;
+            var acInputVoltage = request?.AcInputVoltage ?? 220;
             var pvPower = request?.PvPower ?? 0;
             var loadPower = request?.LoadPower ?? 300;
+            var level = request?.Level ?? 1;
 
             var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
             var nowVietnam = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTz);
 
-            var message = $"🔋 *CẢNH BÁO PIN YẾU* (TEST)\n\n" +
+            // Determine title, warning, and icon based on level
+            string title, warning, icon;
+            switch (level)
+            {
+                case 1:
+                    title = "🔋 *CẢNH BÁO PIN YẾU - CẤP 1* (TEST)";
+                    warning = "⚠️ Pin bắt đầu giai đoạn hết nhanh!";
+                    icon = "🟡";
+                    batterySoc = request?.BatterySoc ?? 18;
+                    break;
+                case 2:
+                    title = "🪫 *CẢNH BÁO PIN YẾU - CẤP 2* (TEST)";
+                    warning = "🚨 Pin gần cạn! Hãy kiểm tra nguồn điện!";
+                    icon = "🟠";
+                    batterySoc = request?.BatterySoc ?? 4;
+                    break;
+                case 3:
+                    title = "❌ *CẢNH BÁO PIN YẾU - CẤP 3* (TEST)";
+                    warning = "🔴 Pin đã cạn! Hệ thống chuyển sang điện lưới!";
+                    icon = "🔴";
+                    batterySoc = request?.BatterySoc ?? 1;
+                    break;
+                default:
+                    title = "🔋 *CẢNH BÁO PIN YẾU* (TEST)";
+                    warning = "⚠️ Pin yếu!";
+                    icon = "🟡";
+                    break;
+            }
+
+            var gridStatus = acInputVoltage >= 100 ? "🟢 Online" : "🔴 Offline";
+
+            var message = $"{title}\n\n" +
                           $"🔌 Thiết bị: `{deviceId}`\n" +
                           $"⏰ Thời gian: {nowVietnam:HH:mm:ss dd/MM/yyyy}\n\n" +
                           $"📊 Trạng thái:\n" +
-                          $"• Battery: *{batterySoc}%* ⚠️\n" +
-                          $"• Grid: {gridPower}W\n" +
+                          $"• Battery: *{batterySoc}%* {icon}\n" +
+                          $"• AC Input: {acInputVoltage}V {gridStatus}\n" +
                           $"• PV: {pvPower}W\n" +
                           $"• Load: {loadPower}W\n\n" +
-                          $"💡 Hãy kiểm tra nguồn điện!\n\n" +
+                          $"{warning}\n\n" +
                           $"_⚙️ Đây là thông báo TEST_";
 
             var result = await _telegramService.SendTelegramMessageAsync(message);
@@ -252,12 +287,13 @@ public class NotificationController : ControllerBase
             return Ok(new
             {
                 success = result,
-                message = result ? "Low battery simulation sent!" : "Failed to send",
+                message = result ? $"Low battery Level {level} simulation sent!" : "Failed to send",
                 simulated = new
                 {
                     deviceId,
+                    level,
                     batterySoc,
-                    gridPower,
+                    acInputVoltage,
                     pvPower,
                     loadPower
                 }
@@ -298,7 +334,11 @@ public class SimulateLowBatteryRequest
 {
     public string? DeviceId { get; set; }
     public int? BatterySoc { get; set; }
-    public int? GridPower { get; set; }
+    public int? AcInputVoltage { get; set; }
     public int? PvPower { get; set; }
     public int? LoadPower { get; set; }
+    /// <summary>
+    /// Battery alert level: 1 = 20% (hết nhanh), 2 = 5% (gần cạn), 3 = 1% (đã cạn)
+    /// </summary>
+    public int? Level { get; set; }
 }

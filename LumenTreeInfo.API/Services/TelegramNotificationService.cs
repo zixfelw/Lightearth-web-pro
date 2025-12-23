@@ -179,20 +179,31 @@ public class TelegramNotificationService : BackgroundService
         
         var state = _deviceStates.GetOrAdd(deviceId, _ => new PowerOutageState());
         
-        // Alert when battery drops below 20%
-        if (soc < 20 && !state.LowBatteryAlerted)
+        // Determine current battery level
+        BatteryAlertLevel currentLevel;
+        if (soc <= 1)
+            currentLevel = BatteryAlertLevel.Level3;
+        else if (soc <= 5)
+            currentLevel = BatteryAlertLevel.Level2;
+        else if (soc <= 20)
+            currentLevel = BatteryAlertLevel.Level1;
+        else
+            currentLevel = BatteryAlertLevel.None;
+        
+        // Only alert if level increased (got worse) and cooldown passed
+        if (currentLevel > state.BatteryAlertLevel && currentLevel != BatteryAlertLevel.None)
         {
             if (now - state.LastBatteryNotificationTime > _notificationCooldown)
             {
-                state.LowBatteryAlerted = true;
+                state.BatteryAlertLevel = currentLevel;
                 state.LastBatteryNotificationTime = now;
-                await SendLowBatteryNotificationAsync(deviceId, data);
+                await SendLowBatteryNotificationAsync(deviceId, data, currentLevel);
             }
         }
+        // Reset alert level when battery is charged above 30%
         else if (soc >= 30)
         {
-            // Reset alert when battery is charged above 30%
-            state.LowBatteryAlerted = false;
+            state.BatteryAlertLevel = BatteryAlertLevel.None;
         }
     }
 
@@ -235,20 +246,46 @@ public class TelegramNotificationService : BackgroundService
         await SendTelegramMessageAsync(message);
     }
 
-    private async Task SendLowBatteryNotificationAsync(string deviceId, SolarInverterMonitor.DeviceData data)
+    private async Task SendLowBatteryNotificationAsync(string deviceId, SolarInverterMonitor.DeviceData data, BatteryAlertLevel level)
     {
         var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
         var nowVietnam = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTz);
         
-        var message = $"🔋 *CẢNH BÁO PIN YẾU*\n\n" +
+        // Different messages for each level
+        string title, warning, icon;
+        switch (level)
+        {
+            case BatteryAlertLevel.Level1:
+                title = "🔋 *CẢNH BÁO PIN YẾU - CẤP 1*";
+                warning = "⚠️ Pin bắt đầu giai đoạn hết nhanh!";
+                icon = "🟡";
+                break;
+            case BatteryAlertLevel.Level2:
+                title = "🪫 *CẢNH BÁO PIN YẾU - CẤP 2*";
+                warning = "🚨 Pin gần cạn! Hãy kiểm tra nguồn điện!";
+                icon = "🟠";
+                break;
+            case BatteryAlertLevel.Level3:
+                title = "❌ *CẢNH BÁO PIN YẾU - CẤP 3*";
+                warning = "🔴 Pin đã cạn! Hệ thống chuyển sang điện lưới!";
+                icon = "🔴";
+                break;
+            default:
+                return;
+        }
+        
+        var acInputVoltage = data.AcInputVoltage ?? 0;
+        var gridStatus = acInputVoltage >= 100 ? "🟢 Online" : "🔴 Offline";
+        
+        var message = $"{title}\n\n" +
                       $"🔌 Thiết bị: `{deviceId}`\n" +
                       $"⏰ Thời gian: {nowVietnam:HH:mm:ss dd/MM/yyyy}\n\n" +
                       $"📊 Trạng thái:\n" +
-                      $"• Battery: *{data.BatteryChargePercentage ?? 0}%* ⚠️\n" +
-                      $"• Grid: {data.GridPower ?? 0}W\n" +
+                      $"• Battery: *{data.BatteryChargePercentage ?? 0}%* {icon}\n" +
+                      $"• AC Input: {acInputVoltage}V {gridStatus}\n" +
                       $"• PV: {data.TotalPvPower ?? 0}W\n" +
                       $"• Load: {data.HomeLoad ?? 0}W\n\n" +
-                      $"💡 Hãy kiểm tra nguồn điện!";
+                      $"{warning}";
         
         await SendTelegramMessageAsync(message);
     }
@@ -357,6 +394,19 @@ public class PowerOutageState
     public bool IsOutage { get; set; }
     public DateTime OutageStartTime { get; set; }
     public DateTime LastNotificationTime { get; set; }
-    public bool LowBatteryAlerted { get; set; }
+    
+    // Battery alert levels (3 tiers)
+    public BatteryAlertLevel BatteryAlertLevel { get; set; } = BatteryAlertLevel.None;
     public DateTime LastBatteryNotificationTime { get; set; }
+}
+
+/// <summary>
+/// Battery alert levels
+/// </summary>
+public enum BatteryAlertLevel
+{
+    None = 0,      // > 20% - No alert
+    Level1 = 1,    // <= 20% - Pin bắt đầu hết nhanh
+    Level2 = 2,    // <= 5% - Pin gần cạn
+    Level3 = 3     // <= 1% - Pin đã cạn
 }
