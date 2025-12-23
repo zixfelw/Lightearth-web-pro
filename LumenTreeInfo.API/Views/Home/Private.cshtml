@@ -10,12 +10,29 @@
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand': {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            400: '#2dd4bf',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
     
@@ -23,114 +40,242 @@
         * { font-family: 'Inter', sans-serif; }
         
         .device-card {
-            transition: all 0.2s ease;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
         .device-card:hover {
-            transform: scale(1.02);
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            transform: translateY(-4px);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
         }
         
-        .status-online {
-            background-color: #10b981;
-            box-shadow: 0 0 6px #10b981;
+        .device-card:active {
+            transform: translateY(-2px);
         }
         
-        .status-offline {
-            background-color: #ef4444;
+        .status-dot {
+            position: relative;
+        }
+        
+        .status-dot.online::after {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 50%;
+            background: #10b981;
+            opacity: 0.4;
+            animation: pulse-ring 2s ease-out infinite;
+        }
+        
+        @@keyframes pulse-ring {
+            0% { transform: scale(1); opacity: 0.4; }
+            100% { transform: scale(2); opacity: 0; }
         }
         
         .spinner {
-            border: 2px solid rgba(255,255,255,0.1);
+            border: 3px solid rgba(255,255,255,0.1);
             border-left-color: #14b8a6;
             border-radius: 50%;
-            width: 24px;
-            height: 24px;
+            width: 32px;
+            height: 32px;
             animation: spin 0.8s linear infinite;
         }
         
         @@keyframes spin {
             to { transform: rotate(360deg); }
         }
+        
+        .device-id-badge {
+            background: linear-gradient(135deg, rgba(20, 184, 166, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%);
+            border: 1px solid rgba(20, 184, 166, 0.3);
+        }
+        
+        .soc-bar {
+            background: linear-gradient(90deg, 
+                rgba(239, 68, 68, 1) 0%, 
+                rgba(245, 158, 11, 1) 30%, 
+                rgba(16, 185, 129, 1) 80%);
+            background-size: 200% 100%;
+        }
+        
+        .power-badge {
+            backdrop-filter: blur(8px);
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
     </style>
 </head>
-<body class="bg-slate-900 text-gray-100 min-h-screen">
-    <!-- Compact Header -->
-    <header class="bg-slate-800/80 backdrop-blur border-b border-slate-700 sticky top-0 z-50">
-        <div class="max-w-[1800px] mx-auto px-3 py-2">
+<body class="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 text-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-slate-800/90 backdrop-blur-md border-b border-slate-700/50 sticky top-0 z-50">
+        <div class="max-w-[1600px] mx-auto px-3 sm:px-4 py-2.5">
             <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <img src="/logo.png" alt="LightEarth" class="w-7 h-7 rounded-lg">
-                    <span class="text-sm font-bold text-teal-400">Private</span>
-                    <span id="deviceCount" class="text-xs text-slate-400 ml-2">--</span>
+                <!-- Left: Logo & Title -->
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2">
+                        <img src="/logo.png" alt="LightEarth" class="w-8 h-8 rounded-xl shadow-lg">
+                        <div>
+                            <h1 class="text-sm font-bold text-white">Device Manager</h1>
+                            <p class="text-[10px] text-slate-400">Private Dashboard</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Device Counter Badge -->
+                    <div class="hidden sm:flex items-center gap-1.5 bg-brand-500/20 px-2.5 py-1 rounded-full border border-brand-500/30">
+                        <i data-lucide="cpu" class="w-3.5 h-3.5 text-brand-400"></i>
+                        <span id="deviceCount" class="text-xs font-semibold text-brand-400">--</span>
+                    </div>
                 </div>
                 
+                <!-- Right: Controls -->
                 <div class="flex items-center gap-2">
-                    <!-- Auto Toggle -->
+                    <!-- Online/Offline Filter -->
+                    <div class="hidden sm:flex items-center bg-slate-700/50 rounded-lg p-0.5">
+                        <button onclick="setFilter('all')" id="filterAll" 
+                                class="px-2.5 py-1 text-[10px] font-medium rounded-md transition-all bg-brand-500 text-white">
+                            Tất cả
+                        </button>
+                        <button onclick="setFilter('online')" id="filterOnline"
+                                class="px-2.5 py-1 text-[10px] font-medium rounded-md transition-all text-slate-400 hover:text-white">
+                            Online
+                        </button>
+                        <button onclick="setFilter('offline')" id="filterOffline"
+                                class="px-2.5 py-1 text-[10px] font-medium rounded-md transition-all text-slate-400 hover:text-white">
+                            Offline
+                        </button>
+                    </div>
+                    
+                    <!-- Auto Refresh Toggle -->
                     <button id="autoRefreshBtn" onclick="toggleAutoRefresh()" 
-                            class="flex items-center gap-1 px-2 py-1 text-xs rounded bg-slate-700 hover:bg-slate-600 transition-colors">
-                        <span id="autoText" class="text-slate-400">Auto</span>
+                            class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs rounded-lg bg-slate-700/80 hover:bg-slate-600 transition-colors border border-slate-600/50">
+                        <i data-lucide="timer" class="w-3.5 h-3.5 text-slate-400" id="autoIcon"></i>
+                        <span id="autoText" class="text-slate-400 hidden sm:inline">Auto</span>
                     </button>
                     
-                    <!-- Refresh -->
-                    <button onclick="loadDevices()" class="p-1.5 bg-teal-600 hover:bg-teal-500 rounded transition-colors">
-                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5" id="refreshIcon"></i>
+                    <!-- Refresh Button -->
+                    <button onclick="loadDevices()" 
+                            class="p-2 bg-brand-600 hover:bg-brand-500 rounded-lg transition-colors shadow-lg shadow-brand-600/20">
+                        <i data-lucide="refresh-cw" class="w-4 h-4" id="refreshIcon"></i>
                     </button>
                     
-                    <!-- Home -->
-                    <a href="/" class="p-1.5 bg-slate-700 hover:bg-slate-600 rounded transition-colors">
-                        <i data-lucide="home" class="w-3.5 h-3.5"></i>
+                    <!-- Home Link -->
+                    <a href="/" class="p-2 bg-slate-700/80 hover:bg-slate-600 rounded-lg transition-colors border border-slate-600/50">
+                        <i data-lucide="home" class="w-4 h-4"></i>
                     </a>
                 </div>
             </div>
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="max-w-[1800px] mx-auto px-2 py-3">
-        <!-- Loading -->
-        <div id="loadingState" class="flex items-center justify-center py-12">
-            <div class="spinner"></div>
-        </div>
-        
-        <!-- Error -->
-        <div id="errorState" class="hidden text-center py-8">
-            <div class="text-red-400 text-sm mb-2" id="errorMessage">Error</div>
-            <button onclick="loadDevices()" class="text-xs bg-red-600 hover:bg-red-500 px-3 py-1 rounded">Retry</button>
-        </div>
-        
-        <!-- Empty -->
-        <div id="emptyState" class="hidden text-center py-8 text-slate-500 text-sm">
-            No devices found
-        </div>
-        
-        <!-- Devices Grid: 4 cols mobile, 8 cols PC -->
-        <div id="devicesGrid" class="hidden grid grid-cols-4 lg:grid-cols-8 gap-1.5 sm:gap-2"></div>
-        
-        <!-- Summary Row -->
-        <div id="summarySection" class="hidden mt-3">
-            <div class="flex flex-wrap justify-center gap-2 sm:gap-4 text-xs">
-                <div class="flex items-center gap-1.5 bg-slate-800/50 px-3 py-1.5 rounded-full">
-                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-                    <span class="text-slate-400">PV:</span>
-                    <span id="totalPv" class="font-bold text-amber-400">--</span>
+    <!-- Summary Bar -->
+    <div id="summaryBar" class="hidden bg-slate-800/50 border-b border-slate-700/30">
+        <div class="max-w-[1600px] mx-auto px-3 sm:px-4 py-2">
+            <div class="flex items-center justify-center gap-3 sm:gap-6 flex-wrap">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                        <i data-lucide="sun" class="w-4 h-4 text-amber-400"></i>
+                    </div>
+                    <div>
+                        <p class="text-[9px] text-slate-500 uppercase tracking-wide">Tổng PV</p>
+                        <p id="totalPv" class="text-sm font-bold text-amber-400">--</p>
+                    </div>
                 </div>
-                <div class="flex items-center gap-1.5 bg-slate-800/50 px-3 py-1.5 rounded-full">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span class="text-slate-400">Pin:</span>
-                    <span id="totalBattery" class="font-bold text-emerald-400">--</span>
+                
+                <div class="w-px h-8 bg-slate-700 hidden sm:block"></div>
+                
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                        <i data-lucide="battery-charging" class="w-4 h-4 text-emerald-400"></i>
+                    </div>
+                    <div>
+                        <p class="text-[9px] text-slate-500 uppercase tracking-wide">Tổng Pin</p>
+                        <p id="totalBattery" class="text-sm font-bold text-emerald-400">--</p>
+                    </div>
                 </div>
-                <div class="flex items-center gap-1.5 bg-slate-800/50 px-3 py-1.5 rounded-full">
-                    <span class="w-2 h-2 rounded-full bg-violet-500"></span>
-                    <span class="text-slate-400">EVN:</span>
-                    <span id="totalGrid" class="font-bold text-violet-400">--</span>
+                
+                <div class="w-px h-8 bg-slate-700 hidden sm:block"></div>
+                
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                        <i data-lucide="zap" class="w-4 h-4 text-violet-400"></i>
+                    </div>
+                    <div>
+                        <p class="text-[9px] text-slate-500 uppercase tracking-wide">Tổng EVN</p>
+                        <p id="totalGrid" class="text-sm font-bold text-violet-400">--</p>
+                    </div>
                 </div>
-                <div class="flex items-center gap-1.5 bg-slate-800/50 px-3 py-1.5 rounded-full">
-                    <span class="w-2 h-2 rounded-full bg-sky-500"></span>
-                    <span class="text-slate-400">Tải:</span>
-                    <span id="totalLoad" class="font-bold text-sky-400">--</span>
+                
+                <div class="w-px h-8 bg-slate-700 hidden sm:block"></div>
+                
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-lg bg-sky-500/20 flex items-center justify-center">
+                        <i data-lucide="home" class="w-4 h-4 text-sky-400"></i>
+                    </div>
+                    <div>
+                        <p class="text-[9px] text-slate-500 uppercase tracking-wide">Tổng Tải</p>
+                        <p id="totalLoad" class="text-sm font-bold text-sky-400">--</p>
+                    </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="max-w-[1600px] mx-auto px-2 sm:px-4 py-4">
+        <!-- Loading State -->
+        <div id="loadingState" class="flex flex-col items-center justify-center py-20">
+            <div class="spinner mb-4"></div>
+            <p class="text-sm text-slate-400">Đang tải thiết bị...</p>
+        </div>
+        
+        <!-- Error State -->
+        <div id="errorState" class="hidden">
+            <div class="max-w-md mx-auto text-center py-12">
+                <div class="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="alert-triangle" class="w-8 h-8 text-red-400"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-white mb-2">Đã xảy ra lỗi</h3>
+                <p class="text-sm text-slate-400 mb-4" id="errorMessage">Không thể kết nối</p>
+                <button onclick="loadDevices()" 
+                        class="px-4 py-2 bg-red-600 hover:bg-red-500 rounded-lg text-sm font-medium transition-colors">
+                    <i data-lucide="refresh-cw" class="w-4 h-4 inline mr-1"></i>
+                    Thử lại
+                </button>
+            </div>
+        </div>
+        
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden">
+            <div class="max-w-md mx-auto text-center py-12">
+                <div class="w-16 h-16 rounded-full bg-slate-700/50 flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="inbox" class="w-8 h-8 text-slate-500"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-white mb-2">Không có thiết bị</h3>
+                <p class="text-sm text-slate-400">Chưa có thiết bị nào được kết nối</p>
+            </div>
+        </div>
+        
+        <!-- Devices Grid: 4 cols mobile, 6 cols PC -->
+        <div id="devicesGrid" class="hidden grid grid-cols-4 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3"></div>
+        
+        <!-- Last Update Time -->
+        <div id="lastUpdateSection" class="hidden mt-4 text-center">
+            <p class="text-[10px] text-slate-500">
+                Cập nhật lần cuối: <span id="lastUpdateTime">--</span>
+            </p>
         </div>
     </main>
 
@@ -139,23 +284,48 @@
         
         let autoRefresh = false;
         let refreshInterval = null;
+        let allDevices = [];
+        let currentFilter = 'all';
         
         document.addEventListener('DOMContentLoaded', loadDevices);
+        
+        function setFilter(filter) {
+            currentFilter = filter;
+            
+            // Update button styles
+            ['all', 'online', 'offline'].forEach(f => {
+                const btn = document.getElementById('filter' + f.charAt(0).toUpperCase() + f.slice(1));
+                if (f === filter) {
+                    btn.classList.add('bg-brand-500', 'text-white');
+                    btn.classList.remove('text-slate-400');
+                } else {
+                    btn.classList.remove('bg-brand-500', 'text-white');
+                    btn.classList.add('text-slate-400');
+                }
+            });
+            
+            renderDevices(allDevices);
+        }
         
         function toggleAutoRefresh() {
             autoRefresh = !autoRefresh;
             const btn = document.getElementById('autoRefreshBtn');
+            const icon = document.getElementById('autoIcon');
             const text = document.getElementById('autoText');
             
             if (autoRefresh) {
-                btn.classList.remove('bg-slate-700');
-                btn.classList.add('bg-teal-600');
+                btn.classList.remove('bg-slate-700/80', 'border-slate-600/50');
+                btn.classList.add('bg-brand-600', 'border-brand-500');
+                icon.classList.remove('text-slate-400');
+                icon.classList.add('text-white');
                 text.classList.remove('text-slate-400');
                 text.classList.add('text-white');
                 refreshInterval = setInterval(loadDevices, 10000);
             } else {
-                btn.classList.add('bg-slate-700');
-                btn.classList.remove('bg-teal-600');
+                btn.classList.add('bg-slate-700/80', 'border-slate-600/50');
+                btn.classList.remove('bg-brand-600', 'border-brand-500');
+                icon.classList.add('text-slate-400');
+                icon.classList.remove('text-white');
                 text.classList.add('text-slate-400');
                 text.classList.remove('text-white');
                 if (refreshInterval) clearInterval(refreshInterval);
@@ -185,9 +355,21 @@
                     return;
                 }
                 
-                document.getElementById('deviceCount').textContent = `${data.count} devices`;
+                allDevices = data.devices;
+                
+                // Count online/offline
+                const onlineCount = data.devices.filter(d => d.isOnline).length;
+                const offlineCount = data.devices.length - onlineCount;
+                document.getElementById('deviceCount').textContent = `${data.count} thiết bị (${onlineCount} online)`;
+                
                 renderDevices(data.devices);
                 updateSummary(data.devices);
+                
+                // Update last time
+                const now = new Date();
+                document.getElementById('lastUpdateTime').textContent = 
+                    now.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                document.getElementById('lastUpdateSection').classList.remove('hidden');
                 
             } catch (e) {
                 document.getElementById('loadingState').classList.add('hidden');
@@ -201,9 +383,23 @@
         function renderDevices(devices) {
             const grid = document.getElementById('devicesGrid');
             grid.classList.remove('hidden');
-            document.getElementById('summarySection').classList.remove('hidden');
+            document.getElementById('summaryBar').classList.remove('hidden');
             
-            grid.innerHTML = devices.map(d => createCard(d)).join('');
+            // Apply filter
+            let filtered = devices;
+            if (currentFilter === 'online') {
+                filtered = devices.filter(d => d.isOnline);
+            } else if (currentFilter === 'offline') {
+                filtered = devices.filter(d => !d.isOnline);
+            }
+            
+            // Sort: online first, then by deviceId
+            filtered.sort((a, b) => {
+                if (a.isOnline !== b.isOnline) return b.isOnline ? 1 : -1;
+                return a.deviceId.localeCompare(b.deviceId);
+            });
+            
+            grid.innerHTML = filtered.map(d => createCard(d)).join('');
             lucide.createIcons();
         }
         
@@ -216,57 +412,97 @@
             const grid = rt.gridPower || 0;
             const load = rt.loadPower || 0;
             
-            // Short device ID
-            const shortId = d.deviceId.length > 8 ? d.deviceId.slice(-8) : d.deviceId;
+            // Format device ID - show full ID clearly
+            const fullId = d.deviceId;
+            const shortId = fullId.length > 10 ? fullId.slice(-10) : fullId;
             
-            // SOC color
+            // SOC styling
             const socColor = soc >= 80 ? 'text-emerald-400' : (soc >= 30 ? 'text-amber-400' : 'text-red-400');
             const socBg = soc >= 80 ? 'bg-emerald-500' : (soc >= 30 ? 'bg-amber-500' : 'bg-red-500');
+            const socBgLight = soc >= 80 ? 'bg-emerald-500/20' : (soc >= 30 ? 'bg-amber-500/20' : 'bg-red-500/20');
+            
+            // Battery status
+            const isCharging = bat < 0;
+            const batIcon = isCharging ? 'battery-charging' : 'battery';
+            const batColor = isCharging ? 'text-emerald-400' : 'text-rose-400';
             
             return `
-                <a href="/?deviceId=${d.deviceId}" 
-                   class="device-card block bg-slate-800 rounded-lg overflow-hidden border border-slate-700/50 hover:border-teal-500/50">
-                    <!-- Header: ID + Status -->
-                    <div class="px-2 py-1.5 bg-slate-700/30 flex items-center justify-between">
-                        <span class="text-[10px] sm:text-xs font-semibold text-slate-200 truncate">${shortId}</span>
-                        <span class="w-1.5 h-1.5 rounded-full flex-shrink-0 ${on ? 'status-online' : 'status-offline'}"></span>
+                <a href="/?deviceId=${fullId}" 
+                   class="device-card block bg-slate-800/80 rounded-xl overflow-hidden border border-slate-700/50 hover:border-brand-500/50">
+                    
+                    <!-- Header: Device ID -->
+                    <div class="px-2 py-2 bg-gradient-to-r from-slate-700/50 to-slate-800/50 border-b border-slate-700/30">
+                        <div class="flex items-center justify-between gap-1">
+                            <div class="flex-1 min-w-0">
+                                <div class="device-id-badge inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-mono font-semibold text-brand-400 truncate max-w-full">
+                                    <i data-lucide="cpu" class="w-2.5 h-2.5 flex-shrink-0"></i>
+                                    <span class="truncate">${shortId}</span>
+                                </div>
+                            </div>
+                            <div class="status-dot ${on ? 'online' : ''} w-2 h-2 rounded-full flex-shrink-0 ${on ? 'bg-emerald-500' : 'bg-red-500'}"></div>
+                        </div>
                     </div>
                     
                     ${on ? `
-                        <!-- SOC Bar -->
-                        <div class="px-2 pt-1.5">
-                            <div class="flex items-center justify-between mb-0.5">
-                                <span class="text-[9px] text-slate-500">SOC</span>
-                                <span class="text-[10px] font-bold ${socColor}">${soc}%</span>
+                        <!-- SOC Section -->
+                        <div class="px-2 pt-2">
+                            <div class="flex items-center justify-between mb-1">
+                                <div class="flex items-center gap-1">
+                                    <i data-lucide="${batIcon}" class="w-3 h-3 ${batColor}"></i>
+                                    <span class="text-[9px] text-slate-500">SOC</span>
+                                </div>
+                                <span class="text-xs sm:text-sm font-bold ${socColor}">${soc}%</span>
                             </div>
-                            <div class="h-1 bg-slate-700 rounded-full overflow-hidden">
-                                <div class="${socBg} h-full rounded-full transition-all" style="width:${soc}%"></div>
+                            <div class="h-1.5 bg-slate-700/50 rounded-full overflow-hidden">
+                                <div class="${socBg} h-full rounded-full transition-all duration-500" style="width:${soc}%"></div>
                             </div>
                         </div>
                         
-                        <!-- Power Values -->
-                        <div class="p-2 grid grid-cols-2 gap-1">
-                            <div class="text-center">
-                                <div class="text-[9px] text-amber-500">PV</div>
+                        <!-- Power Grid -->
+                        <div class="p-2 grid grid-cols-2 gap-1.5">
+                            <!-- PV -->
+                            <div class="power-badge bg-amber-500/10 rounded-lg p-1.5 text-center border border-amber-500/20">
+                                <div class="flex items-center justify-center gap-0.5 mb-0.5">
+                                    <i data-lucide="sun" class="w-2.5 h-2.5 text-amber-500"></i>
+                                    <span class="text-[8px] text-amber-500 font-medium">PV</span>
+                                </div>
                                 <div class="text-[10px] sm:text-xs font-bold text-amber-400">${formatPw(pv)}</div>
                             </div>
-                            <div class="text-center">
-                                <div class="text-[9px] ${bat < 0 ? 'text-emerald-500' : 'text-rose-500'}">${bat < 0 ? 'Sạc' : 'Xả'}</div>
-                                <div class="text-[10px] sm:text-xs font-bold ${bat < 0 ? 'text-emerald-400' : 'text-rose-400'}">${formatPw(Math.abs(bat))}</div>
+                            
+                            <!-- Battery -->
+                            <div class="power-badge ${isCharging ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'} rounded-lg p-1.5 text-center border">
+                                <div class="flex items-center justify-center gap-0.5 mb-0.5">
+                                    <i data-lucide="${batIcon}" class="w-2.5 h-2.5 ${isCharging ? 'text-emerald-500' : 'text-rose-500'}"></i>
+                                    <span class="text-[8px] ${isCharging ? 'text-emerald-500' : 'text-rose-500'} font-medium">${isCharging ? 'Sạc' : 'Xả'}</span>
+                                </div>
+                                <div class="text-[10px] sm:text-xs font-bold ${isCharging ? 'text-emerald-400' : 'text-rose-400'}">${formatPw(Math.abs(bat))}</div>
                             </div>
-                            <div class="text-center">
-                                <div class="text-[9px] text-violet-500">EVN</div>
+                            
+                            <!-- Grid -->
+                            <div class="power-badge bg-violet-500/10 rounded-lg p-1.5 text-center border border-violet-500/20">
+                                <div class="flex items-center justify-center gap-0.5 mb-0.5">
+                                    <i data-lucide="zap" class="w-2.5 h-2.5 text-violet-500"></i>
+                                    <span class="text-[8px] text-violet-500 font-medium">EVN</span>
+                                </div>
                                 <div class="text-[10px] sm:text-xs font-bold text-violet-400">${formatPw(Math.abs(grid))}</div>
                             </div>
-                            <div class="text-center">
-                                <div class="text-[9px] text-sky-500">Tải</div>
+                            
+                            <!-- Load -->
+                            <div class="power-badge bg-sky-500/10 rounded-lg p-1.5 text-center border border-sky-500/20">
+                                <div class="flex items-center justify-center gap-0.5 mb-0.5">
+                                    <i data-lucide="home" class="w-2.5 h-2.5 text-sky-500"></i>
+                                    <span class="text-[8px] text-sky-500 font-medium">Tải</span>
+                                </div>
                                 <div class="text-[10px] sm:text-xs font-bold text-sky-400">${formatPw(load)}</div>
                             </div>
                         </div>
                     ` : `
-                        <div class="p-3 text-center">
-                            <i data-lucide="wifi-off" class="w-5 h-5 text-slate-600 mx-auto"></i>
-                            <div class="text-[10px] text-slate-500 mt-1">Offline</div>
+                        <!-- Offline State -->
+                        <div class="p-4 text-center">
+                            <div class="w-10 h-10 rounded-full bg-slate-700/50 flex items-center justify-center mx-auto mb-2">
+                                <i data-lucide="wifi-off" class="w-5 h-5 text-slate-500"></i>
+                            </div>
+                            <div class="text-[10px] text-slate-500 font-medium">Offline</div>
                         </div>
                     `}
                 </a>
@@ -275,8 +511,9 @@
         
         function formatPw(v) {
             if (v == null) return '--';
-            if (v >= 1000) return (v/1000).toFixed(1) + 'k';
-            return v + '';
+            if (v >= 10000) return (v/1000).toFixed(0) + 'kW';
+            if (v >= 1000) return (v/1000).toFixed(1) + 'kW';
+            return v + 'W';
         }
         
         function updateSummary(devices) {
@@ -290,10 +527,10 @@
                 }
             });
             
-            document.getElementById('totalPv').textContent = formatPw(pv) + 'W';
-            document.getElementById('totalBattery').textContent = formatPw(Math.abs(bat)) + 'W';
-            document.getElementById('totalGrid').textContent = formatPw(Math.abs(grid)) + 'W';
-            document.getElementById('totalLoad').textContent = formatPw(load) + 'W';
+            document.getElementById('totalPv').textContent = formatPw(pv);
+            document.getElementById('totalBattery').textContent = formatPw(Math.abs(bat));
+            document.getElementById('totalGrid').textContent = formatPw(Math.abs(grid));
+            document.getElementById('totalLoad').textContent = formatPw(load);
         }
     </script>
 </body>
