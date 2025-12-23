@@ -9,7 +9,7 @@
     <title>Giám Sát Năng Lượng Mặt Trời - LightEarth Web Pro</title>
     
     <!-- Preload critical resources -->
-    <link rel="preload" href="/css/index.css?v=20014" as="style">
+    <link rel="preload" href="/css/index.css?v=20015" as="style">
     <link rel="preload" href="/logo.png" as="image">
     
     <!-- Tailwind CSS with custom config -->
@@ -38,8 +38,8 @@
         }
     </script>
     
-    <!-- Lucide Icons - defer loading -->
-    <script src="https://unpkg.com/lucide@latest" defer></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
     
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1336,7 +1336,9 @@
     <!-- Scripts -->
     <script>
         // Initialize Lucide icons
-        lucide.createIcons();
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
         
         // Theme management
         const themeToggle = document.getElementById('themeToggle');
@@ -1415,12 +1417,12 @@
     
     
     <!-- CSS first for fast rendering -->
-    <link href="/css/index.css?v=20014" rel="stylesheet" />
+    <link href="/css/index.css?v=20015" rel="stylesheet" />
     
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13145" defer></script>
+    <script src="/js/index.js?v=13146" defer></script>
 
 </body>
 </html>
