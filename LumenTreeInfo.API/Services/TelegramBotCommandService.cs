@@ -341,31 +341,72 @@ public class TelegramBotCommandService : BackgroundService
 
     private async Task SendStatusAsync(long chatId)
     {
-        var sb = new StringBuilder("📊 *Trạng thái hệ thống*\n\n");
+        var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTz);
         
-        // Monitored devices count
-        sb.AppendLine($"📱 Thiết bị theo dõi: *{_monitoredDevices.Count}*");
+        // Check if no devices are being monitored
+        if (_monitoredDevices.IsEmpty)
+        {
+            await SendMessageAsync(chatId, 
+                "📊 *Trạng thái hệ thống*\n\n" +
+                "_(Chưa có thiết bị nào được theo dõi)_\n\n" +
+                "Thêm thiết bị bằng lệnh /add");
+            return;
+        }
         
-        // Check HA connection
         using var scope = _serviceProvider.CreateScope();
         var haClient = scope.ServiceProvider.GetService<MultiDeviceHomeAssistantClient>();
         
-        if (haClient != null)
+        if (haClient == null)
         {
-            var isAvailable = await haClient.CheckAvailabilityAsync();
-            var haStatus = isAvailable ? "🟢 Kết nối" : "🔴 Mất kết nối";
-            sb.AppendLine($"🖥️ Hệ thống: {haStatus}");
+            await SendMessageAsync(chatId, "❌ Không thể kết nối Hệ thống");
+            return;
+        }
+        
+        var sb = new StringBuilder("📊 *Trạng thái thiết bị*\n\n");
+        
+        // Loop through all monitored devices and get their status
+        foreach (var kvp in _monitoredDevices)
+        {
+            var deviceId = kvp.Key;
+            var deviceData = await haClient.GetDeviceDataAsync(deviceId);
             
-            if (isAvailable)
+            if (deviceData != null)
             {
-                var devices = await haClient.ScanDevicesAsync();
-                sb.AppendLine($"📡 Thiết bị trong Hệ thống: *{devices.Count}*");
+                var acInputVoltage = deviceData.AcInputVoltage ?? 0;
+                var gridStatus = acInputVoltage >= 100 ? "🟢" : "🔴";
+                var batteryIcon = GetBatteryIcon(deviceData.BatteryChargePercentage ?? 0);
+                
+                sb.AppendLine($"📱 *{deviceId}*");
+                sb.AppendLine($"   🔌 AC: {acInputVoltage}V {gridStatus}");
+                sb.AppendLine($"   ⚡ Grid: {deviceData.GridPower ?? 0}W");
+                sb.AppendLine($"   ☀️ PV: {deviceData.TotalPvPower ?? 0}W");
+                sb.AppendLine($"   {batteryIcon} Pin: {deviceData.BatteryChargePercentage ?? 0}%");
+                sb.AppendLine($"   🏠 Load: {deviceData.HomeLoad ?? 0}W");
+                sb.AppendLine();
+            }
+            else
+            {
+                sb.AppendLine($"📱 *{deviceId}*");
+                sb.AppendLine($"   ⚠️ _Không có dữ liệu_\n");
             }
         }
         
-        sb.AppendLine($"\n⏰ Cập nhật: {DateTime.UtcNow.AddHours(7):HH:mm:ss dd/MM}");
+        sb.AppendLine($"⏰ Cập nhật: {now:HH:mm:ss dd/MM/yyyy}");
         
         await SendMessageAsync(chatId, sb.ToString());
+    }
+    
+    private string GetBatteryIcon(int soc)
+    {
+        return soc switch
+        {
+            <= 1 => "🪫",   // Empty
+            <= 5 => "🔴",   // Critical
+            <= 20 => "🟠",  // Low
+            <= 50 => "🟡",  // Medium
+            _ => "🟢"       // Good
+        };
     }
 
     private async Task CheckDeviceAsync(long chatId, string[] args)
