@@ -114,7 +114,7 @@ public class TelegramNotificationService : BackgroundService
         }
     }
 
-    private async Task CheckPowerOutageAsync(string deviceId, DeviceData data)
+    private async Task CheckPowerOutageAsync(string deviceId, SolarInverterMonitor.DeviceData data)
     {
         var gridPower = data.GridPower ?? 0;
         var pvPower = data.TotalPvPower ?? 0;
@@ -154,9 +154,9 @@ public class TelegramNotificationService : BackgroundService
         }
     }
 
-    private async Task CheckLowBatteryAsync(string deviceId, DeviceData data)
+    private async Task CheckLowBatteryAsync(string deviceId, SolarInverterMonitor.DeviceData data)
     {
-        var soc = data.Soc ?? 100;
+        var soc = data.BatteryChargePercentage ?? 100;
         var now = DateTime.UtcNow;
         
         var state = _deviceStates.GetOrAdd(deviceId, _ => new PowerOutageState());
@@ -178,7 +178,7 @@ public class TelegramNotificationService : BackgroundService
         }
     }
 
-    private async Task SendPowerOutageNotificationAsync(string deviceId, DeviceData data, bool isOutage, TimeSpan? duration = null)
+    private async Task SendPowerOutageNotificationAsync(string deviceId, SolarInverterMonitor.DeviceData data, bool isOutage, TimeSpan? duration = null)
     {
         var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
         var nowVietnam = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTz);
@@ -192,7 +192,7 @@ public class TelegramNotificationService : BackgroundService
                       $"📊 Trạng thái hiện tại:\n" +
                       $"• Grid: {data.GridPower ?? 0}W\n" +
                       $"• PV: {data.TotalPvPower ?? 0}W\n" +
-                      $"• Battery: {data.Soc ?? 0}% ({data.BatteryPower ?? 0}W)\n" +
+                      $"• Battery: {data.BatteryChargePercentage ?? 0}% ({data.BatteryPower ?? 0}W)\n" +
                       $"• Load: {data.HomeLoad ?? 0}W\n\n" +
                       $"⚠️ Hệ thống đang chạy bằng pin!";
         }
@@ -209,13 +209,13 @@ public class TelegramNotificationService : BackgroundService
                       $"📊 Trạng thái hiện tại:\n" +
                       $"• Grid: {data.GridPower ?? 0}W\n" +
                       $"• PV: {data.TotalPvPower ?? 0}W\n" +
-                      $"• Battery: {data.Soc ?? 0}%";
+                      $"• Battery: {data.BatteryChargePercentage ?? 0}%";
         }
         
         await SendTelegramMessageAsync(message);
     }
 
-    private async Task SendLowBatteryNotificationAsync(string deviceId, DeviceData data)
+    private async Task SendLowBatteryNotificationAsync(string deviceId, SolarInverterMonitor.DeviceData data)
     {
         var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
         var nowVietnam = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTz);
@@ -224,7 +224,7 @@ public class TelegramNotificationService : BackgroundService
                       $"🔌 Thiết bị: `{deviceId}`\n" +
                       $"⏰ Thời gian: {nowVietnam:HH:mm:ss dd/MM/yyyy}\n\n" +
                       $"📊 Trạng thái:\n" +
-                      $"• Battery: *{data.Soc ?? 0}%* ⚠️\n" +
+                      $"• Battery: *{data.BatteryChargePercentage ?? 0}%* ⚠️\n" +
                       $"• Grid: {data.GridPower ?? 0}W\n" +
                       $"• PV: {data.TotalPvPower ?? 0}W\n" +
                       $"• Load: {data.HomeLoad ?? 0}W\n\n" +
