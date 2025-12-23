@@ -1475,6 +1475,92 @@ body:has(#mainHeader.header-hidden) #compactSearch {
     background: radial-gradient(circle, rgba(251, 191, 36, 0.9) 0%, rgba(249, 115, 22, 0.5) 40%, transparent 70%);
 }
 
+/* ========================================
+   PV SUN ICONS - Multiple Suns Animation
+   ======================================== */
+
+/* Base sun styles */
+.sun-animated {
+    position: absolute;
+    z-index: 25;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+.sun-animated.visible {
+    opacity: 1;
+}
+
+.sun-icon {
+    width: 20px;
+    height: 20px;
+    filter: drop-shadow(0 0 4px #fbbf24) drop-shadow(0 0 8px #f59e0b);
+}
+
+@media (min-width: 640px) {
+    .sun-icon {
+        width: 24px;
+        height: 24px;
+    }
+}
+
+/* Sun 1 - Main sun (top center) */
+.sun-main {
+    top: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.sun-main.visible .sun-icon {
+    animation: sun-pulse 3s ease-in-out infinite;
+}
+
+/* Sun 2 - Left sun */
+.sun-2 {
+    top: 8px;
+    left: -4px;
+}
+
+.sun-2.visible .sun-icon {
+    animation: sun-pulse 3s ease-in-out infinite 0.5s;
+}
+
+/* Sun 3 - Right sun */
+.sun-3 {
+    top: 8px;
+    right: -4px;
+}
+
+.sun-3.visible .sun-icon {
+    animation: sun-pulse 3s ease-in-out infinite 1s;
+}
+
+@media (min-width: 640px) {
+    .sun-main {
+        top: -4px;
+    }
+    .sun-2 {
+        top: 6px;
+        left: -6px;
+    }
+    .sun-3 {
+        top: 6px;
+        right: -6px;
+    }
+}
+
+/* Sun pulse animation */
+@keyframes sun-pulse {
+    0%, 100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 4px #fbbf24) drop-shadow(0 0 8px #f59e0b);
+    }
+    50% {
+        transform: scale(1.15);
+        filter: drop-shadow(0 0 8px #fbbf24) drop-shadow(0 0 16px #f59e0b) drop-shadow(0 0 24px rgba(251, 191, 36, 0.5));
+    }
+}
+
 /* EVN Grid - Teal glow */
 .icon-glow-evn .icon-glow-aura {
     background: radial-gradient(circle, rgba(20, 184, 166, 0.9) 0%, rgba(13, 148, 136, 0.5) 40%, transparent 70%);

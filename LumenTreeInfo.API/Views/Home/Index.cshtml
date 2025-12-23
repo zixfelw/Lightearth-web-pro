@@ -526,10 +526,20 @@
                 <!-- Công suất PV - Style amber/orange (cam vàng) -->
                 <div class="flow-item bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/30 rounded-xl p-2.5 sm:p-3 border border-amber-300 dark:border-amber-700">
                     <div class="flex flex-col items-center text-center">
-                        <div class="icon-glow-container icon-glow-pv relative">
+                        <div class="icon-glow-container icon-glow-pv relative" id="pv-icon-container">
                             <div class="icon-glow-aura"></div>
-                            <!-- Animated Sun -->
-                            <picture class="sun-animated">
+                            <!-- Animated Sun 1 (Main - always visible when power > 0) -->
+                            <picture class="sun-animated sun-main" id="sun-1">
+                                <source media="(max-width: 640px)" srcset="/icons/sun-mobile.png">
+                                <img src="/icons/sun.png" alt="Sun" class="sun-icon">
+                            </picture>
+                            <!-- Animated Sun 2 (visible when power > 2000W) -->
+                            <picture class="sun-animated sun-extra sun-2" id="sun-2">
+                                <source media="(max-width: 640px)" srcset="/icons/sun-mobile.png">
+                                <img src="/icons/sun.png" alt="Sun" class="sun-icon">
+                            </picture>
+                            <!-- Animated Sun 3 (visible when power > 3000W) -->
+                            <picture class="sun-animated sun-extra sun-3" id="sun-3">
                                 <source media="(max-width: 640px)" srcset="/icons/sun-mobile.png">
                                 <img src="/icons/sun.png" alt="Sun" class="sun-icon">
                             </picture>
@@ -1241,8 +1251,8 @@
     <!-- SignalR Client Library -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="/css/index.css?v=20006" rel="stylesheet" />
-    <script src="/js/index.js?v=13138"></script>
+    <link href="/css/index.css?v=20007" rel="stylesheet" />
+    <script src="/js/index.js?v=13139"></script>
 
 </body>
 </html>

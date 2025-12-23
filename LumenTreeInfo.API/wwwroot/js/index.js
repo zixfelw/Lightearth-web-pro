@@ -2121,16 +2121,29 @@ document.addEventListener('DOMContentLoaded', function () {
         // PV - with blink effect
         updateValue('pv-power', `${data.pvTotalPower}W`);
         
-        // Show/hide sun based on PV power
-        const sunIcon = document.querySelector('.sun-animated');
-        if (sunIcon) {
-            if (data.pvTotalPower > 0) {
-                sunIcon.style.opacity = '1';
-                sunIcon.style.visibility = 'visible';
-            } else {
-                sunIcon.style.opacity = '0';
-                sunIcon.style.visibility = 'hidden';
-            }
+        // Show/hide suns based on PV power level
+        // 1-2000W: 1 sun, 2001-3000W: 2 suns, 3001+W: 3 suns
+        const sun1 = document.getElementById('sun-1');
+        const sun2 = document.getElementById('sun-2');
+        const sun3 = document.getElementById('sun-3');
+        const pvPower = data.pvTotalPower || 0;
+        
+        if (pvPower >= 1) {
+            sun1?.classList.add('visible');
+        } else {
+            sun1?.classList.remove('visible');
+        }
+        
+        if (pvPower > 2000) {
+            sun2?.classList.add('visible');
+        } else {
+            sun2?.classList.remove('visible');
+        }
+        
+        if (pvPower > 3000) {
+            sun3?.classList.add('visible');
+        } else {
+            sun3?.classList.remove('visible');
         }
         if (data.pv2Power) {
             // Compact format without S1:/S2: labels - W to hơn, V nhỏ hơn
