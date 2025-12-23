@@ -2148,6 +2148,18 @@ document.addEventListener('DOMContentLoaded', function () {
         // Grid - with blink effect
         updateValue('grid-power', `${data.gridValue}W`);
         updateValue('grid-voltage', `${data.gridVoltageValue}V`);
+        
+        // EVN Electric Spark Animation - activate when |gridPower| > 20W
+        const evnSpark = document.getElementById('evn-spark');
+        const evnSparkBasic = document.getElementById('evn-spark-basic');
+        const gridAbsValue = Math.abs(data.gridValue || 0);
+        if (gridAbsValue > 20) {
+            evnSpark?.classList.add('active');
+            evnSparkBasic?.classList.add('active');
+        } else {
+            evnSpark?.classList.remove('active');
+            evnSparkBasic?.classList.remove('active');
+        }
 
         // Battery
         const batteryPercent = data.batteryPercent || 0;

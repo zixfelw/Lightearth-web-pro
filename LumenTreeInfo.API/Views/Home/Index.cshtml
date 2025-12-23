@@ -551,9 +551,18 @@
                 <!-- Lưới EVN - Style giống Tải hòa lưới (emerald) -->
                 <div class="flow-item bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/30 dark:to-green-900/30 rounded-xl p-2.5 sm:p-3 border border-emerald-300 dark:border-emerald-700">
                     <div class="flex flex-col items-center text-center">
-                        <div class="icon-glow-container icon-glow-evn">
+                        <div class="icon-glow-container icon-glow-evn" id="evn-icon-container">
                             <div class="icon-glow-aura"></div>
-                            <img src="/icons/evn-grid.png" alt="Lưới EVN" class="icon-glow-img">
+                            <div class="evn-spark-container" id="evn-spark">
+                                <div class="evn-spark evn-spark-1"></div>
+                                <div class="evn-spark evn-spark-2"></div>
+                                <div class="evn-spark evn-spark-3"></div>
+                                <div class="evn-spark evn-spark-4"></div>
+                            </div>
+                            <picture>
+                                <source media="(max-width: 640px)" srcset="/icons/evn-grid-mobile.png">
+                                <img src="/icons/evn-grid.png" alt="Lưới EVN" class="icon-glow-img">
+                            </picture>
                         </div>
                         <div class="text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Lưới EVN</div>
                         <div class="text-lg sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="grid-power">--</div>
@@ -697,8 +706,17 @@
                 
                 <div class="flow-item bg-gradient-to-br from-orange-50 to-yellow-50 dark:from-orange-900/20 dark:to-yellow-900/20 rounded-xl p-2.5 sm:p-3 border border-orange-200 dark:border-orange-800">
                     <div class="flex flex-col items-center">
-                        <div class="w-12 h-12 sm:w-14 sm:h-14 mb-1.5 flex items-center justify-center">
-                            <img src="/icons/evn-grid.png" alt="Lưới EVN" class="w-full h-full object-contain drop-shadow-md">
+                        <div class="w-12 h-12 sm:w-14 sm:h-14 mb-1.5 flex items-center justify-center relative" id="evn-icon-container-basic">
+                            <div class="evn-spark-container" id="evn-spark-basic">
+                                <div class="evn-spark evn-spark-1"></div>
+                                <div class="evn-spark evn-spark-2"></div>
+                                <div class="evn-spark evn-spark-3"></div>
+                                <div class="evn-spark evn-spark-4"></div>
+                            </div>
+                            <picture>
+                                <source media="(max-width: 640px)" srcset="/icons/evn-grid-mobile.png">
+                                <img src="/icons/evn-grid.png" alt="Lưới EVN" class="w-full h-full object-contain drop-shadow-md">
+                            </picture>
                         </div>
                         <div class="text-xs font-semibold text-orange-700 dark:text-orange-300 text-center">Lưới EVN</div>
                         <div class="text-base sm:text-lg font-black text-orange-600 dark:text-orange-400" id="grid-power-basic">--</div>
@@ -1223,8 +1241,8 @@
     <!-- SignalR Client Library -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="/css/index.css?v=20001" rel="stylesheet" />
-    <script src="/js/index.js?v=13136"></script>
+    <link href="/css/index.css?v=20002" rel="stylesheet" />
+    <script src="/js/index.js?v=13137"></script>
 
 </body>
 </html>
