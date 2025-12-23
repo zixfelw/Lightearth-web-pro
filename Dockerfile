@@ -23,5 +23,7 @@ EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
 
+# Force no cache - updated 2025-12-23-v2
+ARG CACHEBUST=1
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "LumenTreeInfo.API.dll"]
