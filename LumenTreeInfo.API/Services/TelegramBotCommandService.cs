@@ -26,6 +26,9 @@ public class TelegramBotCommandService : BackgroundService
     // Monitored devices (persisted in memory, could be extended to file/db)
     private static readonly ConcurrentDictionary<string, MonitoredDevice> _monitoredDevices = new(StringComparer.OrdinalIgnoreCase);
     
+    // User conversation states for multi-step commands
+    private static readonly ConcurrentDictionary<long, UserConversationState> _userStates = new();
+    
     // Telegram config
     private string? _botToken;
     private string? _chatId;
@@ -125,7 +128,25 @@ public class TelegramBotCommandService : BackgroundService
 
     private async Task ProcessCommandAsync(string text, long chatId)
     {
-        var parts = text.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var trimmedText = text.Trim();
+        
+        // Check if user is in a conversation state (waiting for input)
+        if (_userStates.TryGetValue(chatId, out var state) && state.WaitingFor != WaitingState.None)
+        {
+            // User is responding to a previous prompt
+            if (trimmedText.StartsWith("/"))
+            {
+                // User sent a new command, cancel current state
+                _userStates.TryRemove(chatId, out _);
+            }
+            else
+            {
+                await HandleConversationResponseAsync(chatId, trimmedText, state);
+                return;
+            }
+        }
+        
+        var parts = trimmedText.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var command = parts[0].ToLower();
         var args = parts.Skip(1).ToArray();
         
@@ -202,7 +223,9 @@ public class TelegramBotCommandService : BackgroundService
     {
         if (args.Length == 0)
         {
-            await SendMessageAsync(chatId, "⚠️ Vui lòng nhập Device ID\n\nVí dụ: `/add H250619922`");
+            // No device ID provided, ask for it
+            _userStates[chatId] = new UserConversationState { WaitingFor = WaitingState.AddDeviceId };
+            await SendMessageAsync(chatId, "➕ *Thêm thiết bị mới*\n\nVui lòng nhập Device ID:\n_(VD: H250619922 hoặc P250617024)_");
             return;
         }
         
@@ -259,7 +282,16 @@ public class TelegramBotCommandService : BackgroundService
     {
         if (args.Length == 0)
         {
-            await SendMessageAsync(chatId, "⚠️ Vui lòng nhập Device ID\n\nVí dụ: `/remove H250619922`");
+            // Show list first then ask which one to remove
+            if (_monitoredDevices.IsEmpty)
+            {
+                await SendMessageAsync(chatId, "📋 Chưa có thiết bị nào để xóa.\n\nThêm thiết bị bằng lệnh /add");
+                return;
+            }
+            
+            var deviceList = string.Join("\n", _monitoredDevices.Keys.Select((d, i) => $"{i + 1}. `{d}`"));
+            _userStates[chatId] = new UserConversationState { WaitingFor = WaitingState.RemoveDeviceId };
+            await SendMessageAsync(chatId, $"➖ *Xóa thiết bị*\n\nDanh sách thiết bị hiện tại:\n{deviceList}\n\nNhập Device ID cần xóa:");
             return;
         }
         
@@ -339,7 +371,9 @@ public class TelegramBotCommandService : BackgroundService
     {
         if (args.Length == 0)
         {
-            await SendMessageAsync(chatId, "⚠️ Vui lòng nhập Device ID\n\nVí dụ: `/check H250619922`");
+            // Ask for device ID
+            _userStates[chatId] = new UserConversationState { WaitingFor = WaitingState.CheckDeviceId };
+            await SendMessageAsync(chatId, "🔍 *Kiểm tra thiết bị*\n\nVui lòng nhập Device ID:\n_(VD: H250619922)_");
             return;
         }
         
@@ -468,6 +502,50 @@ public class TelegramBotCommandService : BackgroundService
     /// Get monitored devices count
     /// </summary>
     public static int GetMonitoredDevicesCount() => _monitoredDevices.Count;
+    
+    /// <summary>
+    /// Handle conversation response from user
+    /// </summary>
+    private async Task HandleConversationResponseAsync(long chatId, string text, UserConversationState state)
+    {
+        // Clear the state
+        _userStates.TryRemove(chatId, out _);
+        
+        switch (state.WaitingFor)
+        {
+            case WaitingState.AddDeviceId:
+                await AddDeviceAsync(chatId, new[] { text });
+                break;
+                
+            case WaitingState.RemoveDeviceId:
+                await RemoveDeviceAsync(chatId, new[] { text });
+                break;
+                
+            case WaitingState.CheckDeviceId:
+                await CheckDeviceAsync(chatId, new[] { text });
+                break;
+        }
+    }
+}
+
+/// <summary>
+/// User conversation state for multi-step commands
+/// </summary>
+public class UserConversationState
+{
+    public WaitingState WaitingFor { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// What the bot is waiting for from the user
+/// </summary>
+public enum WaitingState
+{
+    None,
+    AddDeviceId,
+    RemoveDeviceId,
+    CheckDeviceId
 }
 
 /// <summary>
