@@ -115,6 +115,53 @@
             50% { opacity: 0.7; transform: scale(1.1); }
         }
         
+        /* Sun Animation Styles */
+        .sun-animated {
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            animation: sun-pulse 3s ease-in-out infinite, sun-rotate 20s linear infinite;
+        }
+        
+        .sun-icon {
+            width: 28px;
+            height: 28px;
+            filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.8));
+        }
+        
+        @@media (min-width: 640px) {
+            .sun-icon {
+                width: 36px;
+                height: 36px;
+            }
+            .sun-animated {
+                top: -12px;
+            }
+        }
+        
+        @@keyframes sun-pulse {
+            0%, 100% { 
+                filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.8));
+                transform: translateX(-50%) scale(1);
+            }
+            50% { 
+                filter: drop-shadow(0 0 16px rgba(251, 191, 36, 1));
+                transform: translateX(-50%) scale(1.1);
+            }
+        }
+        
+        @@keyframes sun-rotate {
+            0% { transform: translateX(-50%) rotate(0deg); }
+            100% { transform: translateX(-50%) rotate(360deg); }
+        }
+        
+        .solar-panel-img img {
+            position: relative;
+            z-index: 5;
+        }
+        
         /* Floating Action Button */
         .fab {
             position: fixed;
@@ -478,9 +525,15 @@
                 <!-- Công suất PV - Style amber/orange (cam vàng) -->
                 <div class="flow-item bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/30 rounded-xl p-2.5 sm:p-3 border border-amber-300 dark:border-amber-700">
                     <div class="flex flex-col items-center text-center">
-                        <div class="icon-glow-container icon-glow-pv">
+                        <div class="icon-glow-container icon-glow-pv relative">
                             <div class="icon-glow-aura"></div>
-                            <picture>
+                            <!-- Animated Sun -->
+                            <picture class="sun-animated">
+                                <source media="(max-width: 640px)" srcset="/icons/sun-mobile.png">
+                                <img src="/icons/sun.png" alt="Sun" class="sun-icon">
+                            </picture>
+                            <!-- Solar Panel -->
+                            <picture class="solar-panel-img">
                                 <source media="(max-width: 640px)" srcset="/icons/solar-panel-mobile.png">
                                 <img src="/icons/solar-panel.png" alt="Công suất PV" class="icon-glow-img">
                             </picture>
