@@ -230,3 +230,4 @@ public class Program
         Log.Information("Serilog configured with log path: {LogPath}", logPath);
     }
 }// Trigger redeploy Wed Dec 10 12:43:08 UTC 2025
+// Force rebuild Tue Dec 23 14:38:34 UTC 2025
