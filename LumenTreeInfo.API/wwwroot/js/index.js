@@ -3538,6 +3538,173 @@ document.addEventListener('DOMContentLoaded', function () {
     // Previously: setInterval(() => fetchData(), 5 * 60 * 1000);
     // Disabled to prevent continuous chart reloading
 
+    // ========================================
+    // SOLAR RADIATION FORECAST (Open-Meteo API)
+    // ========================================
+    
+    // City coordinates for Vietnam
+    const VIETNAM_CITIES = {
+        'TPHCM': { lat: 10.8231, lon: 106.6297, name: 'TP. Hồ Chí Minh' },
+        'Hà Nội': { lat: 21.0285, lon: 105.8542, name: 'Hà Nội' },
+        'Đà Nẵng': { lat: 16.0544, lon: 108.2022, name: 'Đà Nẵng' },
+        'Cần Thơ': { lat: 10.0452, lon: 105.7469, name: 'Cần Thơ' },
+        'Nha Trang': { lat: 12.2388, lon: 109.1967, name: 'Nha Trang' },
+        'Huế': { lat: 16.4637, lon: 107.5909, name: 'Huế' },
+        'Hải Phòng': { lat: 20.8449, lon: 106.6881, name: 'Hải Phòng' },
+        'Biên Hòa': { lat: 10.9574, lon: 106.8426, name: 'Biên Hòa' },
+    };
+    
+    let currentSolarCity = 'TPHCM';
+    let solarForecastData = null;
+    
+    // Get solar radiation level info
+    function getSolarLevel(radiation) {
+        if (radiation <= 0) return { level: 'none', text: 'Đêm', color: '#64748b', bg: 'solar-level-none' };
+        if (radiation < 200) return { level: 'low', text: 'Yếu', color: '#84cc16', bg: 'solar-level-low' };
+        if (radiation < 500) return { level: 'medium', text: 'Trung bình', color: '#eab308', bg: 'solar-level-medium' };
+        if (radiation < 800) return { level: 'high', text: 'Mạnh', color: '#f97316', bg: 'solar-level-high' };
+        return { level: 'extreme', text: 'Rất mạnh', color: '#ef4444', bg: 'solar-level-extreme' };
+    }
+    
+    // Get weather icon based on radiation and cloud cover
+    function getSolarIcon(radiation, cloudCover) {
+        if (radiation <= 0) return '🌙';
+        if (cloudCover > 80) return '☁️';
+        if (cloudCover > 50) return '⛅';
+        if (cloudCover > 20) return '🌤️';
+        return '☀️';
+    }
+    
+    // Fetch solar radiation forecast from Open-Meteo
+    async function fetchSolarForecast(cityKey = 'TPHCM') {
+        const city = VIETNAM_CITIES[cityKey] || VIETNAM_CITIES['TPHCM'];
+        currentSolarCity = cityKey;
+        
+        try {
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&hourly=shortwave_radiation,temperature_2m,cloudcover&timezone=Asia/Ho_Chi_Minh&forecast_days=2`;
+            
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch solar data');
+            
+            const data = await response.json();
+            solarForecastData = data;
+            
+            renderSolarForecast(data, cityKey);
+            
+            // Update location display
+            const locationEl = document.getElementById('solar-location');
+            if (locationEl) locationEl.textContent = `📍 ${cityKey}`;
+            
+            // Update time
+            const timeEl = document.getElementById('solar-update-time');
+            if (timeEl) {
+                const now = new Date();
+                timeEl.textContent = `Cập nhật: ${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            }
+            
+        } catch (error) {
+            console.error('Error fetching solar forecast:', error);
+        }
+    }
+    
+    // Render solar forecast UI
+    function renderSolarForecast(data, cityKey) {
+        if (!data || !data.hourly) return;
+        
+        const times = data.hourly.time;
+        const radiation = data.hourly.shortwave_radiation;
+        const temps = data.hourly.temperature_2m;
+        const clouds = data.hourly.cloudcover;
+        
+        // Find current hour index
+        const now = new Date();
+        const currentHour = now.getHours();
+        const todayStr = now.toISOString().split('T')[0];
+        
+        let currentIndex = times.findIndex(t => {
+            const d = new Date(t);
+            return d.toISOString().split('T')[0] === todayStr && d.getHours() === currentHour;
+        });
+        
+        if (currentIndex === -1) currentIndex = 0;
+        
+        // Update current solar info
+        const currentRadiation = radiation[currentIndex] || 0;
+        const currentTemp = temps[currentIndex] || 0;
+        const currentCloud = clouds[currentIndex] || 0;
+        const currentLevel = getSolarLevel(currentRadiation);
+        
+        const currentValueEl = document.getElementById('solar-current-value');
+        const currentIconEl = document.getElementById('solar-current-icon');
+        const levelDotEl = document.getElementById('solar-level-dot');
+        const levelTextEl = document.getElementById('solar-level-text');
+        const tempEl = document.getElementById('solar-temp');
+        const cloudEl = document.getElementById('solar-cloud');
+        
+        if (currentValueEl) currentValueEl.textContent = `${Math.round(currentRadiation)} W/m²`;
+        if (currentIconEl) currentIconEl.textContent = getSolarIcon(currentRadiation, currentCloud);
+        if (levelDotEl) levelDotEl.style.backgroundColor = currentLevel.color;
+        if (levelTextEl) {
+            levelTextEl.textContent = currentLevel.text;
+            levelTextEl.style.color = currentLevel.color;
+        }
+        if (tempEl) tempEl.textContent = `${Math.round(currentTemp)}°C`;
+        if (cloudEl) cloudEl.textContent = `${Math.round(currentCloud)}%`;
+        
+        // Render hourly scroll (next 24 hours)
+        const scrollContainer = document.getElementById('solarHourlyScroll');
+        if (!scrollContainer) return;
+        
+        // Clear placeholder
+        scrollContainer.innerHTML = '';
+        
+        // Show hours from current to +24h
+        const hoursToShow = 24;
+        for (let i = currentIndex; i < Math.min(currentIndex + hoursToShow, times.length); i++) {
+            const time = new Date(times[i]);
+            const rad = radiation[i] || 0;
+            const cloud = clouds[i] || 0;
+            const level = getSolarLevel(rad);
+            const icon = getSolarIcon(rad, cloud);
+            
+            const hourStr = time.getHours().toString().padStart(2, '0') + ':00';
+            const isCurrentHour = i === currentIndex;
+            const isNextDay = time.getDate() !== now.getDate();
+            
+            const item = document.createElement('div');
+            item.className = `solar-hour-item ${level.bg} ${isCurrentHour ? 'current' : ''}`;
+            item.innerHTML = `
+                <div class="text-[10px] font-medium ${level.level === 'none' ? 'text-slate-400' : 'text-slate-700 dark:text-slate-200'}">
+                    ${isNextDay ? '<span class="text-[8px] text-blue-500">+1</span> ' : ''}${hourStr}
+                </div>
+                <div class="text-base my-0.5">${icon}</div>
+                <div class="text-[10px] font-bold ${level.level === 'none' ? 'text-slate-500' : 'text-amber-700 dark:text-amber-300'}">
+                    ${Math.round(rad)}
+                </div>
+            `;
+            
+            scrollContainer.appendChild(item);
+        }
+        
+        // Auto-scroll to show current hour
+        if (scrollContainer.firstChild) {
+            scrollContainer.scrollLeft = 0;
+        }
+    }
+    
+    // Initialize solar forecast
+    fetchSolarForecast('TPHCM');
+    
+    // Refresh solar forecast every 30 minutes
+    setInterval(() => fetchSolarForecast(currentSolarCity), 30 * 60 * 1000);
+    
+    // Expose function globally for city change
+    window.changeSolarCity = function(cityKey) {
+        if (VIETNAM_CITIES[cityKey]) {
+            fetchSolarForecast(cityKey);
+        }
+    };
+
     // Listen for theme changes
     const observer = new MutationObserver(() => {
         configureChartDefaults();

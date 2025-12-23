@@ -1808,6 +1808,106 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 }
 
 /* ========================================
+   SOLAR RADIATION FORECAST
+   ======================================== */
+
+#solarForecastSection {
+    background: white;
+    border-radius: 12px;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+}
+
+.dark #solarForecastSection {
+    background: var(--bg-dark-800);
+    border-color: var(--bg-dark-700);
+}
+
+/* Solar hour item */
+.solar-hour-item {
+    flex-shrink: 0;
+    width: 52px;
+    padding: 8px 4px;
+    border-radius: 10px;
+    text-align: center;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.solar-hour-item:hover {
+    transform: translateY(-2px);
+}
+
+.solar-hour-item.current {
+    border-color: var(--color-accent-400);
+    box-shadow: 0 0 8px rgba(251, 191, 36, 0.3);
+}
+
+/* Solar level colors */
+.solar-level-none {
+    background: linear-gradient(180deg, #1e293b 0%, #334155 100%);
+}
+
+.solar-level-low {
+    background: linear-gradient(180deg, #fef3c7 0%, #fde68a 100%);
+}
+
+.solar-level-medium {
+    background: linear-gradient(180deg, #fde68a 0%, #fbbf24 100%);
+}
+
+.solar-level-high {
+    background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+}
+
+.solar-level-extreme {
+    background: linear-gradient(180deg, #f59e0b 0%, #ea580c 100%);
+}
+
+.dark .solar-level-none {
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+}
+
+.dark .solar-level-low {
+    background: linear-gradient(180deg, #78350f 0%, #451a03 100%);
+}
+
+.dark .solar-level-medium {
+    background: linear-gradient(180deg, #92400e 0%, #78350f 100%);
+}
+
+.dark .solar-level-high {
+    background: linear-gradient(180deg, #b45309 0%, #92400e 100%);
+}
+
+.dark .solar-level-extreme {
+    background: linear-gradient(180deg, #c2410c 0%, #b45309 100%);
+}
+
+/* Custom scrollbar for solar forecast */
+#solarHourlyScroll::-webkit-scrollbar {
+    height: 4px;
+}
+
+#solarHourlyScroll::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 2px;
+}
+
+#solarHourlyScroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 2px;
+}
+
+.dark #solarHourlyScroll::-webkit-scrollbar-track {
+    background: #1e293b;
+}
+
+.dark #solarHourlyScroll::-webkit-scrollbar-thumb {
+    background: #475569;
+}
+
+/* ========================================
    MOBILE PERFORMANCE OPTIMIZATIONS
    ======================================== */
 
