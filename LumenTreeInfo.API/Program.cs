@@ -1,5 +1,7 @@
 using LumenTreeInfo.Lib;
 using LumenTreeInfo.API.Services;
+using Microsoft.AspNetCore.ResponseCompression;
+using System.IO.Compression;
 
 using Serilog;
 using Serilog.Events;
@@ -23,6 +25,32 @@ public class Program
             Environment.SetEnvironmentVariable("LUMENTREE_PROXY_URL", proxyUrl);
         }
 
+        // Add Response Compression for faster loading
+        builder.Services.AddResponseCompression(options =>
+        {
+            options.EnableForHttps = true;
+            options.Providers.Add<BrotliCompressionProvider>();
+            options.Providers.Add<GzipCompressionProvider>();
+            options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[]
+            {
+                "application/javascript",
+                "text/css",
+                "application/json",
+                "text/html",
+                "image/svg+xml"
+            });
+        });
+        
+        builder.Services.Configure<BrotliCompressionProviderOptions>(options =>
+        {
+            options.Level = CompressionLevel.Fastest;
+        });
+        
+        builder.Services.Configure<GzipCompressionProviderOptions>(options =>
+        {
+            options.Level = CompressionLevel.Fastest;
+        });
+        
         // Add services to the container.
         builder.Services.AddControllersWithViews();
 
@@ -129,19 +157,35 @@ public class Program
             app.UseHsts();
         }
 
+        // Enable Response Compression - MUST be early in pipeline
+        app.UseResponseCompression();
+
         // Only use HTTPS redirection in production with valid certificates
         // app.UseHttpsRedirection();
         
-        // Add no-cache headers to prevent stale data issues
+        // Add no-cache headers for API endpoints only (not static files)
         app.Use(async (context, next) =>
         {
-            context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
-            context.Response.Headers["Pragma"] = "no-cache";
-            context.Response.Headers["Expires"] = "0";
+            var path = context.Request.Path.Value ?? "";
+            // Only disable cache for API endpoints and HTML pages
+            if (path.StartsWith("/api/") || path == "/" || path.StartsWith("/Home"))
+            {
+                context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+                context.Response.Headers["Pragma"] = "no-cache";
+                context.Response.Headers["Expires"] = "0";
+            }
             await next();
         });
         
-        app.UseStaticFiles();
+        // Static files with caching enabled for better performance
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            OnPrepareResponse = ctx =>
+            {
+                // Cache static files for 7 days
+                ctx.Context.Response.Headers.Append("Cache-Control", "public,max-age=604800");
+            }
+        });
 
         app.UseRouting();
 
