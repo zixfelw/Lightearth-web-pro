@@ -44,8 +44,20 @@ public class TelegramNotificationService : BackgroundService
 
     private void LoadConfiguration()
     {
-        _botToken = _configuration["Telegram:BotToken"] ?? Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN");
-        _chatId = _configuration["Telegram:ChatId"] ?? Environment.GetEnvironmentVariable("TELEGRAM_CHAT_ID");
+        // Try multiple config formats for flexibility
+        // 1. appsettings.json format: Telegram:BotToken
+        // 2. Railway .NET format: Telegram__BotToken  
+        // 3. Standard env var: TELEGRAM_BOT_TOKEN
+        _botToken = _configuration["Telegram:BotToken"] 
+            ?? _configuration["Telegram__BotToken"]
+            ?? Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN")
+            ?? Environment.GetEnvironmentVariable("Telegram__BotToken");
+            
+        _chatId = _configuration["Telegram:ChatId"] 
+            ?? _configuration["Telegram__ChatId"]
+            ?? Environment.GetEnvironmentVariable("TELEGRAM_CHAT_ID")
+            ?? Environment.GetEnvironmentVariable("Telegram__ChatId");
+            
         _enabled = !string.IsNullOrEmpty(_botToken) && !string.IsNullOrEmpty(_chatId);
         
         if (_enabled)
@@ -54,7 +66,8 @@ public class TelegramNotificationService : BackgroundService
         }
         else
         {
-            _logger.LogWarning("Telegram notifications disabled - missing BotToken or ChatId");
+            _logger.LogWarning("Telegram notifications disabled - missing BotToken={HasToken}, ChatId={HasChatId}", 
+                !string.IsNullOrEmpty(_botToken), !string.IsNullOrEmpty(_chatId));
         }
     }
 
