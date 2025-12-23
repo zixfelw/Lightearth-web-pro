@@ -1,13 +1,17 @@
-**/.git
-**/.gitignore
-**/.vs
-**/.vscode
+# Ignore git
+.git
+.gitignore
+
+# Ignore IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Ignore build outputs (force rebuild)
 **/bin
 **/obj
-**/.idea
-**/node_modules
-**/screenshots
-**/*.md
-**/*.log
-**/Thumbs.db
-**/.DS_Store
+
+# Ignore logs
+*.log
+logs/
