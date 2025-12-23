@@ -114,7 +114,8 @@ public class TelegramBotCommandService : BackgroundService
             {
                 _lastUpdateId = update.UpdateId;
                 
-                if (update.Message?.Text != null && update.Message.Chat?.Id.ToString() == _chatId)
+                // Process messages from any user (not just the configured chat ID)
+                if (update.Message?.Text != null && update.Message.Chat != null)
                 {
                     await ProcessCommandAsync(update.Message.Text, update.Message.Chat.Id);
                 }
@@ -402,8 +403,13 @@ public class TelegramBotCommandService : BackgroundService
         var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
         var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTz);
         
+        // Check grid status based on AC Input Voltage
+        var acInputVoltage = deviceData.AcInputVoltage ?? 0;
+        var gridStatus = acInputVoltage >= 100 ? "🟢 Online" : "🔴 Offline";
+        
         var message = $"📊 *Thiết bị: {deviceId}*\n\n" +
-                      $"⚡ Grid: *{deviceData.GridPower ?? 0}W*\n" +
+                      $"🔌 AC Input: *{acInputVoltage}V* {gridStatus}\n" +
+                      $"⚡ Grid Power: *{deviceData.GridPower ?? 0}W*\n" +
                       $"☀️ PV: *{deviceData.TotalPvPower ?? 0}W*\n" +
                       $"🔋 Battery: *{deviceData.BatteryChargePercentage ?? 0}%* ({deviceData.BatteryPower ?? 0}W)\n" +
                       $"🏠 Load: *{deviceData.HomeLoad ?? 0}W*\n\n" +

@@ -129,16 +129,21 @@ public class TelegramNotificationService : BackgroundService
 
     private async Task CheckPowerOutageAsync(string deviceId, SolarInverterMonitor.DeviceData data)
     {
+        var acInputVoltage = data.AcInputVoltage ?? 0;
         var gridPower = data.GridPower ?? 0;
-        var pvPower = data.TotalPvPower ?? 0;
         var now = DateTime.UtcNow;
         
         // Get or create state for this device
         var state = _deviceStates.GetOrAdd(deviceId, _ => new PowerOutageState());
         
-        // Check if grid is at 0W (power outage)
-        // Only trigger if PV is also low (night time or actual outage, not just low grid usage)
-        bool isPowerOutage = gridPower == 0 || (gridPower <= 10 && pvPower == 0);
+        // Check for power outage using AC Input Voltage
+        // Power outage = AC Input Voltage is 0V or very low (< 100V)
+        // This is more reliable than checking GridPower = 0W
+        // because GridPower can be 0W when solar is powering everything
+        bool isPowerOutage = acInputVoltage < 100; // No grid voltage means outage
+        
+        _logger.LogDebug("Device {DeviceId}: AcInputVoltage={Voltage}V, GridPower={Power}W, IsOutage={IsOutage}", 
+            deviceId, acInputVoltage, gridPower, isPowerOutage);
         
         if (isPowerOutage && !state.IsOutage)
         {
@@ -203,7 +208,8 @@ public class TelegramNotificationService : BackgroundService
                       $"🔌 Thiết bị: `{deviceId}`\n" +
                       $"⏰ Thời gian: {nowVietnam:HH:mm:ss dd/MM/yyyy}\n\n" +
                       $"📊 Trạng thái hiện tại:\n" +
-                      $"• Grid: {data.GridPower ?? 0}W\n" +
+                      $"• AC Input: {data.AcInputVoltage ?? 0}V ❌\n" +
+                      $"• Grid Power: {data.GridPower ?? 0}W\n" +
                       $"• PV: {data.TotalPvPower ?? 0}W\n" +
                       $"• Battery: {data.BatteryChargePercentage ?? 0}% ({data.BatteryPower ?? 0}W)\n" +
                       $"• Load: {data.HomeLoad ?? 0}W\n\n" +
@@ -220,7 +226,8 @@ public class TelegramNotificationService : BackgroundService
                       $"⏰ Thời gian: {nowVietnam:HH:mm:ss dd/MM/yyyy}\n" +
                       $"⏱️ Thời gian mất điện: {durationStr}\n\n" +
                       $"📊 Trạng thái hiện tại:\n" +
-                      $"• Grid: {data.GridPower ?? 0}W\n" +
+                      $"• AC Input: {data.AcInputVoltage ?? 0}V ✅\n" +
+                      $"• Grid Power: {data.GridPower ?? 0}W\n" +
                       $"• PV: {data.TotalPvPower ?? 0}W\n" +
                       $"• Battery: {data.BatteryChargePercentage ?? 0}%";
         }
