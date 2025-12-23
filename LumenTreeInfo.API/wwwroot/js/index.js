@@ -3634,13 +3634,32 @@ document.addEventListener('DOMContentLoaded', function () {
         return '☀️';
     }
     
+    // Get UV level info
+    function getUVLevel(uv) {
+        if (uv <= 0) return { text: '--', color: '#64748b', bg: 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300' };
+        if (uv < 3) return { text: 'Thấp', color: '#22c55e', bg: 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' };
+        if (uv < 6) return { text: 'TB', color: '#eab308', bg: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300' };
+        if (uv < 8) return { text: 'Cao', color: '#f97316', bg: 'bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300' };
+        if (uv < 11) return { text: 'Rất cao', color: '#ef4444', bg: 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300' };
+        return { text: 'Cực độ', color: '#a855f7', bg: 'bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300' };
+    }
+    
+    // Get rain probability color
+    function getRainColor(prob) {
+        if (prob <= 20) return 'text-green-600 dark:text-green-400';
+        if (prob <= 50) return 'text-yellow-600 dark:text-yellow-400';
+        if (prob <= 70) return 'text-orange-600 dark:text-orange-400';
+        return 'text-blue-600 dark:text-blue-400';
+    }
+    
     // Fetch solar radiation forecast from Open-Meteo
     async function fetchSolarForecast(cityKey = 'TPHCM') {
         const city = VIETNAM_CITIES[cityKey] || VIETNAM_CITIES['TPHCM'];
         currentSolarCity = cityKey;
         
         try {
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&hourly=shortwave_radiation,temperature_2m,cloudcover&timezone=Asia/Ho_Chi_Minh&forecast_days=2`;
+            // Enhanced API with UV index, sunshine duration, precipitation probability
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&hourly=shortwave_radiation,temperature_2m,cloudcover,uv_index,precipitation_probability&daily=sunshine_duration,uv_index_max,uv_index_clear_sky_max&timezone=Asia/Ho_Chi_Minh&forecast_days=2`;
             
             const response = await fetch(url);
             if (!response.ok) throw new Error('Failed to fetch solar data');
@@ -3674,6 +3693,13 @@ document.addEventListener('DOMContentLoaded', function () {
         const radiation = data.hourly.shortwave_radiation;
         const temps = data.hourly.temperature_2m;
         const clouds = data.hourly.cloudcover;
+        const uvIndex = data.hourly.uv_index || [];
+        const precipProb = data.hourly.precipitation_probability || [];
+        
+        // Daily data
+        const dailySunshine = data.daily?.sunshine_duration || [];
+        const dailyUvMax = data.daily?.uv_index_max || [];
+        const dailyUvClearMax = data.daily?.uv_index_clear_sky_max || [];
         
         // Find current hour index
         const now = new Date();
@@ -3691,7 +3717,14 @@ document.addEventListener('DOMContentLoaded', function () {
         const currentRadiation = radiation[currentIndex] || 0;
         const currentTemp = temps[currentIndex] || 0;
         const currentCloud = clouds[currentIndex] || 0;
+        const currentUV = uvIndex[currentIndex] || 0;
+        const currentRainProb = precipProb[currentIndex] || 0;
         const currentLevel = getSolarLevel(currentRadiation);
+        const uvLevel = getUVLevel(currentUV);
+        
+        // Sunshine duration in hours (API returns seconds)
+        const sunshineHours = dailySunshine[0] ? (dailySunshine[0] / 3600).toFixed(1) : '--';
+        const uvClearSky = dailyUvClearMax[0] ? dailyUvClearMax[0].toFixed(1) : '--';
         
         const currentValueEl = document.getElementById('solar-current-value');
         const currentIconEl = document.getElementById('solar-current-icon');
@@ -3699,6 +3732,13 @@ document.addEventListener('DOMContentLoaded', function () {
         const levelTextEl = document.getElementById('solar-level-text');
         const tempEl = document.getElementById('solar-temp');
         const cloudEl = document.getElementById('solar-cloud');
+        
+        // New elements
+        const uvValueEl = document.getElementById('solar-uv-value');
+        const uvBadgeEl = document.getElementById('solar-uv-badge');
+        const sunshineDurationEl = document.getElementById('solar-sunshine-duration');
+        const rainProbEl = document.getElementById('solar-rain-prob');
+        const uvClearEl = document.getElementById('solar-uv-clear');
         
         if (currentValueEl) currentValueEl.textContent = `${Math.round(currentRadiation)} W/m²`;
         if (currentIconEl) currentIconEl.textContent = getSolarIcon(currentRadiation, currentCloud);
@@ -3709,6 +3749,19 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         if (tempEl) tempEl.textContent = `${Math.round(currentTemp)}°C`;
         if (cloudEl) cloudEl.textContent = `${Math.round(currentCloud)}%`;
+        
+        // Update new elements
+        if (uvValueEl) uvValueEl.textContent = currentUV > 0 ? currentUV.toFixed(1) : '--';
+        if (uvBadgeEl) {
+            uvBadgeEl.textContent = uvLevel.text;
+            uvBadgeEl.className = `text-[9px] px-1 py-0.5 rounded ${uvLevel.bg}`;
+        }
+        if (sunshineDurationEl) sunshineDurationEl.textContent = `${sunshineHours}h`;
+        if (rainProbEl) {
+            rainProbEl.textContent = `${Math.round(currentRainProb)}%`;
+            rainProbEl.className = `text-xs font-semibold ${getRainColor(currentRainProb)}`;
+        }
+        if (uvClearEl) uvClearEl.textContent = uvClearSky;
         
         // Render hourly scroll (next 24 hours)
         const scrollContainer = document.getElementById('solarHourlyScroll');
@@ -3723,6 +3776,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const time = new Date(times[i]);
             const rad = radiation[i] || 0;
             const cloud = clouds[i] || 0;
+            const uv = uvIndex[i] || 0;
+            const rain = precipProb[i] || 0;
             const level = getSolarLevel(rad);
             const icon = getSolarIcon(rad, cloud);
             
@@ -3730,8 +3785,12 @@ document.addEventListener('DOMContentLoaded', function () {
             const isCurrentHour = i === currentIndex;
             const isNextDay = time.getDate() !== now.getDate();
             
+            // Build tooltip with all info
+            const tooltip = `${hourStr}\nBức xạ: ${Math.round(rad)} W/m²\nUV: ${uv.toFixed(1)}\nMây: ${Math.round(cloud)}%\nMưa: ${Math.round(rain)}%`;
+            
             const item = document.createElement('div');
             item.className = `solar-hour-item ${level.bg} ${isCurrentHour ? 'current' : ''}`;
+            item.title = tooltip;
             item.innerHTML = `
                 <div class="text-[10px] font-medium ${level.level === 'none' ? 'text-slate-400' : 'text-slate-700 dark:text-slate-200'}">
                     ${isNextDay ? '<span class="text-[8px] text-blue-500">+1</span> ' : ''}${hourStr}
@@ -3740,6 +3799,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="text-[10px] font-bold ${level.level === 'none' ? 'text-slate-500' : 'text-amber-700 dark:text-amber-300'}">
                     ${Math.round(rad)}
                 </div>
+                ${rain > 30 ? `<div class="text-[8px] text-blue-500">🌧️${Math.round(rain)}%</div>` : ''}
             `;
             
             scrollContainer.appendChild(item);
