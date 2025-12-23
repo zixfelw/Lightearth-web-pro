@@ -146,6 +146,10 @@ public class Program
         
         // Add PowerHistoryCollector to collect power data every 5 minutes
         builder.Services.AddHostedService<PowerHistoryCollector>();
+        
+        // Add TelegramNotificationService for power outage alerts
+        builder.Services.AddSingleton<TelegramNotificationService>();
+        builder.Services.AddHostedService(provider => provider.GetRequiredService<TelegramNotificationService>());
 
         var app = builder.Build();
 
