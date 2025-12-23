@@ -365,7 +365,7 @@ public class TelegramNotificationService : BackgroundService
                 {
                     isOutage = kv.Value.IsOutage,
                     outageStart = kv.Value.OutageStartTime,
-                    lowBattery = kv.Value.LowBatteryAlerted
+                    batteryAlertLevel = kv.Value.BatteryAlertLevel.ToString()
                 })
         };
     }
