@@ -1,6 +1,8 @@
 # Dockerfile for LumenTreeInfo Solar Monitor Dashboard
-# Updated: 2025-12-23 - Force rebuild v3
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS builder
+# REBUILD: 2025-12-23-v4-force-nocache
+
+# Use specific SHA to bust cache completely
+FROM mcr.microsoft.com/dotnet/sdk:8.0.404-bookworm-slim AS builder
 WORKDIR /src
 
 # Copy csproj files and restore
@@ -17,8 +19,8 @@ RUN dotnet build "LumenTreeInfo.API.csproj" -c Release -o /app/build
 FROM builder AS publisher
 RUN dotnet publish "LumenTreeInfo.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# Final runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+# Final runtime image - use specific version tag
+FROM mcr.microsoft.com/dotnet/aspnet:8.0.11-bookworm-slim AS runtime
 WORKDIR /app
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
