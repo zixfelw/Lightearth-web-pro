@@ -44,30 +44,24 @@ public class TelegramNotificationService : BackgroundService
 
     private void LoadConfiguration()
     {
-        // Try multiple config formats for flexibility
-        // 1. appsettings.json format: Telegram:BotToken
-        // 2. Railway .NET format: Telegram__BotToken  
-        // 3. Standard env var: TELEGRAM_BOT_TOKEN
-        _botToken = _configuration["Telegram:BotToken"] 
-            ?? _configuration["Telegram__BotToken"]
-            ?? Environment.GetEnvironmentVariable("TELEGRAM_BOT_TOKEN")
-            ?? Environment.GetEnvironmentVariable("Telegram__BotToken");
+        // ASP.NET Core IConfiguration reads env vars directly with their names
+        // Railway sets: TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID
+        _botToken = _configuration["TELEGRAM_BOT_TOKEN"] 
+            ?? _configuration["Telegram:BotToken"]
+            ?? _configuration["Telegram__BotToken"];
             
-        _chatId = _configuration["Telegram:ChatId"] 
-            ?? _configuration["Telegram__ChatId"]
-            ?? Environment.GetEnvironmentVariable("TELEGRAM_CHAT_ID")
-            ?? Environment.GetEnvironmentVariable("Telegram__ChatId");
+        _chatId = _configuration["TELEGRAM_CHAT_ID"] 
+            ?? _configuration["Telegram:ChatId"]
+            ?? _configuration["Telegram__ChatId"];
             
         _enabled = !string.IsNullOrEmpty(_botToken) && !string.IsNullOrEmpty(_chatId);
         
-        if (_enabled)
+        _logger.LogInformation("Telegram Config: Token={TokenLen}chars, ChatId={ChatId}, Enabled={Enabled}", 
+            _botToken?.Length ?? 0, _chatId ?? "null", _enabled);
+        
+        if (!_enabled)
         {
-            _logger.LogInformation("Telegram notifications enabled for chat {ChatId}", _chatId);
-        }
-        else
-        {
-            _logger.LogWarning("Telegram notifications disabled - missing BotToken={HasToken}, ChatId={HasChatId}", 
-                !string.IsNullOrEmpty(_botToken), !string.IsNullOrEmpty(_chatId));
+            _logger.LogWarning("Telegram notifications disabled - check TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID env vars");
         }
     }
 
