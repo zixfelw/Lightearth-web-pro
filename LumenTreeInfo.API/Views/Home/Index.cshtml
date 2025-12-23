@@ -658,7 +658,10 @@
                     <div class="flex flex-col items-center text-center">
                         <div class="icon-glow-container icon-glow-load">
                             <div class="icon-glow-aura"></div>
-                            <img src="/icons/load.png" alt="Tải hòa lưới" class="icon-glow-img">
+                            <picture>
+                                <source media="(max-width: 640px)" srcset="/icons/grid-export-mobile.png">
+                                <img src="/icons/grid-export.png" alt="Tải hòa lưới" class="icon-glow-img">
+                            </picture>
                         </div>
                         <div class="text-xs font-semibold text-emerald-700 dark:text-emerald-300 mb-1">Tải hòa lưới</div>
                         <div class="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400" id="load-power">--</div>
@@ -732,7 +735,10 @@
                 <div class="flow-item bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl p-2.5 sm:p-3 border border-emerald-200 dark:border-emerald-800">
                     <div class="flex flex-col items-center">
                         <div class="w-12 h-12 sm:w-14 sm:h-14 mb-1.5 flex items-center justify-center">
-                            <img src="/icons/load.png" alt="Tải hòa lưới" class="w-full h-full object-contain drop-shadow-md">
+                            <picture>
+                                <source media="(max-width: 640px)" srcset="/icons/grid-export-mobile.png">
+                                <img src="/icons/grid-export.png" alt="Tải hòa lưới" class="w-full h-full object-contain drop-shadow-md">
+                            </picture>
                         </div>
                         <div class="text-xs font-semibold text-emerald-700 dark:text-emerald-300 text-center">Tải hòa lưới</div>
                         <div class="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400" id="load-power-basic">--</div>
