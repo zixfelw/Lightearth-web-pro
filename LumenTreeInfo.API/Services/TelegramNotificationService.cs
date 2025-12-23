@@ -176,7 +176,6 @@ public class TelegramNotificationService : BackgroundService
     private async Task CheckLowBatteryAsync(string deviceId, SolarInverterMonitor.DeviceData data)
     {
         var soc = data.BatteryChargePercentage ?? 100;
-        var now = DateTime.UtcNow;
         
         var state = _deviceStates.GetOrAdd(deviceId, _ => new PowerOutageState());
         
@@ -191,19 +190,24 @@ public class TelegramNotificationService : BackgroundService
         else
             currentLevel = BatteryAlertLevel.None;
         
-        // Only alert if level increased (got worse) and cooldown passed
+        // Only alert if level increased (got worse) - NO COOLDOWN
+        // Each level only alerts ONCE until battery is recharged above 30%
         if (currentLevel > state.BatteryAlertLevel && currentLevel != BatteryAlertLevel.None)
         {
-            if (now - state.LastBatteryNotificationTime > _notificationCooldown)
-            {
-                state.BatteryAlertLevel = currentLevel;
-                state.LastBatteryNotificationTime = now;
-                await SendLowBatteryNotificationAsync(deviceId, data, currentLevel);
-            }
+            // Update state FIRST to prevent duplicate alerts
+            state.BatteryAlertLevel = currentLevel;
+            
+            _logger.LogInformation("Battery alert triggered: Device={DeviceId}, Level={Level}, SOC={SOC}%", 
+                deviceId, currentLevel, soc);
+            
+            await SendLowBatteryNotificationAsync(deviceId, data, currentLevel);
         }
         // Reset alert level when battery is charged above 30%
-        else if (soc >= 30)
+        // This allows alerts to trigger again in the next discharge cycle
+        else if (soc >= 30 && state.BatteryAlertLevel != BatteryAlertLevel.None)
         {
+            _logger.LogInformation("Battery alert reset: Device={DeviceId}, SOC={SOC}% (above 30%)", 
+                deviceId, soc);
             state.BatteryAlertLevel = BatteryAlertLevel.None;
         }
     }
