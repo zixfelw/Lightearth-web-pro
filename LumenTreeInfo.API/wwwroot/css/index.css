@@ -1561,9 +1561,9 @@ body:has(#mainHeader.header-hidden) #compactSearch {
     }
 }
 
-/* EVN Grid - Teal glow */
+/* EVN Grid - Amber glow (matching lightning/PV theme) */
 .icon-glow-evn .icon-glow-aura {
-    background: radial-gradient(circle, rgba(20, 184, 166, 0.9) 0%, rgba(13, 148, 136, 0.5) 40%, transparent 70%);
+    background: radial-gradient(circle, rgba(251, 191, 36, 0.9) 0%, rgba(249, 115, 22, 0.5) 40%, transparent 70%);
     animation-delay: 0.8s;
 }
 
