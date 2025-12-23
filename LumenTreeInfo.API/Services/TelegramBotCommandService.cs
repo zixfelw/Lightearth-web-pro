@@ -72,6 +72,9 @@ public class TelegramBotCommandService : BackgroundService
         
         _logger.LogInformation("TelegramBotCommandService started - polling for commands");
         
+        // Set bot menu commands on startup
+        await SetBotCommandsAsync();
+        
         // Initial delay
         await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
         
@@ -398,6 +401,48 @@ public class TelegramBotCommandService : BackgroundService
         {
             _logger.LogError(ex, "Error sending Telegram message");
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Set bot menu commands for Telegram UI
+    /// </summary>
+    private async Task SetBotCommandsAsync()
+    {
+        try
+        {
+            var url = $"https://api.telegram.org/bot{_botToken}/setMyCommands";
+            var commands = new
+            {
+                commands = new[]
+                {
+                    new { command = "help", description = "📖 Hướng dẫn sử dụng" },
+                    new { command = "add", description = "➕ Thêm thiết bị theo dõi" },
+                    new { command = "remove", description = "➖ Xóa thiết bị" },
+                    new { command = "list", description = "📋 Danh sách thiết bị" },
+                    new { command = "status", description = "📊 Trạng thái hệ thống" },
+                    new { command = "check", description = "🔍 Kiểm tra thiết bị" }
+                }
+            };
+            
+            var json = JsonSerializer.Serialize(commands);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            
+            var response = await _httpClient.PostAsync(url, content);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("Telegram bot menu commands set successfully");
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("Failed to set bot commands: {Error}", error);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error setting bot commands");
         }
     }
 
