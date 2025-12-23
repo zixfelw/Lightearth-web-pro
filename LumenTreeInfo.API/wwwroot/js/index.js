@@ -3659,7 +3659,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         try {
             // Enhanced API with UV index, sunshine duration, precipitation probability
-            const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&hourly=shortwave_radiation,temperature_2m,cloudcover,uv_index,precipitation_probability&daily=sunshine_duration,uv_index_max,uv_index_clear_sky_max&timezone=Asia/Ho_Chi_Minh&forecast_days=2`;
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&hourly=shortwave_radiation,temperature_2m,cloudcover,uv_index,precipitation_probability&daily=sunshine_duration&timezone=Asia/Ho_Chi_Minh&forecast_days=2`;
             
             const response = await fetch(url);
             if (!response.ok) throw new Error('Failed to fetch solar data');
@@ -3698,8 +3698,6 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // Daily data
         const dailySunshine = data.daily?.sunshine_duration || [];
-        const dailyUvMax = data.daily?.uv_index_max || [];
-        const dailyUvClearMax = data.daily?.uv_index_clear_sky_max || [];
         
         // Find current hour index
         const now = new Date();
@@ -3722,9 +3720,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const currentLevel = getSolarLevel(currentRadiation);
         const uvLevel = getUVLevel(currentUV);
         
-        // Sunshine duration in hours (API returns seconds)
+        // Sunshine duration in hours (API returns seconds) - This is FORECAST for today
         const sunshineHours = dailySunshine[0] ? (dailySunshine[0] / 3600).toFixed(1) : '--';
-        const uvClearSky = dailyUvClearMax[0] ? dailyUvClearMax[0].toFixed(1) : '--';
         
         const currentValueEl = document.getElementById('solar-current-value');
         const currentIconEl = document.getElementById('solar-current-icon');
@@ -3738,7 +3735,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const uvBadgeEl = document.getElementById('solar-uv-badge');
         const sunshineDurationEl = document.getElementById('solar-sunshine-duration');
         const rainProbEl = document.getElementById('solar-rain-prob');
-        const uvClearEl = document.getElementById('solar-uv-clear');
         
         if (currentValueEl) currentValueEl.textContent = `${Math.round(currentRadiation)} W/m²`;
         if (currentIconEl) currentIconEl.textContent = getSolarIcon(currentRadiation, currentCloud);
@@ -3761,7 +3757,6 @@ document.addEventListener('DOMContentLoaded', function () {
             rainProbEl.textContent = `${Math.round(currentRainProb)}%`;
             rainProbEl.className = `text-xs font-semibold ${getRainColor(currentRainProb)}`;
         }
-        if (uvClearEl) uvClearEl.textContent = uvClearSky;
         
         // Render hourly scroll (next 24 hours)
         const scrollContainer = document.getElementById('solarHourlyScroll');
