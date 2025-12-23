@@ -1494,7 +1494,7 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 .sun-icon {
     width: 20px;
     height: 20px;
-    filter: drop-shadow(0 0 4px #fbbf24) drop-shadow(0 0 8px #f59e0b);
+    filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.5)) drop-shadow(0 0 4px rgba(245, 158, 11, 0.3));
 }
 
 @media (min-width: 640px) {
@@ -1553,11 +1553,11 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 @keyframes sun-pulse {
     0%, 100% {
         transform: scale(1);
-        filter: drop-shadow(0 0 4px #fbbf24) drop-shadow(0 0 8px #f59e0b);
+        filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.5)) drop-shadow(0 0 4px rgba(245, 158, 11, 0.3));
     }
     50% {
-        transform: scale(1.15);
-        filter: drop-shadow(0 0 8px #fbbf24) drop-shadow(0 0 16px #f59e0b) drop-shadow(0 0 24px rgba(251, 191, 36, 0.5));
+        transform: scale(1.1);
+        filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.6)) drop-shadow(0 0 8px rgba(245, 158, 11, 0.4));
     }
 }
 
