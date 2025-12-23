@@ -150,6 +150,10 @@ public class Program
         // Add TelegramNotificationService for power outage alerts
         builder.Services.AddSingleton<TelegramNotificationService>();
         builder.Services.AddHostedService(provider => provider.GetRequiredService<TelegramNotificationService>());
+        
+        // Add TelegramBotCommandService for handling bot commands
+        builder.Services.AddSingleton<TelegramBotCommandService>();
+        builder.Services.AddHostedService(provider => provider.GetRequiredService<TelegramBotCommandService>());
 
         var app = builder.Build();
 

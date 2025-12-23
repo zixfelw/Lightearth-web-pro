@@ -106,6 +106,12 @@ public class TelegramNotificationService : BackgroundService
         {
             if (ct.IsCancellationRequested) break;
             
+            // Only monitor devices that are configured via Telegram bot
+            if (!TelegramBotCommandService.IsDeviceMonitored(deviceId))
+            {
+                continue;
+            }
+            
             try
             {
                 var deviceData = await haClient.GetDeviceDataAsync(deviceId);

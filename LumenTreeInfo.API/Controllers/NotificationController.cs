@@ -26,11 +26,19 @@ public class NotificationController : ControllerBase
     {
         var status = TelegramNotificationService.GetStatus();
         var configStatus = _telegramService.GetConfigStatus();
+        var monitoredDevices = TelegramBotCommandService.GetMonitoredDevices();
+        
         return Ok(new
         {
             success = true,
             telegram = status,
             config = configStatus,
+            monitoredDevices = new
+            {
+                count = monitoredDevices.Count,
+                devices = monitoredDevices,
+                note = monitoredDevices.Count == 0 ? "No devices configured - use /add command in Telegram" : null
+            },
             timestamp = DateTime.UtcNow
         });
     }
