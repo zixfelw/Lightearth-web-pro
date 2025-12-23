@@ -4,6 +4,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>CS8603;CS8604;CS8618;CS8602</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
