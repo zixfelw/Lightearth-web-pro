@@ -1907,6 +1907,26 @@ body:has(#mainHeader.header-hidden) #compactSearch {
     background: #475569;
 }
 
+/* Solar City Selector */
+#solar-city-select {
+    font-size: 10px;
+    min-width: 100px;
+    max-width: 140px;
+}
+
+#solar-city-select option {
+    padding: 4px 8px;
+}
+
+#solar-city-select optgroup {
+    font-weight: 600;
+    color: #64748b;
+}
+
+.dark #solar-city-select optgroup {
+    color: #94a3b8;
+}
+
 /* ========================================
    MOBILE PERFORMANCE OPTIMIZATIONS
    ======================================== */

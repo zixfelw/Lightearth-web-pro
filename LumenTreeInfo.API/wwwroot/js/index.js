@@ -3542,16 +3542,75 @@ document.addEventListener('DOMContentLoaded', function () {
     // SOLAR RADIATION FORECAST (Open-Meteo API)
     // ========================================
     
-    // City coordinates for Vietnam
+    // 63 tỉnh thành Việt Nam với tọa độ
     const VIETNAM_CITIES = {
-        'TPHCM': { lat: 10.8231, lon: 106.6297, name: 'TP. Hồ Chí Minh' },
-        'Hà Nội': { lat: 21.0285, lon: 105.8542, name: 'Hà Nội' },
-        'Đà Nẵng': { lat: 16.0544, lon: 108.2022, name: 'Đà Nẵng' },
-        'Cần Thơ': { lat: 10.0452, lon: 105.7469, name: 'Cần Thơ' },
-        'Nha Trang': { lat: 12.2388, lon: 109.1967, name: 'Nha Trang' },
-        'Huế': { lat: 16.4637, lon: 107.5909, name: 'Huế' },
-        'Hải Phòng': { lat: 20.8449, lon: 106.6881, name: 'Hải Phòng' },
-        'Biên Hòa': { lat: 10.9574, lon: 106.8426, name: 'Biên Hòa' },
+        // === Miền Nam ===
+        'TP. Hồ Chí Minh': { lat: 10.8231, lon: 106.6297, region: 'Miền Nam' },
+        'Bà Rịa - Vũng Tàu': { lat: 10.4114, lon: 107.1362, region: 'Miền Nam' },
+        'Bình Dương': { lat: 11.0753, lon: 106.6189, region: 'Miền Nam' },
+        'Bình Phước': { lat: 11.7512, lon: 106.7235, region: 'Miền Nam' },
+        'Đồng Nai': { lat: 10.9574, lon: 106.8426, region: 'Miền Nam' },
+        'Tây Ninh': { lat: 11.3555, lon: 106.1099, region: 'Miền Nam' },
+        'Long An': { lat: 10.6956, lon: 106.2431, region: 'Miền Nam' },
+        'Tiền Giang': { lat: 10.4493, lon: 106.3420, region: 'Miền Nam' },
+        'Bến Tre': { lat: 10.2433, lon: 106.3752, region: 'Miền Nam' },
+        'Vĩnh Long': { lat: 10.2537, lon: 105.9722, region: 'Miền Nam' },
+        'Trà Vinh': { lat: 9.8127, lon: 106.2993, region: 'Miền Nam' },
+        'Đồng Tháp': { lat: 10.4937, lon: 105.6882, region: 'Miền Nam' },
+        'An Giang': { lat: 10.5216, lon: 105.1259, region: 'Miền Nam' },
+        'Kiên Giang': { lat: 10.0125, lon: 105.0809, region: 'Miền Nam' },
+        'Cần Thơ': { lat: 10.0452, lon: 105.7469, region: 'Miền Nam' },
+        'Hậu Giang': { lat: 9.7579, lon: 105.6413, region: 'Miền Nam' },
+        'Sóc Trăng': { lat: 9.6037, lon: 105.9800, region: 'Miền Nam' },
+        'Bạc Liêu': { lat: 9.2940, lon: 105.7216, region: 'Miền Nam' },
+        'Cà Mau': { lat: 9.1769, lon: 105.1524, region: 'Miền Nam' },
+        // === Miền Trung ===
+        'Đà Nẵng': { lat: 16.0544, lon: 108.2022, region: 'Miền Trung' },
+        'Thừa Thiên Huế': { lat: 16.4637, lon: 107.5909, region: 'Miền Trung' },
+        'Quảng Nam': { lat: 15.5394, lon: 108.0191, region: 'Miền Trung' },
+        'Quảng Ngãi': { lat: 15.1214, lon: 108.8044, region: 'Miền Trung' },
+        'Bình Định': { lat: 13.7765, lon: 109.2237, region: 'Miền Trung' },
+        'Phú Yên': { lat: 13.0882, lon: 109.0929, region: 'Miền Trung' },
+        'Khánh Hòa': { lat: 12.2388, lon: 109.1967, region: 'Miền Trung' },
+        'Ninh Thuận': { lat: 11.5752, lon: 108.9890, region: 'Miền Trung' },
+        'Bình Thuận': { lat: 10.9289, lon: 108.1021, region: 'Miền Trung' },
+        'Quảng Bình': { lat: 17.4656, lon: 106.6222, region: 'Miền Trung' },
+        'Quảng Trị': { lat: 16.7504, lon: 107.1856, region: 'Miền Trung' },
+        'Hà Tĩnh': { lat: 18.3559, lon: 105.8877, region: 'Miền Trung' },
+        'Nghệ An': { lat: 18.6737, lon: 105.6922, region: 'Miền Trung' },
+        'Thanh Hóa': { lat: 19.8067, lon: 105.7852, region: 'Miền Trung' },
+        // === Tây Nguyên ===
+        'Kon Tum': { lat: 14.3545, lon: 108.0005, region: 'Tây Nguyên' },
+        'Gia Lai': { lat: 13.9833, lon: 108.0000, region: 'Tây Nguyên' },
+        'Đắk Lắk': { lat: 12.6800, lon: 108.0378, region: 'Tây Nguyên' },
+        'Đắk Nông': { lat: 12.0033, lon: 107.6876, region: 'Tây Nguyên' },
+        'Lâm Đồng': { lat: 11.9404, lon: 108.4583, region: 'Tây Nguyên' },
+        // === Miền Bắc ===
+        'Hà Nội': { lat: 21.0285, lon: 105.8542, region: 'Miền Bắc' },
+        'Hải Phòng': { lat: 20.8449, lon: 106.6881, region: 'Miền Bắc' },
+        'Quảng Ninh': { lat: 21.0064, lon: 107.2925, region: 'Miền Bắc' },
+        'Bắc Giang': { lat: 21.2819, lon: 106.1975, region: 'Miền Bắc' },
+        'Bắc Ninh': { lat: 21.1861, lon: 106.0763, region: 'Miền Bắc' },
+        'Hải Dương': { lat: 20.9373, lon: 106.3146, region: 'Miền Bắc' },
+        'Hưng Yên': { lat: 20.6464, lon: 106.0511, region: 'Miền Bắc' },
+        'Thái Bình': { lat: 20.4463, lon: 106.3365, region: 'Miền Bắc' },
+        'Nam Định': { lat: 20.4388, lon: 106.1621, region: 'Miền Bắc' },
+        'Ninh Bình': { lat: 20.2506, lon: 105.9745, region: 'Miền Bắc' },
+        'Hà Nam': { lat: 20.5835, lon: 105.9230, region: 'Miền Bắc' },
+        'Vĩnh Phúc': { lat: 21.3609, lon: 105.5474, region: 'Miền Bắc' },
+        'Phú Thọ': { lat: 21.3227, lon: 105.2280, region: 'Miền Bắc' },
+        'Thái Nguyên': { lat: 21.5942, lon: 105.8482, region: 'Miền Bắc' },
+        'Bắc Kạn': { lat: 22.1470, lon: 105.8348, region: 'Miền Bắc' },
+        'Cao Bằng': { lat: 22.6663, lon: 106.2522, region: 'Miền Bắc' },
+        'Lạng Sơn': { lat: 21.8537, lon: 106.7615, region: 'Miền Bắc' },
+        'Tuyên Quang': { lat: 21.8233, lon: 105.2180, region: 'Miền Bắc' },
+        'Hà Giang': { lat: 22.8333, lon: 104.9833, region: 'Miền Bắc' },
+        'Yên Bái': { lat: 21.7168, lon: 104.8986, region: 'Miền Bắc' },
+        'Lào Cai': { lat: 22.4856, lon: 103.9707, region: 'Miền Bắc' },
+        'Lai Châu': { lat: 22.3864, lon: 103.4703, region: 'Miền Bắc' },
+        'Điện Biên': { lat: 21.3860, lon: 103.0230, region: 'Miền Bắc' },
+        'Sơn La': { lat: 21.3256, lon: 103.9188, region: 'Miền Bắc' },
+        'Hòa Bình': { lat: 20.8171, lon: 105.3376, region: 'Miền Bắc' },
     };
     
     let currentSolarCity = 'TPHCM';
@@ -3692,8 +3751,17 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     
-    // Initialize solar forecast
-    fetchSolarForecast('TPHCM');
+    // Initialize solar forecast - load saved city or default to TPHCM
+    const savedSolarCity = localStorage.getItem('solarForecastCity') || 'TP. Hồ Chí Minh';
+    
+    // Set dropdown to saved value
+    const citySelect = document.getElementById('solar-city-select');
+    if (citySelect) {
+        citySelect.value = savedSolarCity;
+    }
+    
+    // Fetch initial data
+    fetchSolarForecast(savedSolarCity);
     
     // Refresh solar forecast every 30 minutes
     setInterval(() => fetchSolarForecast(currentSolarCity), 30 * 60 * 1000);
@@ -3701,6 +3769,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Expose function globally for city change
     window.changeSolarCity = function(cityKey) {
         if (VIETNAM_CITIES[cityKey]) {
+            // Save to localStorage
+            localStorage.setItem('solarForecastCity', cityKey);
             fetchSolarForecast(cityKey);
         }
     };
