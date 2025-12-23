@@ -1,5 +1,6 @@
 # Dockerfile for LumenTreeInfo Solar Monitor Dashboard
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+# Updated: 2025-12-23 - Force rebuild v3
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS builder
 WORKDIR /src
 
 # Copy csproj files and restore
@@ -12,18 +13,17 @@ COPY . .
 WORKDIR "/src/LumenTreeInfo.API"
 RUN dotnet build "LumenTreeInfo.API.csproj" -c Release -o /app/build
 
-# Publish
-FROM build AS publish
+# Publish stage
+FROM builder AS publisher
 RUN dotnet publish "LumenTreeInfo.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Final runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
 ENV ASPNETCORE_ENVIRONMENT=Production
 
-# Force no cache - updated 2025-12-23-v2
-ARG CACHEBUST=1
-COPY --from=publish /app/publish .
+# Copy published output
+COPY --from=publisher /app/publish .
 ENTRYPOINT ["dotnet", "LumenTreeInfo.API.dll"]
