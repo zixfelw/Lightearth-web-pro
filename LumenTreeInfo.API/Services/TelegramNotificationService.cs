@@ -25,6 +25,15 @@ public class TelegramNotificationService : BackgroundService
     // Cooldown period between notifications for same device (5 minutes)
     private readonly TimeSpan _notificationCooldown = TimeSpan.FromMinutes(5);
     
+    // File path for persisting device states (survives restarts)
+    private static readonly string _stateFilePath = Path.Combine(
+        Environment.GetEnvironmentVariable("RAILWAY_VOLUME_MOUNT_PATH") ?? "/app/data",
+        "device_alert_states.json");
+    
+    // Flag to track if states have been loaded
+    private static bool _statesLoaded = false;
+    private static readonly object _stateLock = new object();
+    
     // Telegram config
     private string? _botToken;
     private string? _chatId;
@@ -41,6 +50,7 @@ public class TelegramNotificationService : BackgroundService
         _httpClient = new HttpClient();
         
         LoadConfiguration();
+        LoadDeviceStatesFromFile();
     }
 
     private void LoadConfiguration()
@@ -156,6 +166,7 @@ public class TelegramNotificationService : BackgroundService
             if (now - state.LastNotificationTime > _notificationCooldown)
             {
                 state.LastNotificationTime = now;
+                SaveDeviceStatesToFile(); // Persist state change
                 await SendPowerOutageNotificationAsync(deviceId, data, true);
             }
         }
@@ -164,6 +175,7 @@ public class TelegramNotificationService : BackgroundService
             // Power restored
             var outageDuration = now - state.OutageStartTime;
             state.IsOutage = false;
+            SaveDeviceStatesToFile(); // Persist state change
             
             // Only notify restoration if outage lasted more than 1 minute
             if (outageDuration > TimeSpan.FromMinutes(1))
@@ -178,6 +190,9 @@ public class TelegramNotificationService : BackgroundService
         var soc = data.BatteryChargePercentage ?? 100;
         
         var state = _deviceStates.GetOrAdd(deviceId, _ => new PowerOutageState());
+        
+        // Update last known SOC
+        state.LastKnownSOC = soc;
         
         // Determine current battery level
         BatteryAlertLevel currentLevel;
@@ -196,6 +211,8 @@ public class TelegramNotificationService : BackgroundService
         {
             // Update state FIRST to prevent duplicate alerts
             state.BatteryAlertLevel = currentLevel;
+            state.LastBatteryNotificationTime = DateTime.UtcNow;
+            SaveDeviceStatesToFile(); // Persist state change
             
             _logger.LogInformation("Battery alert triggered: Device={DeviceId}, Level={Level}, SOC={SOC}%", 
                 deviceId, currentLevel, soc);
@@ -209,6 +226,7 @@ public class TelegramNotificationService : BackgroundService
             _logger.LogInformation("Battery alert reset: Device={DeviceId}, SOC={SOC}% (above 30%)", 
                 deviceId, soc);
             state.BatteryAlertLevel = BatteryAlertLevel.None;
+            SaveDeviceStatesToFile(); // Persist state change
         }
     }
 
@@ -411,6 +429,87 @@ public class TelegramNotificationService : BackgroundService
             ["chatIdValue"] = _chatId ?? "null"
         };
     }
+    
+    /// <summary>
+    /// Load device alert states from file (survives restarts)
+    /// </summary>
+    private void LoadDeviceStatesFromFile()
+    {
+        lock (_stateLock)
+        {
+            if (_statesLoaded) return;
+            
+            try
+            {
+                // Ensure directory exists
+                var dir = Path.GetDirectoryName(_stateFilePath);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+                
+                if (File.Exists(_stateFilePath))
+                {
+                    var json = File.ReadAllText(_stateFilePath);
+                    var states = JsonSerializer.Deserialize<Dictionary<string, PowerOutageState>>(json);
+                    
+                    if (states != null)
+                    {
+                        foreach (var kvp in states)
+                        {
+                            _deviceStates[kvp.Key] = kvp.Value;
+                        }
+                        _logger.LogInformation("Loaded {Count} device alert states from {Path}", states.Count, _stateFilePath);
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("No existing device alert states file at {Path}", _stateFilePath);
+                }
+                
+                _statesLoaded = true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to load device alert states from {Path}", _stateFilePath);
+                _statesLoaded = true; // Don't retry on failure
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Save device alert states to file
+    /// </summary>
+    private static void SaveDeviceStatesToFile()
+    {
+        try
+        {
+            // Ensure directory exists
+            var dir = Path.GetDirectoryName(_stateFilePath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+            
+            var json = JsonSerializer.Serialize(_deviceStates.ToDictionary(kv => kv.Key, kv => kv.Value), 
+                new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(_stateFilePath, json);
+        }
+        catch (Exception)
+        {
+            // Silently fail - logging not available in static method
+        }
+    }
+    
+    /// <summary>
+    /// Update device state and persist to file
+    /// </summary>
+    private static void UpdateAndSaveDeviceState(string deviceId, Action<PowerOutageState> updateAction)
+    {
+        var state = _deviceStates.GetOrAdd(deviceId, _ => new PowerOutageState());
+        updateAction(state);
+        SaveDeviceStatesToFile();
+    }
 }
 
 /// <summary>
@@ -425,6 +524,9 @@ public class PowerOutageState
     // Battery alert levels (3 tiers)
     public BatteryAlertLevel BatteryAlertLevel { get; set; } = BatteryAlertLevel.None;
     public DateTime LastBatteryNotificationTime { get; set; }
+    
+    // Track last known SOC to detect changes
+    public double LastKnownSOC { get; set; } = 100;
 }
 
 /// <summary>
