@@ -29,8 +29,8 @@ public class TelegramBotCommandService : BackgroundService
     // User conversation states for multi-step commands
     private static readonly ConcurrentDictionary<long, UserConversationState> _userStates = new();
     
-    // File path for persisting device data
-    private const string DeviceDataFilePath = "monitored_devices.json";
+    // File path for persisting device data (use /app/data for Railway Volume)
+    private static readonly string DeviceDataFilePath = GetDataFilePath();
     
     // Telegram config
     private string? _botToken;
@@ -70,6 +70,22 @@ public class TelegramBotCommandService : BackgroundService
     }
     
     /// <summary>
+    /// Get the data file path - use Railway Volume if available
+    /// </summary>
+    private static string GetDataFilePath()
+    {
+        // Check if Railway Volume is mounted at /app/data
+        var volumePath = "/app/data";
+        if (Directory.Exists(volumePath))
+        {
+            return Path.Combine(volumePath, "monitored_devices.json");
+        }
+        
+        // Fallback to current directory for local development
+        return "monitored_devices.json";
+    }
+    
+    /// <summary>
     /// Load monitored devices from file on startup
     /// </summary>
     private void LoadDevicesFromFile()
@@ -103,9 +119,17 @@ public class TelegramBotCommandService : BackgroundService
     {
         try
         {
+            // Ensure directory exists
+            var directory = Path.GetDirectoryName(DeviceDataFilePath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+            
             var devices = _monitoredDevices.Values.ToList();
             var json = JsonSerializer.Serialize(devices, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(DeviceDataFilePath, json);
+            Console.WriteLine($"Saved {devices.Count} devices to {DeviceDataFilePath}");
         }
         catch (Exception ex)
         {
