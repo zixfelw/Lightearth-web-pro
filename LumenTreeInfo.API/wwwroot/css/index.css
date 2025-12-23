@@ -1645,44 +1645,44 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 .evn-spark-container.active::before {
     content: '';
     position: absolute;
-    top: -5px;
+    top: -12px;
     left: 50%;
     transform: translateX(-50%);
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
     background-image: url('/icons/lightning-bolt-small.png');
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
-    filter: drop-shadow(0 0 3px #fbbf24) drop-shadow(0 0 6px #f59e0b);
+    filter: drop-shadow(0 0 4px #fbbf24) drop-shadow(0 0 8px #f59e0b);
     opacity: 0;
-    animation: evn-lightning-flash 3s ease-in-out infinite;
+    animation: evn-lightning-flash 2.5s ease-in-out infinite;
 }
 
 @keyframes evn-lightning-flash {
     0%, 100% {
         opacity: 0;
-        transform: scale(0.7);
+        transform: translateX(-50%) scale(0.8);
     }
-    8% {
+    12% {
         opacity: 1;
-        transform: scale(1.1);
+        transform: translateX(-50%) scale(1.15);
     }
-    16% {
-        opacity: 0.2;
-        transform: scale(1);
+    20% {
+        opacity: 0.3;
+        transform: translateX(-50%) scale(1);
     }
-    24% {
+    28% {
         opacity: 1;
-        transform: scale(1.05);
+        transform: translateX(-50%) scale(1.1);
     }
-    40% {
-        opacity: 0.9;
-        transform: scale(1);
+    45% {
+        opacity: 0.8;
+        transform: translateX(-50%) scale(1);
     }
-    60% {
+    65% {
         opacity: 0;
-        transform: scale(0.9);
+        transform: translateX(-50%) scale(0.9);
     }
 }
 
