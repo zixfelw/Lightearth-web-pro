@@ -23,11 +23,14 @@ public class TelegramBotCommandService : BackgroundService
     // Last processed update ID
     private long _lastUpdateId = 0;
     
-    // Monitored devices (persisted in memory, could be extended to file/db)
+    // Monitored devices (persisted to file)
     private static readonly ConcurrentDictionary<string, MonitoredDevice> _monitoredDevices = new(StringComparer.OrdinalIgnoreCase);
     
     // User conversation states for multi-step commands
     private static readonly ConcurrentDictionary<long, UserConversationState> _userStates = new();
+    
+    // File path for persisting device data
+    private const string DeviceDataFilePath = "monitored_devices.json";
     
     // Telegram config
     private string? _botToken;
@@ -45,6 +48,7 @@ public class TelegramBotCommandService : BackgroundService
         _httpClient = new HttpClient();
         
         LoadConfiguration();
+        LoadDevicesFromFile();
     }
 
     private void LoadConfiguration()
@@ -62,6 +66,50 @@ public class TelegramBotCommandService : BackgroundService
         if (_enabled)
         {
             _logger.LogInformation("TelegramBotCommandService enabled");
+        }
+    }
+    
+    /// <summary>
+    /// Load monitored devices from file on startup
+    /// </summary>
+    private void LoadDevicesFromFile()
+    {
+        try
+        {
+            if (File.Exists(DeviceDataFilePath))
+            {
+                var json = File.ReadAllText(DeviceDataFilePath);
+                var devices = JsonSerializer.Deserialize<List<MonitoredDevice>>(json);
+                if (devices != null)
+                {
+                    foreach (var device in devices)
+                    {
+                        _monitoredDevices[device.DeviceId] = device;
+                    }
+                    _logger.LogInformation("Loaded {Count} monitored devices from file", devices.Count);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading devices from file");
+        }
+    }
+    
+    /// <summary>
+    /// Save monitored devices to file
+    /// </summary>
+    private static void SaveDevicesToFile()
+    {
+        try
+        {
+            var devices = _monitoredDevices.Values.ToList();
+            var json = JsonSerializer.Serialize(devices, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(DeviceDataFilePath, json);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving devices to file: {ex.Message}");
         }
     }
 
@@ -267,6 +315,7 @@ public class TelegramBotCommandService : BackgroundService
         };
         
         _monitoredDevices[deviceId] = device;
+        SaveDevicesToFile();  // Persist to file
         
         var statusIcon = deviceExists ? "✅" : "⚠️";
         var statusText = deviceExists ? "Đã tìm thấy trong Hệ thống" : "Chưa có trong Hệ thống";
@@ -282,52 +331,95 @@ public class TelegramBotCommandService : BackgroundService
 
     private async Task RemoveDeviceAsync(long chatId, string[] args)
     {
+        // Get user's devices only
+        var userDevices = _monitoredDevices.Values
+            .Where(d => d.ChatId == chatId)
+            .ToList();
+        
         if (args.Length == 0)
         {
             // Show list first then ask which one to remove
-            if (_monitoredDevices.IsEmpty)
+            if (userDevices.Count == 0)
             {
-                await SendMessageAsync(chatId, "📋 Chưa có thiết bị nào để xóa.\n\nThêm thiết bị bằng lệnh /add");
+                await SendMessageAsync(chatId, "📋 Bạn chưa có thiết bị nào để xóa.\n\nThêm thiết bị bằng lệnh /add");
                 return;
             }
             
-            var deviceList = string.Join("\n", _monitoredDevices.Keys.Select((d, i) => $"{i + 1}. `{d}`"));
-            _userStates[chatId] = new UserConversationState { WaitingFor = WaitingState.RemoveDeviceId };
-            await SendMessageAsync(chatId, $"➖ *Xóa thiết bị*\n\nDanh sách thiết bị hiện tại:\n{deviceList}\n\nNhập Device ID cần xóa:");
+            var deviceList = string.Join("\n", userDevices.Select((d, i) => $"{i + 1}. `{d.DeviceId}`"));
+            _userStates[chatId] = new UserConversationState 
+            { 
+                WaitingFor = WaitingState.RemoveDeviceId,
+                DeviceList = userDevices.Select(d => d.DeviceId).ToList()
+            };
+            await SendMessageAsync(chatId, $"➖ *Xóa thiết bị*\n\nDanh sách thiết bị của bạn:\n{deviceList}\n\n📝 Nhập *số thứ tự* hoặc *Device ID* để xóa:");
             return;
         }
         
-        var deviceId = args[0].ToUpper();
+        var input = args[0].Trim();
+        string? deviceId = null;
         
-        if (_monitoredDevices.TryRemove(deviceId, out _))
+        // Check if input is a number (index)
+        if (int.TryParse(input, out int index))
         {
+            if (index >= 1 && index <= userDevices.Count)
+            {
+                deviceId = userDevices[index - 1].DeviceId;
+            }
+            else
+            {
+                await SendMessageAsync(chatId, $"❌ Số thứ tự không hợp lệ. Vui lòng chọn từ 1 đến {userDevices.Count}");
+                return;
+            }
+        }
+        else
+        {
+            // Input is device ID
+            deviceId = input.ToUpper();
+        }
+        
+        if (_monitoredDevices.TryRemove(deviceId, out var removed))
+        {
+            // Only allow removing own devices
+            if (removed.ChatId != chatId)
+            {
+                // Restore if not owner
+                _monitoredDevices[deviceId] = removed;
+                await SendMessageAsync(chatId, $"❌ Bạn không có quyền xóa thiết bị `{deviceId}`");
+                return;
+            }
+            
+            SaveDevicesToFile();  // Persist to file
             await SendMessageAsync(chatId, $"✅ Đã xóa thiết bị `{deviceId}` khỏi danh sách theo dõi.");
         }
         else
         {
-            await SendMessageAsync(chatId, $"❌ Không tìm thấy thiết bị `{deviceId}` trong danh sách.");
+            await SendMessageAsync(chatId, $"❌ Không tìm thấy thiết bị `{deviceId}` trong danh sách của bạn.");
         }
     }
 
     private async Task ListDevicesAsync(long chatId)
     {
-        if (_monitoredDevices.IsEmpty)
+        // Get only user's devices
+        var userDevices = _monitoredDevices.Values
+            .Where(d => d.ChatId == chatId)
+            .ToList();
+        
+        if (userDevices.Count == 0)
         {
             await SendMessageAsync(chatId, 
-                "📋 *Danh sách thiết bị theo dõi*\n\n" +
+                "📋 *Danh sách thiết bị của bạn*\n\n" +
                 "_(Chưa có thiết bị nào)_\n\n" +
                 "Thêm thiết bị bằng lệnh:\n`/add <DeviceID>`");
             return;
         }
         
-        var sb = new StringBuilder("📋 *Danh sách thiết bị theo dõi*\n\n");
+        var sb = new StringBuilder("📋 *Danh sách thiết bị của bạn*\n\n");
         
+        var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
         int index = 1;
-        foreach (var kvp in _monitoredDevices)
+        foreach (var device in userDevices)
         {
-            var device = kvp.Value;
             var statusIcon = device.ExistsInHA ? "🟢" : "🟡";
-            var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
             var addedTime = TimeZoneInfo.ConvertTimeFromUtc(device.AddedAt, vietnamTz);
             
             sb.AppendLine($"{index}. {statusIcon} `{device.DeviceId}`");
@@ -345,12 +437,17 @@ public class TelegramBotCommandService : BackgroundService
         var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
         var now = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTz);
         
-        // Check if no devices are being monitored
-        if (_monitoredDevices.IsEmpty)
+        // Get only user's devices
+        var userDevices = _monitoredDevices.Values
+            .Where(d => d.ChatId == chatId)
+            .ToList();
+        
+        // Check if no devices are being monitored by this user
+        if (userDevices.Count == 0)
         {
             await SendMessageAsync(chatId, 
-                "📊 *Trạng thái hệ thống*\n\n" +
-                "_(Chưa có thiết bị nào được theo dõi)_\n\n" +
+                "📊 *Trạng thái thiết bị*\n\n" +
+                "_(Bạn chưa có thiết bị nào được theo dõi)_\n\n" +
                 "Thêm thiết bị bằng lệnh /add");
             return;
         }
@@ -366,10 +463,10 @@ public class TelegramBotCommandService : BackgroundService
         
         var sb = new StringBuilder("📊 *Trạng thái thiết bị*\n\n");
         
-        // Loop through all monitored devices and get their status
-        foreach (var kvp in _monitoredDevices)
+        // Loop through user's devices only
+        foreach (var device in userDevices)
         {
-            var deviceId = kvp.Key;
+            var deviceId = device.DeviceId;
             var deviceData = await haClient.GetDeviceDataAsync(deviceId);
             
             if (deviceData != null)
@@ -586,7 +683,22 @@ public class TelegramBotCommandService : BackgroundService
                 break;
                 
             case WaitingState.RemoveDeviceId:
-                await RemoveDeviceAsync(chatId, new[] { text });
+                // Check if user entered a number and we have the device list
+                if (int.TryParse(text, out int index) && state.DeviceList != null)
+                {
+                    if (index >= 1 && index <= state.DeviceList.Count)
+                    {
+                        await RemoveDeviceAsync(chatId, new[] { state.DeviceList[index - 1] });
+                    }
+                    else
+                    {
+                        await SendMessageAsync(chatId, $"❌ Số thứ tự không hợp lệ. Vui lòng chọn từ 1 đến {state.DeviceList.Count}");
+                    }
+                }
+                else
+                {
+                    await RemoveDeviceAsync(chatId, new[] { text });
+                }
                 break;
                 
             case WaitingState.CheckDeviceId:
@@ -603,6 +715,7 @@ public class UserConversationState
 {
     public WaitingState WaitingFor { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public List<string>? DeviceList { get; set; }  // For remove command - stores device IDs in order
 }
 
 /// <summary>
