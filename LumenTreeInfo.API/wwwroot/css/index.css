@@ -1645,8 +1645,9 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 .evn-spark-container.active::before {
     content: '';
     position: absolute;
-    top: 0;
-    right: 0;
+    top: -5px;
+    left: 50%;
+    transform: translateX(-50%);
     width: 24px;
     height: 24px;
     background-image: url('/icons/lightning-bolt-small.png');
