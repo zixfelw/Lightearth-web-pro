@@ -325,6 +325,21 @@ public class TelegramNotificationService : BackgroundService
                 })
         };
     }
+    
+    /// <summary>
+    /// Get configuration status for debugging
+    /// </summary>
+    public Dictionary<string, object> GetConfigStatus()
+    {
+        return new Dictionary<string, object>
+        {
+            ["enabled"] = _enabled,
+            ["hasBotToken"] = !string.IsNullOrEmpty(_botToken),
+            ["hasChatId"] = !string.IsNullOrEmpty(_chatId),
+            ["botTokenLength"] = _botToken?.Length ?? 0,
+            ["chatIdValue"] = _chatId ?? "null"
+        };
+    }
 }
 
 /// <summary>

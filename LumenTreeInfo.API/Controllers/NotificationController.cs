@@ -25,10 +25,12 @@ public class NotificationController : ControllerBase
     public IActionResult GetStatus()
     {
         var status = TelegramNotificationService.GetStatus();
+        var configStatus = _telegramService.GetConfigStatus();
         return Ok(new
         {
             success = true,
             telegram = status,
+            config = configStatus,
             timestamp = DateTime.UtcNow
         });
     }
