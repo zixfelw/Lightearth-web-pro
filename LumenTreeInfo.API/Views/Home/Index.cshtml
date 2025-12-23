@@ -480,7 +480,10 @@
                     <div class="flex flex-col items-center text-center">
                         <div class="icon-glow-container icon-glow-pv">
                             <div class="icon-glow-aura"></div>
-                            <img src="/icons/solar-panel.png" alt="Công suất PV" class="icon-glow-img">
+                            <picture>
+                                <source media="(max-width: 640px)" srcset="/icons/solar-panel-mobile.png">
+                                <img src="/icons/solar-panel.png" alt="Công suất PV" class="icon-glow-img">
+                            </picture>
                         </div>
                         <div class="text-xs font-semibold text-amber-700 dark:text-amber-300 mb-1">Công suất PV</div>
                         <div class="text-lg sm:text-xl font-black text-amber-600 dark:text-amber-400" id="pv-power">--</div>
