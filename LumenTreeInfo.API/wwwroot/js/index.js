@@ -2120,6 +2120,18 @@ document.addEventListener('DOMContentLoaded', function () {
         // Normal update with actual data
         // PV - with blink effect
         updateValue('pv-power', `${data.pvTotalPower}W`);
+        
+        // Show/hide sun based on PV power
+        const sunIcon = document.querySelector('.sun-animated');
+        if (sunIcon) {
+            if (data.pvTotalPower > 0) {
+                sunIcon.style.opacity = '1';
+                sunIcon.style.visibility = 'visible';
+            } else {
+                sunIcon.style.opacity = '0';
+                sunIcon.style.visibility = 'hidden';
+            }
+        }
         if (data.pv2Power) {
             // Compact format without S1:/S2: labels - W to hơn, V nhỏ hơn
             updateValueHTML('pv-desc', `
