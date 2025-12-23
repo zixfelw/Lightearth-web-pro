@@ -1191,7 +1191,7 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 /* PV Dots - Amber */
 .energy-dot-pv {
     background: var(--color-accent-400);
-    box-shadow: 0 0 15px 4px rgba(251, 191, 36, 0.9), 0 0 30px 8px rgba(251, 191, 36, 0.5);
+    box-shadow: 0 0 8px 2px rgba(251, 191, 36, 0.7);
     animation: pv-flow 1.5s ease-in-out infinite;
 }
 .energy-dot-pv-2 {
@@ -1225,7 +1225,7 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 /* EVN Dots - Teal */
 .energy-dot-evn {
     background: var(--color-primary-400);
-    box-shadow: 0 0 15px 4px rgba(20, 184, 166, 0.9), 0 0 30px 8px rgba(20, 184, 166, 0.5);
+    box-shadow: 0 0 8px 2px rgba(20, 184, 166, 0.7);
     animation: evn-flow 1.5s ease-in-out infinite;
 }
 .energy-dot-evn-2 {
@@ -1259,7 +1259,7 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 /* Battery Dots */
 .energy-dot-battery {
     background: var(--color-primary-400);
-    box-shadow: 0 0 15px 4px rgba(20, 184, 166, 0.9), 0 0 30px 8px rgba(20, 184, 166, 0.5);
+    box-shadow: 0 0 8px 2px rgba(20, 184, 166, 0.7);
 }
 
 .energy-dot-battery.charging {
@@ -1281,12 +1281,12 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 
 .energy-dot-battery.discharging {
     background: #f97316;
-    box-shadow: 0 0 15px 4px rgba(249, 115, 22, 0.9), 0 0 30px 8px rgba(249, 115, 22, 0.5);
+    box-shadow: 0 0 8px 2px rgba(249, 115, 22, 0.7);
     animation: battery-discharge 1.8s ease-in-out infinite;
 }
 .energy-dot-battery-2.discharging {
     background: #f97316;
-    box-shadow: 0 0 15px 4px rgba(249, 115, 22, 0.9), 0 0 30px 8px rgba(249, 115, 22, 0.5);
+    box-shadow: 0 0 8px 2px rgba(249, 115, 22, 0.7);
     animation: battery-discharge 1.8s ease-in-out infinite;
     animation-delay: -0.6s;
     width: 10px;
@@ -1294,7 +1294,7 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 }
 .energy-dot-battery-3.discharging {
     background: #f97316;
-    box-shadow: 0 0 15px 4px rgba(249, 115, 22, 0.9), 0 0 30px 8px rgba(249, 115, 22, 0.5);
+    box-shadow: 0 0 8px 2px rgba(249, 115, 22, 0.7);
     animation: battery-discharge 1.8s ease-in-out infinite;
     animation-delay: -1.2s;
     width: 9px;
@@ -1305,7 +1305,7 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 /* Essential Load Dots - Indigo */
 .energy-dot-essential {
     background: var(--color-secondary-500);
-    box-shadow: 0 0 15px 4px rgba(99, 102, 241, 0.9), 0 0 30px 8px rgba(99, 102, 241, 0.5);
+    box-shadow: 0 0 8px 2px rgba(99, 102, 241, 0.7);
     animation: essential-flow 1.2s ease-in-out infinite;
 }
 .energy-dot-essential-2 {
@@ -1325,7 +1325,7 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 /* Load Dots - Emerald */
 .energy-dot-load {
     background: #10b981;
-    box-shadow: 0 0 15px 4px rgba(16, 185, 129, 0.9), 0 0 30px 8px rgba(16, 185, 129, 0.5);
+    box-shadow: 0 0 8px 2px rgba(16, 185, 129, 0.7);
     animation: load-flow 1.5s ease-in-out infinite;
 }
 .energy-dot-load-2 {
@@ -1805,4 +1805,82 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 
 .dark #batteryCellSection > div {
     background: linear-gradient(135deg, var(--bg-dark-800), #0f2927);
+}
+
+/* ========================================
+   MOBILE PERFORMANCE OPTIMIZATIONS
+   ======================================== */
+
+/* GPU acceleration for animated elements */
+.sun-animated,
+.evn-spark-container,
+.energy-dot,
+.icon-glow-aura,
+.icon-glow-img,
+.lightning-bolt {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+}
+
+/* Reduce animations on mobile for better performance */
+@media (max-width: 640px) {
+    /* Slower, simpler animations on mobile */
+    .sun-animated.visible .sun-icon {
+        animation-duration: 5s !important;
+    }
+    
+    .icon-glow-aura {
+        animation-duration: 8s !important;
+    }
+    
+    .evn-spark-container.active::before {
+        animation-duration: 5s !important;
+    }
+    
+    /* Reduce energy dot animations */
+    .energy-dot {
+        animation-duration: 2.5s !important;
+    }
+    
+    /* Simplify glow effects on mobile */
+    .sun-icon {
+        filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.4)) !important;
+    }
+    
+    .evn-spark-container.active::before {
+        filter: drop-shadow(0 0 2px #fbbf24) !important;
+    }
+    
+    /* Disable some secondary animations on mobile */
+    .icon-glow-aura {
+        animation: none !important;
+        opacity: 0.4 !important;
+    }
+}
+
+/* Respect user's reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    
+    .sun-animated,
+    .evn-spark-container,
+    .energy-dot,
+    .icon-glow-aura {
+        animation: none !important;
+    }
+    
+    .sun-animated.visible {
+        opacity: 1;
+    }
+    
+    .evn-spark-container.active {
+        opacity: 1;
+    }
 }
