@@ -381,8 +381,8 @@ public class TelegramNotificationService : BackgroundService
         var gridStatus = acInputVoltage >= 100 ? "🟢 Online" : "🔴 Offline";
         var soc = data.BatteryChargePercentage ?? 0;
         
-        // Get weather forecast
-        var weatherForecast = await GetWeatherForecastAsync();
+        // Get weather forecast based on user's location setting
+        var (weatherForecast, locationName) = await GetWeatherForecastAsync(deviceId);
         
         // Morning greeting message
         var sb = new StringBuilder();
@@ -400,10 +400,10 @@ public class TelegramNotificationService : BackgroundService
         sb.AppendLine($"• AC Input: {acInputVoltage}V {gridStatus}");
         sb.AppendLine();
         
-        // Weather forecast section
+        // Weather forecast section with location name
         if (!string.IsNullOrEmpty(weatherForecast))
         {
-            sb.AppendLine("🌤️ *Dự báo thời tiết hôm nay:*");
+            sb.AppendLine($"🌤️ *Dự báo thời tiết - {locationName}:*");
             sb.AppendLine(weatherForecast);
         }
         
@@ -415,15 +415,18 @@ public class TelegramNotificationService : BackgroundService
     
     /// <summary>
     /// Get weather forecast from Open-Meteo API (free, no API key required)
-    /// Default location: Ho Chi Minh City
+    /// Uses user's saved location from Telegram bot settings
     /// </summary>
-    private async Task<string> GetWeatherForecastAsync()
+    private async Task<(string forecast, string locationName)> GetWeatherForecastAsync(string deviceId)
     {
         try
         {
-            // Ho Chi Minh City coordinates
-            const double lat = 10.8231;
-            const double lon = 106.6297;
+            // Get user's location from settings (or default to HCM)
+            var locationName = TelegramBotCommandService.GetUserLocation(deviceId);
+            var coords = TelegramBotCommandService.GetLocationCoordinates(locationName);
+            
+            double lat = coords?.lat ?? 10.8231;
+            double lon = coords?.lon ?? 106.6297;
             
             var url = $"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}" +
                       "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,sunshine_duration,uv_index_max" +
@@ -431,7 +434,7 @@ public class TelegramNotificationService : BackgroundService
                       "&timezone=Asia/Ho_Chi_Minh&forecast_days=1";
             
             var response = await _httpClient.GetAsync(url);
-            if (!response.IsSuccessStatusCode) return string.Empty;
+            if (!response.IsSuccessStatusCode) return (string.Empty, locationName);
             
             var json = await response.Content.ReadAsStringAsync();
             var weatherData = JsonSerializer.Deserialize<JsonElement>(json);
@@ -468,12 +471,12 @@ public class TelegramNotificationService : BackgroundService
             sb.AppendLine($"• ☀️ Giờ nắng dự kiến: *{sunshineHours:F1}h*");
             sb.AppendLine($"• 🔆 Chỉ số UV: *{uvIndex:F1}* {GetUVLevel(uvIndex)}");
             
-            return sb.ToString();
+            return (sb.ToString(), locationName);
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to get weather forecast");
-            return string.Empty;
+            return (string.Empty, "TP. Hồ Chí Minh");
         }
     }
     

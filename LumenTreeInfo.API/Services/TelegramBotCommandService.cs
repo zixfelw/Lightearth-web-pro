@@ -269,6 +269,12 @@ public class TelegramBotCommandService : BackgroundService
                 await ShowNotificationSettingsAsync(chatId, args);
                 break;
                 
+            case "/location":
+            case "/vung":
+            case "/vitri":
+                await SetLocationAsync(chatId, args);
+                break;
+                
             default:
                 if (command.StartsWith("/"))
                 {
@@ -286,6 +292,7 @@ public class TelegramBotCommandService : BackgroundService
 • `/add <DeviceID>` - Thêm thiết bị theo dõi
 • `/remove <DeviceID>` - Xóa thiết bị
 • `/list` - Xem danh sách thiết bị đang theo dõi
+• `/location` - Cài đặt vùng dự báo thời tiết
 
 📊 *Trạng thái:*
 • `/status` - Xem trạng thái tổng quan
@@ -649,7 +656,8 @@ public class TelegramBotCommandService : BackgroundService
                     new { command = "list", description = "📋 Danh sách thiết bị" },
                     new { command = "status", description = "📊 Trạng thái hệ thống" },
                     new { command = "check", description = "🔍 Kiểm tra thiết bị" },
-                    new { command = "settings", description = "⚙️ Cài đặt thông báo" }
+                    new { command = "settings", description = "⚙️ Cài đặt thông báo" },
+                    new { command = "location", description = "📍 Cài đặt vùng thời tiết" }
                 }
             };
             
@@ -1016,7 +1024,227 @@ public class TelegramBotCommandService : BackgroundService
                     _userStates[chatId] = state;
                 }
                 break;
+                
+            case WaitingState.SelectLocation:
+                await ProcessLocationSelectionAsync(chatId, text, state);
+                break;
         }
+    }
+    
+    /// <summary>
+    /// 63 tỉnh thành Việt Nam với tọa độ (same as frontend)
+    /// </summary>
+    public static readonly Dictionary<string, (double lat, double lon, string region)> VIETNAM_CITIES = new()
+    {
+        // === Miền Nam ===
+        ["TP. Hồ Chí Minh"] = (10.8231, 106.6297, "Miền Nam"),
+        ["Bà Rịa - Vũng Tàu"] = (10.4114, 107.1362, "Miền Nam"),
+        ["Bình Dương"] = (11.0753, 106.6189, "Miền Nam"),
+        ["Bình Phước"] = (11.7512, 106.7235, "Miền Nam"),
+        ["Đồng Nai"] = (10.9574, 106.8426, "Miền Nam"),
+        ["Tây Ninh"] = (11.3555, 106.1099, "Miền Nam"),
+        ["Long An"] = (10.6956, 106.2431, "Miền Nam"),
+        ["Tiền Giang"] = (10.4493, 106.3420, "Miền Nam"),
+        ["Bến Tre"] = (10.2433, 106.3752, "Miền Nam"),
+        ["Vĩnh Long"] = (10.2537, 105.9722, "Miền Nam"),
+        ["Trà Vinh"] = (9.8127, 106.2993, "Miền Nam"),
+        ["Đồng Tháp"] = (10.4937, 105.6882, "Miền Nam"),
+        ["An Giang"] = (10.5216, 105.1259, "Miền Nam"),
+        ["Kiên Giang"] = (10.0125, 105.0809, "Miền Nam"),
+        ["Cần Thơ"] = (10.0452, 105.7469, "Miền Nam"),
+        ["Hậu Giang"] = (9.7579, 105.6413, "Miền Nam"),
+        ["Sóc Trăng"] = (9.6037, 105.9800, "Miền Nam"),
+        ["Bạc Liêu"] = (9.2940, 105.7216, "Miền Nam"),
+        ["Cà Mau"] = (9.1769, 105.1524, "Miền Nam"),
+        // === Miền Trung ===
+        ["Đà Nẵng"] = (16.0544, 108.2022, "Miền Trung"),
+        ["Thừa Thiên Huế"] = (16.4637, 107.5909, "Miền Trung"),
+        ["Quảng Nam"] = (15.5394, 108.0191, "Miền Trung"),
+        ["Quảng Ngãi"] = (15.1214, 108.8044, "Miền Trung"),
+        ["Bình Định"] = (13.7765, 109.2237, "Miền Trung"),
+        ["Phú Yên"] = (13.0882, 109.0929, "Miền Trung"),
+        ["Khánh Hòa"] = (12.2388, 109.1967, "Miền Trung"),
+        ["Ninh Thuận"] = (11.5752, 108.9890, "Miền Trung"),
+        ["Bình Thuận"] = (10.9289, 108.1021, "Miền Trung"),
+        ["Quảng Bình"] = (17.4656, 106.6222, "Miền Trung"),
+        ["Quảng Trị"] = (16.7504, 107.1856, "Miền Trung"),
+        ["Hà Tĩnh"] = (18.3559, 105.8877, "Miền Trung"),
+        ["Nghệ An"] = (18.6737, 105.6922, "Miền Trung"),
+        ["Thanh Hóa"] = (19.8067, 105.7852, "Miền Trung"),
+        // === Tây Nguyên ===
+        ["Kon Tum"] = (14.3545, 108.0005, "Tây Nguyên"),
+        ["Gia Lai"] = (13.9833, 108.0000, "Tây Nguyên"),
+        ["Đắk Lắk"] = (12.6800, 108.0378, "Tây Nguyên"),
+        ["Đắk Nông"] = (12.0033, 107.6876, "Tây Nguyên"),
+        ["Lâm Đồng"] = (11.9404, 108.4583, "Tây Nguyên"),
+        // === Miền Bắc ===
+        ["Hà Nội"] = (21.0285, 105.8542, "Miền Bắc"),
+        ["Hải Phòng"] = (20.8449, 106.6881, "Miền Bắc"),
+        ["Quảng Ninh"] = (21.0064, 107.2925, "Miền Bắc"),
+        ["Bắc Giang"] = (21.2819, 106.1975, "Miền Bắc"),
+        ["Bắc Ninh"] = (21.1861, 106.0763, "Miền Bắc"),
+        ["Hải Dương"] = (20.9373, 106.3146, "Miền Bắc"),
+        ["Hưng Yên"] = (20.6464, 106.0511, "Miền Bắc"),
+        ["Thái Bình"] = (20.4463, 106.3365, "Miền Bắc"),
+        ["Nam Định"] = (20.4388, 106.1621, "Miền Bắc"),
+        ["Ninh Bình"] = (20.2506, 105.9745, "Miền Bắc"),
+        ["Hà Nam"] = (20.5835, 105.9230, "Miền Bắc"),
+        ["Vĩnh Phúc"] = (21.3609, 105.5474, "Miền Bắc"),
+        ["Phú Thọ"] = (21.3227, 105.2280, "Miền Bắc"),
+        ["Thái Nguyên"] = (21.5942, 105.8482, "Miền Bắc"),
+        ["Bắc Kạn"] = (22.1470, 105.8348, "Miền Bắc"),
+        ["Cao Bằng"] = (22.6663, 106.2522, "Miền Bắc"),
+        ["Lạng Sơn"] = (21.8537, 106.7615, "Miền Bắc"),
+        ["Tuyên Quang"] = (21.8233, 105.2180, "Miền Bắc"),
+        ["Hà Giang"] = (22.8333, 104.9833, "Miền Bắc"),
+        ["Yên Bái"] = (21.7168, 104.8986, "Miền Bắc"),
+        ["Lào Cai"] = (22.4856, 103.9707, "Miền Bắc"),
+        ["Lai Châu"] = (22.3864, 103.4703, "Miền Bắc"),
+        ["Điện Biên"] = (21.3860, 103.0230, "Miền Bắc"),
+        ["Sơn La"] = (21.3256, 103.9188, "Miền Bắc"),
+        ["Hòa Bình"] = (20.8171, 105.3376, "Miền Bắc"),
+    };
+    
+    /// <summary>
+    /// Set location for weather forecast
+    /// </summary>
+    private async Task SetLocationAsync(long chatId, string[] args)
+    {
+        // Get user's devices
+        var userDevices = _monitoredDevices.Values
+            .Where(d => d.ChatId == chatId)
+            .ToList();
+        
+        if (userDevices.Count == 0)
+        {
+            await SendMessageAsync(chatId, "📍 *Cài đặt vùng*\n\n_(Bạn chưa có thiết bị nào)_\n\nThêm thiết bị bằng lệnh /add");
+            return;
+        }
+        
+        // Show regions
+        var sb = new StringBuilder();
+        sb.AppendLine("📍 *Cài đặt vùng dự báo thời tiết*\n");
+        sb.AppendLine("Chọn miền:");
+        sb.AppendLine("1️⃣ Miền Nam");
+        sb.AppendLine("2️⃣ Miền Trung");
+        sb.AppendLine("3️⃣ Tây Nguyên");
+        sb.AppendLine("4️⃣ Miền Bắc");
+        sb.AppendLine("\n📝 Nhập số (1-4) để chọn miền:");
+        
+        _userStates[chatId] = new UserConversationState 
+        { 
+            WaitingFor = WaitingState.SelectLocation,
+            DeviceList = userDevices.Select(d => d.DeviceId).ToList()
+        };
+        
+        await SendMessageAsync(chatId, sb.ToString());
+    }
+    
+    /// <summary>
+    /// Process location selection
+    /// </summary>
+    private async Task ProcessLocationSelectionAsync(long chatId, string text, UserConversationState state)
+    {
+        // If user selects a region number (1-4)
+        if (int.TryParse(text, out int regionNum) && regionNum >= 1 && regionNum <= 4)
+        {
+            var region = regionNum switch
+            {
+                1 => "Miền Nam",
+                2 => "Miền Trung",
+                3 => "Tây Nguyên",
+                4 => "Miền Bắc",
+                _ => "Miền Nam"
+            };
+            
+            // Get cities in this region
+            var cities = VIETNAM_CITIES
+                .Where(c => c.Value.region == region)
+                .Select(c => c.Key)
+                .OrderBy(c => c)
+                .ToList();
+            
+            var sb = new StringBuilder();
+            sb.AppendLine($"📍 *{region}*\n");
+            sb.AppendLine("Chọn tỉnh/thành phố:\n");
+            
+            for (int i = 0; i < cities.Count; i++)
+            {
+                sb.AppendLine($"{i + 1}. {cities[i]}");
+            }
+            
+            sb.AppendLine($"\n📝 Nhập số (1-{cities.Count}) hoặc tên tỉnh:");
+            
+            // Store cities list in state for next step
+            state.DeviceList = cities;
+            state.WaitingFor = WaitingState.SelectLocation;
+            _userStates[chatId] = state;
+            
+            await SendMessageAsync(chatId, sb.ToString());
+            return;
+        }
+        
+        // If user selects a city by number or name
+        string? selectedCity = null;
+        
+        if (int.TryParse(text, out int cityNum) && state.DeviceList != null && cityNum >= 1 && cityNum <= state.DeviceList.Count)
+        {
+            selectedCity = state.DeviceList[cityNum - 1];
+        }
+        else
+        {
+            // Try to match by name (partial match)
+            selectedCity = VIETNAM_CITIES.Keys
+                .FirstOrDefault(c => c.Contains(text, StringComparison.OrdinalIgnoreCase));
+        }
+        
+        if (selectedCity != null && VIETNAM_CITIES.ContainsKey(selectedCity))
+        {
+            // Update location for ALL user's devices
+            var userDevices = _monitoredDevices.Values
+                .Where(d => d.ChatId == chatId)
+                .ToList();
+            
+            foreach (var device in userDevices)
+            {
+                device.Location = selectedCity;
+            }
+            
+            SaveDevicesToFile();
+            _userStates.TryRemove(chatId, out _);
+            
+            await SendMessageAsync(chatId, 
+                $"✅ Đã cập nhật vùng thành *{selectedCity}*!\n\n" +
+                $"🌤️ Thông báo chào buổi sáng sẽ kèm dự báo thời tiết cho khu vực này.");
+        }
+        else
+        {
+            await SendMessageAsync(chatId, "❌ Không tìm thấy tỉnh/thành phố. Vui lòng thử lại hoặc gõ /location để bắt đầu lại.");
+            _userStates.TryRemove(chatId, out _);
+        }
+    }
+    
+    /// <summary>
+    /// Get user's location for weather forecast
+    /// </summary>
+    public static string GetUserLocation(string deviceId)
+    {
+        var device = _monitoredDevices.Values
+            .FirstOrDefault(d => d.DeviceId.Equals(deviceId, StringComparison.OrdinalIgnoreCase));
+        return device?.Location ?? "TP. Hồ Chí Minh";
+    }
+    
+    /// <summary>
+    /// Get coordinates for a location
+    /// </summary>
+    public static (double lat, double lon)? GetLocationCoordinates(string location)
+    {
+        if (VIETNAM_CITIES.TryGetValue(location, out var coords))
+        {
+            return (coords.lat, coords.lon);
+        }
+        // Default to HCM
+        return (10.8231, 106.6297);
     }
 }
 
@@ -1040,7 +1268,8 @@ public enum WaitingState
     RemoveDeviceId,
     CheckDeviceId,
     SettingsDeviceId,
-    SettingsToggle
+    SettingsToggle,
+    SelectLocation
 }
 
 /// <summary>
@@ -1053,6 +1282,9 @@ public class MonitoredDevice
     public long ChatId { get; set; }  // Telegram Chat ID of the user who added this device
     public string AddedBy { get; set; } = string.Empty;  // Username or display name
     public bool ExistsInHA { get; set; }
+    
+    // Location for weather forecast (default: TP. Hồ Chí Minh)
+    public string Location { get; set; } = "TP. Hồ Chí Minh";
     
     // Notification preferences (all enabled by default)
     public NotificationPreferences Notifications { get; set; } = new NotificationPreferences();
