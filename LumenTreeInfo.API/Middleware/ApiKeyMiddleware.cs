@@ -32,8 +32,6 @@ public class ApiKeyMiddleware
     {
         "/api/realtime/device/",      // Device data for specific device (needed by web app)
         "/api/realtime/daily-energy/", // Daily energy (needed by web app)
-        "/api/realtime/soc-history/",  // SOC history (needed by charts)
-        "/api/realtime/power-history/", // Power history (needed by charts)
         "/api/proxy/",                 // Proxy endpoints
         "/api/soc/",                   // SOC data
         "/api/pv/",                    // PV data
@@ -41,6 +39,18 @@ public class ApiKeyMiddleware
         "/api/month/",                 // Monthly data
         "/api/year/",                  // Yearly data
         "/deviceHub"                   // SignalR hub
+    };
+    
+    // Semi-protected paths - require same-origin OR API key (block direct browser access)
+    private static readonly string[] SameOriginPaths = new[]
+    {
+        "/api/realtime/soc-history/",  // SOC history (only from web app)
+        "/api/realtime/power-history/", // Power history (only from web app)
+        "/api/cloud/power-history/",   // Cloud power history
+        "/api/cloud/soc-history/",     // Cloud SOC history
+        "/api/cloud/temperature/",     // Cloud temperature
+        "/api/cloud/states/",          // Cloud states
+        "/api/cloud/device-info/"      // Cloud device info
     };
 
     public ApiKeyMiddleware(RequestDelegate next, ILogger<ApiKeyMiddleware> logger, IConfiguration configuration)
@@ -73,7 +83,25 @@ public class ApiKeyMiddleware
             return;
         }
         
-        // Check if path is protected
+        // Check semi-protected paths (require same-origin OR API key)
+        // These block direct browser URL access but allow AJAX from web app
+        if (IsSameOriginPath(path))
+        {
+            if (!IsValidApiKey(context) && !IsSameOriginRequest(context))
+            {
+                _logger.LogWarning("Blocked direct access to {Path} from {IP} - Use web app or API key", 
+                    path, GetClientIP(context));
+                
+                context.Response.StatusCode = 403;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsync("{\"error\":\"Forbidden\",\"message\":\"Direct access not allowed. Please use the web application.\"}");
+                return;
+            }
+            await _next(context);
+            return;
+        }
+        
+        // Check if path is protected (require API key even from same origin)
         if (IsProtectedPath(path))
         {
             // Check for valid API Key
@@ -104,6 +132,11 @@ public class ApiKeyMiddleware
     private bool IsPublicPath(string path)
     {
         return PublicPaths.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase));
+    }
+    
+    private bool IsSameOriginPath(string path)
+    {
+        return SameOriginPaths.Any(p => path.StartsWith(p, StringComparison.OrdinalIgnoreCase));
     }
     
     private bool IsValidApiKey(HttpContext context)
