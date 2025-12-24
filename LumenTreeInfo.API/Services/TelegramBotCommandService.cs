@@ -369,7 +369,9 @@ public class TelegramBotCommandService : BackgroundService
             $"🔔 Bạn sẽ nhận thông báo khi:\n" +
             $"• ⚡ Mất điện lưới\n" +
             $"• ✅ Có điện lại\n" +
-            $"• 🔋 Pin yếu (< 20%)");
+            $"• 🔋 Pin yếu (< 20%)\n" +
+            $"• 🌅 Hết PV trong ngày (chuyển xài pin)\n\n" +
+            $"💡 Dùng /settings để tùy chỉnh thông báo");
     }
 
     private async Task RemoveDeviceAsync(long chatId, string[] args)
