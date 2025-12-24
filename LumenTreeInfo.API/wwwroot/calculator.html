@@ -175,20 +175,20 @@
             color: #a5b4fc;
         }
 
-        /* Primary button - Teal/Emerald gradient like main page */
+        /* Primary button - Amber/Yellow for Lumentree */
         .evn-calculator-btn {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            gap: 10px;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
             color: white;
-            padding: 12px 24px;
+            padding: 14px 28px;
             border-radius: 12px;
             text-decoration: none;
-            font-weight: 600;
-            font-size: 0.95em;
+            font-weight: 700;
+            font-size: 1.1em;
             margin: 8px 4px;
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
             transition: all 0.3s ease;
             border: none;
             cursor: pointer;
@@ -196,23 +196,30 @@
 
         .evn-calculator-btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5);
-            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
+            background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
         }
 
         .evn-calculator-btn:active {
             transform: translateY(0);
         }
         
-        /* Secondary button - Amber/Orange */
+        /* Secondary button - Purple/Violet for EVN */
         .evn-calculator-btn.secondary {
-            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
         }
         
         .evn-calculator-btn.secondary:hover {
-            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
-            background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+            box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5);
+            background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+        }
+        
+        /* Logo in button */
+        .evn-calculator-btn .btn-logo {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
         }
 
         .summary-cards {
@@ -2495,12 +2502,12 @@
                 Quản lý và theo dõi hiệu quả tiết kiệm từ hệ thống năng lượng mặt trời của bạn<br>
                 <span class="auto-save-indicator" id="autoSaveIndicator">💾 Lưu tự động khi bấm Lưu Cài Đặt</span>
             </div>
-            <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;">
                 <button class="evn-calculator-btn secondary" onclick="openEVNModal()">
                     ⚡ Tính Tiền Điện EVN
                 </button>
                 <button class="evn-calculator-btn" onclick="openLumentreeModal()">
-                    ☀️ Đồng Bộ Lumentree
+                    <img src="/images/lumentree-logo.png" alt="Lumentree" class="btn-logo"> Đồng Bộ Lumentree
                 </button>
             </div>
         </div>
@@ -4540,8 +4547,8 @@
     <!-- EVN Calculator Modal -->
     <div id="evnModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2>⚡ Tính Tiền Điện EVN (Bậc Thang)</h2>
+            <div class="modal-header" style="background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 50%, #8b5cf6 100%);">
+                <h2 style="font-size: 1.4em; font-weight: 700; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">⚡ Tính Tiền Điện EVN</h2>
                 <button class="modal-close" onclick="closeEVNModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -4823,18 +4830,18 @@
     <!-- Sync Data Modal - Premium Design -->
     <div id="lumentreeModal" class="modal">
         <div class="modal-content" style="max-width: 520px; border-radius: 24px; overflow-y: auto; max-height: 90vh; box-shadow: 0 25px 80px rgba(0,0,0,0.6);">
-            <!-- Premium Header with Gradient -->
-            <div class="modal-header" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 24px 28px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <!-- Premium Header with Amber Gradient for Lumentree -->
+            <div class="modal-header" style="background: linear-gradient(135deg, #92400e 0%, #b45309 50%, #d97706 100%); padding: 24px 28px; border-bottom: 1px solid rgba(255,255,255,0.2);">
                 <div style="display: flex; align-items: center; gap: 14px;">
-                    <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); border-radius: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(245,158,11,0.35);">
-                        <span style="font-size: 24px;">☀️</span>
+                    <div style="width: 52px; height: 52px; background: rgba(255,255,255,0.95); border-radius: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(0,0,0,0.25); padding: 6px;">
+                        <img src="/images/lumentree-logo.png" alt="Lumentree" style="width: 100%; height: 100%; object-fit: contain;">
                     </div>
                     <div>
-                        <h2 style="margin: 0; font-size: 1.3em; font-weight: 700; color: #fff;">Đồng Bộ Dữ Liệu Hệ Thống</h2>
-                        <p style="margin: 4px 0 0 0; font-size: 0.8em; color: rgba(255,255,255,0.6);">Lấy dữ liệu từ thiết bị của bạn</p>
+                        <h2 style="margin: 0; font-size: 1.4em; font-weight: 700; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">Đồng Bộ Lumentree</h2>
+                        <p style="margin: 4px 0 0 0; font-size: 0.85em; color: rgba(255,255,255,0.85);">Lấy dữ liệu từ thiết bị của bạn</p>
                     </div>
                 </div>
-                <button class="modal-close" onclick="closeLumentreeModal()" style="width: 36px; height: 36px; border-radius: 10px; background: rgba(255,255,255,0.1); border: none; color: #fff; font-size: 20px; cursor: pointer; transition: all 0.2s;">&times;</button>
+                <button class="modal-close" onclick="closeLumentreeModal()" style="width: 36px; height: 36px; border-radius: 10px; background: rgba(255,255,255,0.2); border: none; color: #fff; font-size: 20px; cursor: pointer; transition: all 0.2s;">&times;</button>
             </div>
             
             <div class="modal-body" style="background: linear-gradient(180deg, #334155 0%, #1e293b 100%); padding: 24px;">
