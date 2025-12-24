@@ -340,6 +340,17 @@ public class TelegramBotCommandService : BackgroundService
             }
         }
         
+        // If device NOT in system, send Zalo link and don't add
+        if (!deviceExists)
+        {
+            await SendMessageAsync(chatId, 
+                $"❌ Thiết bị `{deviceId}` chưa có trong hệ thống!\n\n" +
+                $"📱 *Tham gia nhóm Zalo* để gửi ID thiết bị và được cập nhật *(Miễn phí)*:\n" +
+                $"👉 https://zalo.me/g/xxxxxxx\n\n" +
+                $"💡 Sau khi được cập nhật, quay lại đây và thêm thiết bị nhé!");
+            return;
+        }
+        
         // Create unique key: chatId_deviceId (allows multiple users to monitor same device)
         var userDeviceKey = $"{chatId}_{deviceId}";
         
@@ -361,12 +372,8 @@ public class TelegramBotCommandService : BackgroundService
         _monitoredDevices[userDeviceKey] = device;
         SaveDevicesToFile();  // Persist to file
         
-        var statusIcon = deviceExists ? "✅" : "⚠️";
-        var statusText = deviceExists ? "Đã tìm thấy trong Hệ thống" : "Chưa có trong Hệ thống";
-        
         await SendMessageAsync(chatId, 
             $"✅ Đã thêm thiết bị `{deviceId}` vào danh sách theo dõi!\n\n" +
-            $"{statusIcon} {statusText}\n\n" +
             $"🔔 Bạn sẽ nhận thông báo khi:\n" +
             $"• 🌅 Chào buổi sáng + Dự báo thời tiết\n" +
             $"• ⚡ Mất điện lưới\n" +
