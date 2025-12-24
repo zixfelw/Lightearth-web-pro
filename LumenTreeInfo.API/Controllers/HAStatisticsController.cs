@@ -7,12 +7,15 @@ namespace LumenTreeInfo.API.Controllers;
 /// <summary>
 /// Controller for Home Assistant long-term statistics endpoints
 /// Provides yearly energy data using WebSocket API for long-term statistics
+/// Falls back to LEHT API when HA is not available
 /// </summary>
 [ApiController]
 [Route("api/ha")]
 public class HAStatisticsController : ControllerBase
 {
     private readonly MultiDeviceHomeAssistantClient? _haClient;
+    private static LehtApiClient? _lehtClient;
+    private static readonly object _lehtLock = new();
     private static readonly Serilog.ILogger Log = Serilog.Log.Logger;
 
     public HAStatisticsController()
@@ -28,13 +31,33 @@ public class HAStatisticsController : ControllerBase
         }
         else
         {
-            Log.Warning("HAStatisticsController: HA_TOKEN not configured");
+            Log.Warning("HAStatisticsController: HA_TOKEN not configured, will use LEHT API fallback");
         }
+    }
+
+    private async Task<LehtApiClient> GetLehtClientAsync()
+    {
+        if (_lehtClient == null)
+        {
+            lock (_lehtLock)
+            {
+                _lehtClient ??= new LehtApiClient();
+            }
+        }
+        
+        if (!_lehtClient.IsLoggedIn)
+        {
+            // Auto-login with default account
+            await _lehtClient.LoginAsync("zixfel", "Minhlong4244@");
+        }
+        
+        return _lehtClient;
     }
 
     /// <summary>
     /// Get yearly energy statistics for a device
     /// Uses WebSocket API for long-term statistics (never purged, hourly data)
+    /// Falls back to LEHT API when HA is not available
     /// </summary>
     /// <param name="deviceId">Device ID (e.g., P250801055)</param>
     /// <param name="year">Year to get statistics for (default: current year)</param>
@@ -46,18 +69,38 @@ public class HAStatisticsController : ControllerBase
             return BadRequest(new { success = false, message = "Device ID is required" });
         }
 
-        if (_haClient == null)
+        var targetYear = year ?? DateTime.Now.Year;
+
+        // Try Home Assistant first if configured
+        if (_haClient != null)
         {
-            return StatusCode(503, new { 
-                success = false, 
-                message = "Home Assistant not configured. Please set HA_URL and HA_TOKEN environment variables.",
-                deviceId = deviceId 
-            });
+            try
+            {
+                var isAvailable = await _haClient.CheckAvailabilityAsync();
+                if (isAvailable)
+                {
+                    Log.Information("Using Home Assistant for {DeviceId} year {Year}", deviceId, targetYear);
+                    return await GetYearlyFromHAAsync(deviceId, targetYear);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning("HA unavailable, falling back to LEHT: {Error}", ex.Message);
+            }
         }
 
+        // Fallback to LEHT API
+        Log.Information("Using LEHT API fallback for {DeviceId} year {Year}", deviceId, targetYear);
+        return await GetYearlyFromLehtAsync(deviceId, targetYear);
+    }
+
+    /// <summary>
+    /// Get yearly statistics from Home Assistant
+    /// </summary>
+    private async Task<IActionResult> GetYearlyFromHAAsync(string deviceId, int targetYear)
+    {
         try
         {
-            var targetYear = year ?? DateTime.Now.Year;
             Log.Information("Getting yearly statistics for {DeviceId} year {Year}", deviceId, targetYear);
 
             var stats = await _haClient.GetYearlyStatisticsAsync(deviceId, targetYear);
@@ -105,6 +148,107 @@ public class HAStatisticsController : ControllerBase
                 success = false, 
                 message = ex.Message,
                 deviceId = deviceId
+            });
+        }
+    }
+
+    /// <summary>
+    /// Get yearly statistics from LEHT API (fallback)
+    /// </summary>
+    private async Task<IActionResult> GetYearlyFromLehtAsync(string deviceId, int targetYear)
+    {
+        try
+        {
+            var leht = await GetLehtClientAsync();
+            
+            var months = new List<object>();
+            double totalPv = 0, totalLoad = 0, totalGrid = 0, totalBat = 0;
+            
+            // Get data for each month
+            var currentDate = DateTime.Now;
+            var endMonth = (targetYear == currentDate.Year) ? currentDate.Month : 12;
+            
+            for (int m = 1; m <= endMonth; m++)
+            {
+                var monthStr = $"{targetYear}-{m:D2}";
+                
+                try
+                {
+                    var data = await leht.GetMonthDataAsync(deviceId, monthStr);
+                    
+                    if (data != null)
+                    {
+                        // Parse totals from tableValueInfo arrays (values / 10 = kWh)
+                        var pvTotal = data.Pv?.TableValueInfo?.Sum(v => v / 10.0) ?? 0;
+                        var loadTotal = data.Homeload?.TableValueInfo?.Sum(v => v / 10.0) ?? 0;
+                        var gridTotal = data.Grid?.TableValueInfo?.Sum(v => v / 10.0) ?? 0;
+                        var batTotal = data.Bat?.TableValueInfo?.Sum(v => v / 10.0) ?? 0;
+                        
+                        // Count days with data
+                        var daysWithData = data.Pv?.TableValueInfo?.Count(v => v > 0) ?? 0;
+                        
+                        if (pvTotal > 0 || loadTotal > 0)
+                        {
+                            months.Add(new {
+                                month = monthStr,
+                                monthNumber = m,
+                                pv = Math.Round(pvTotal, 2),
+                                load = Math.Round(loadTotal, 2),
+                                grid = Math.Round(gridTotal, 2),
+                                battery = Math.Round(batTotal, 2),
+                                charge = 0,
+                                discharge = 0,
+                                daysWithData = daysWithData
+                            });
+                            
+                            totalPv += pvTotal;
+                            totalLoad += loadTotal;
+                            totalGrid += gridTotal;
+                            totalBat += batTotal;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning("Failed to get LEHT data for {Month}: {Error}", monthStr, ex.Message);
+                }
+            }
+            
+            if (months.Count == 0)
+            {
+                return NotFound(new { 
+                    success = false, 
+                    message = $"No data found for device {deviceId} in year {targetYear}",
+                    deviceId = deviceId,
+                    year = targetYear,
+                    source = "leht"
+                });
+            }
+            
+            return Ok(new {
+                success = true,
+                deviceId = deviceId.ToUpper(),
+                year = targetYear,
+                source = "leht",
+                totalMonths = months.Count,
+                totals = new {
+                    pv = Math.Round(totalPv, 2),
+                    load = Math.Round(totalLoad, 2),
+                    grid = Math.Round(totalGrid, 2),
+                    battery = Math.Round(totalBat, 2)
+                },
+                months = months,
+                timestamp = DateTime.Now
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error getting LEHT yearly statistics for {DeviceId}", deviceId);
+            return StatusCode(500, new { 
+                success = false, 
+                message = ex.Message,
+                deviceId = deviceId,
+                source = "leht"
             });
         }
     }
@@ -187,47 +331,64 @@ public class HAStatisticsController : ControllerBase
     }
 
     /// <summary>
-    /// Check if Home Assistant is available and configured
+    /// Check if Home Assistant and LEHT API are available
     /// </summary>
     [HttpGet("status")]
     public async Task<IActionResult> GetStatus()
     {
-        if (_haClient == null)
+        var haConfigured = _haClient != null;
+        var haAvailable = false;
+        var lehtAvailable = false;
+        HashSet<string>? haDevices = null;
+        
+        // Check HA
+        if (haConfigured)
         {
-            return Ok(new {
-                success = false,
-                isConfigured = false,
-                message = "Home Assistant not configured. Set HA_URL and HA_TOKEN environment variables.",
-                haUrl = Environment.GetEnvironmentVariable("HA_URL") ?? "NOT SET",
-                hasToken = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("HA_TOKEN"))
-            });
+            try
+            {
+                haAvailable = await _haClient!.CheckAvailabilityAsync();
+                if (haAvailable)
+                {
+                    haDevices = await _haClient.ScanDevicesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning("HA status check failed: {Error}", ex.Message);
+            }
         }
-
+        
+        // Check LEHT
         try
         {
-            var isAvailable = await _haClient.CheckAvailabilityAsync();
-            var devices = await _haClient.ScanDevicesAsync();
-
-            return Ok(new {
-                success = true,
-                isConfigured = true,
-                isAvailable = isAvailable,
-                haUrl = Environment.GetEnvironmentVariable("HA_URL"),
-                knownDevices = devices.ToList(),
-                deviceCount = devices.Count,
-                timestamp = DateTime.Now
-            });
+            var leht = await GetLehtClientAsync();
+            lehtAvailable = leht.IsLoggedIn;
         }
         catch (Exception ex)
         {
-            return Ok(new {
-                success = false,
-                isConfigured = true,
-                isAvailable = false,
-                error = ex.Message,
-                timestamp = DateTime.Now
-            });
+            Log.Warning("LEHT status check failed: {Error}", ex.Message);
         }
+
+        return Ok(new {
+            success = haAvailable || lehtAvailable,
+            homeAssistant = new {
+                isConfigured = haConfigured,
+                isAvailable = haAvailable,
+                haUrl = Environment.GetEnvironmentVariable("HA_URL") ?? "NOT SET",
+                hasToken = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("HA_TOKEN")),
+                knownDevices = haDevices?.ToList(),
+                deviceCount = haDevices?.Count ?? 0
+            },
+            lehtApi = new {
+                isAvailable = lehtAvailable,
+                apiUrl = "https://lehtapi.suntcn.com"
+            },
+            activeSource = haAvailable ? "home_assistant" : (lehtAvailable ? "leht" : "none"),
+            message = haAvailable 
+                ? "Using Home Assistant" 
+                : (lehtAvailable ? "Using LEHT API (fallback)" : "No data source available"),
+            timestamp = DateTime.Now
+        });
     }
 
     /// <summary>
