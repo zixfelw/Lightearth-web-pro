@@ -96,14 +96,53 @@ public class HAStatisticsController : ControllerBase
 
     /// <summary>
     /// Get yearly statistics from Home Assistant
+    /// Uses direct sensor readings (*_year, *_month) instead of WebSocket
     /// </summary>
     private async Task<IActionResult> GetYearlyFromHAAsync(string deviceId, int targetYear)
     {
         try
         {
+            var currentYear = DateTime.Now.Year;
             Log.Information("Getting yearly statistics for {DeviceId} year {Year}", deviceId, targetYear);
 
-            var stats = await _haClient.GetYearlyStatisticsAsync(deviceId, targetYear);
+            // For current year, we can read *_year sensors directly (much simpler!)
+            if (targetYear == currentYear)
+            {
+                var yearlyTotals = await _haClient!.GetYearlySensorDataAsync(deviceId);
+                if (yearlyTotals != null)
+                {
+                    // Also get monthly data for current month
+                    var monthlyTotals = await _haClient.GetMonthlySensorDataAsync(deviceId);
+                    
+                    return Ok(new {
+                        success = true,
+                        deviceId = deviceId.ToUpper(),
+                        year = targetYear,
+                        source = "ha_sensors",
+                        totalMonths = monthlyTotals != null ? 1 : 0,
+                        totals = new {
+                            pv = yearlyTotals.PvYear,
+                            load = yearlyTotals.LoadYear,
+                            grid = yearlyTotals.GridYear,
+                            battery = Math.Round(yearlyTotals.ChargeYear - yearlyTotals.DischargeYear, 2),
+                            charge = yearlyTotals.ChargeYear,
+                            discharge = yearlyTotals.DischargeYear
+                        },
+                        currentMonth = monthlyTotals != null ? new {
+                            month = DateTime.Now.ToString("yyyy-MM"),
+                            pv = monthlyTotals.PvMonth,
+                            load = monthlyTotals.LoadMonth,
+                            grid = monthlyTotals.GridMonth,
+                            charge = monthlyTotals.ChargeMonth,
+                            discharge = monthlyTotals.DischargeMonth
+                        } : null,
+                        timestamp = DateTime.Now
+                    });
+                }
+            }
+
+            // For past years, use WebSocket long-term statistics
+            var stats = await _haClient!.GetYearlyStatisticsAsync(deviceId, targetYear);
             
             if (stats == null || stats.Months.Count == 0)
             {

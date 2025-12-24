@@ -580,6 +580,101 @@ public class MultiDeviceHomeAssistantClient : IDisposable
     }
 
     /// <summary>
+    /// Get yearly energy totals directly from *_year sensors (fast, no WebSocket needed)
+    /// </summary>
+    public async Task<YearlySensorData?> GetYearlySensorDataAsync(string deviceSn)
+    {
+        if (!await CheckAvailabilityAsync())
+            return null;
+
+        await RefreshStatesCacheAsync();
+
+        try
+        {
+            var deviceSnLower = deviceSn.ToLower();
+            var data = new YearlySensorData();
+
+            // Read *_year sensors directly
+            if (_statesCache.TryGetValue($"sensor.device_{deviceSnLower}_pv_year", out var pvYear))
+                data.PvYear = ParseDoubleState(pvYear.State);
+            if (_statesCache.TryGetValue($"sensor.device_{deviceSnLower}_load_year", out var loadYear))
+                data.LoadYear = ParseDoubleState(loadYear.State);
+            if (_statesCache.TryGetValue($"sensor.device_{deviceSnLower}_total_load_year", out var totalLoadYear))
+                data.LoadYear = Math.Max(data.LoadYear, ParseDoubleState(totalLoadYear.State));
+            if (_statesCache.TryGetValue($"sensor.device_{deviceSnLower}_grid_in_year", out var gridYear))
+                data.GridYear = ParseDoubleState(gridYear.State);
+            if (_statesCache.TryGetValue($"sensor.device_{deviceSnLower}_charge_year", out var chargeYear))
+                data.ChargeYear = ParseDoubleState(chargeYear.State);
+            if (_statesCache.TryGetValue($"sensor.device_{deviceSnLower}_discharge_year", out var dischargeYear))
+                data.DischargeYear = ParseDoubleState(dischargeYear.State);
+
+            if (data.PvYear > 0 || data.LoadYear > 0)
+            {
+                Log.Information($"HA Yearly Sensors for {deviceSn}: PV={data.PvYear}kWh, Load={data.LoadYear}kWh, Grid={data.GridYear}kWh");
+                return data;
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Error getting yearly sensor data for {deviceSn}: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Get monthly energy totals directly from *_month sensors
+    /// </summary>
+    public async Task<MonthlySensorData?> GetMonthlySensorDataAsync(string deviceSn)
+    {
+        if (!await CheckAvailabilityAsync())
+            return null;
+
+        await RefreshStatesCacheAsync();
+
+        try
+        {
+            var deviceSnLower = deviceSn.ToLower();
+            var data = new MonthlySensorData();
+
+            // Read *_month sensors directly
+            if (_statesCache.TryGetValue($"sensor.device_{deviceSnLower}_pv_month", out var pvMonth))
+                data.PvMonth = ParseDoubleState(pvMonth.State);
+            if (_statesCache.TryGetValue($"sensor.device_{deviceSnLower}_load_month", out var loadMonth))
+                data.LoadMonth = ParseDoubleState(loadMonth.State);
+            if (_statesCache.TryGetValue($"sensor.device_{deviceSnLower}_total_load_month", out var totalLoadMonth))
+                data.LoadMonth = Math.Max(data.LoadMonth, ParseDoubleState(totalLoadMonth.State));
+            if (_statesCache.TryGetValue($"sensor.device_{deviceSnLower}_grid_in_month", out var gridMonth))
+                data.GridMonth = ParseDoubleState(gridMonth.State);
+            if (_statesCache.TryGetValue($"sensor.device_{deviceSnLower}_charge_month", out var chargeMonth))
+                data.ChargeMonth = ParseDoubleState(chargeMonth.State);
+            if (_statesCache.TryGetValue($"sensor.device_{deviceSnLower}_discharge_month", out var dischargeMonth))
+                data.DischargeMonth = ParseDoubleState(dischargeMonth.State);
+
+            if (data.PvMonth > 0 || data.LoadMonth > 0)
+            {
+                Log.Information($"HA Monthly Sensors for {deviceSn}: PV={data.PvMonth}kWh, Load={data.LoadMonth}kWh");
+                return data;
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Error getting monthly sensor data for {deviceSn}: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static double ParseDoubleState(string? state)
+    {
+        if (string.IsNullOrEmpty(state) || state == "unknown" || state == "unavailable")
+            return 0;
+        return double.TryParse(state, out var val) ? val : 0;
+    }
+
+    /// <summary>
     /// Get battery cell data for a specific device
     /// </summary>
     public async Task<SolarInverterMonitor.BatteryCellData?> GetBatteryCellDataAsync(string deviceSn)
@@ -1172,6 +1267,30 @@ public class HaHistoryState
     
     [JsonPropertyName("last_updated")]
     public string? LastUpdated { get; set; }
+}
+
+/// <summary>
+/// Yearly sensor data (from *_year sensors)
+/// </summary>
+public class YearlySensorData
+{
+    public double PvYear { get; set; }
+    public double LoadYear { get; set; }
+    public double GridYear { get; set; }
+    public double ChargeYear { get; set; }
+    public double DischargeYear { get; set; }
+}
+
+/// <summary>
+/// Monthly sensor data (from *_month sensors)
+/// </summary>
+public class MonthlySensorData
+{
+    public double PvMonth { get; set; }
+    public double LoadMonth { get; set; }
+    public double GridMonth { get; set; }
+    public double ChargeMonth { get; set; }
+    public double DischargeMonth { get; set; }
 }
 
 /// <summary>
