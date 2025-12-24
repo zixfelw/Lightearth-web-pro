@@ -1,13 +1,13 @@
 /**
  * Lightearth Proxy Worker v3.1 (based on v3.0)
  * - Proxy to lesvr.suntcn.com
- * - Proxy to Home Assistant
+ * - Proxy to Private Cloud Infrastructure
  * - Optimized: O(n log n) power history processing to avoid Worker timeout
  * - Fixed: Timezone handling for Vietnam (UTC+7)
  * - Added: Temperature min/max history endpoint
  * - Added: Device info endpoint (model, manufacturer, firmware)
- * - Added: HA devices list endpoint
- * - Added: HA monthly energy endpoint
+ * - Added: Cloud devices list endpoint
+ * - Added: Cloud monthly energy endpoint
  * 
  * SECURITY FEATURES (v3.1):
  * - GEO BLOCKING: Only allow requests from Vietnam (VN)
@@ -18,8 +18,8 @@
  * - Security headers
  * 
  * Environment Variables needed:
- * - HA_URL: Home Assistant URL (e.g., https://xxx.trycloudflare.com)
- * - HA_TOKEN: Home Assistant Long-Lived Access Token
+ * - PI_URL: Private Infrastructure URL
+ * - PI_TOKEN: Private Infrastructure Access Token
  */
 
 // Vietnam timezone offset: UTC+7
@@ -238,15 +238,16 @@ export default {
       'wifiStatus': '1'
     };
 
-    const HA_URL = env.HA_URL || '';
-    const HA_TOKEN = env.HA_TOKEN || '';
+    // Support both old (HA_*) and new (PI_*) env var names for backward compatibility
+    const PI_URL = env.PI_URL || env.HA_URL || '';
+    const PI_TOKEN = env.PI_TOKEN || env.HA_TOKEN || '';
 
     // Health check
     if (path === '/' || path === '/health') {
       return new Response(JSON.stringify({
         status: 'ok',
         version: '3.1-geo-secured',
-        ha_configured: !!(HA_URL && HA_TOKEN),
+        cloud_configured: !!(PI_URL && PI_TOKEN),
         timezone: 'UTC+7 (Vietnam)',
         yourCountry: clientCountry,
         security: {
@@ -255,38 +256,38 @@ export default {
           corsProtected: true
         },
         endpoints: [
-          '/api/ha/devices',
-          '/api/ha/power-history/{deviceId}/{date}',
-          '/api/ha/soc-history/{deviceId}/{date}',
-          '/api/ha/temperature/{deviceId}/{date}',
-          '/api/ha/device-info/{deviceId}',
-          '/api/ha/states/{deviceId}',
-          '/api/ha/monthly/{deviceId}'
+          '/api/cloud/devices',
+          '/api/cloud/power-history/{deviceId}/{date}',
+          '/api/cloud/soc-history/{deviceId}/{date}',
+          '/api/cloud/temperature/{deviceId}/{date}',
+          '/api/cloud/device-info/{deviceId}',
+          '/api/cloud/states/{deviceId}',
+          '/api/cloud/monthly/{deviceId}'
         ]
       }), { headers });
     }
 
-    // ============ HOME ASSISTANT ENDPOINTS ============
+    // ============ CLOUD INFRASTRUCTURE ENDPOINTS ============
 
-    // GET /api/ha/devices - List all solar devices from HA
-    if (path === '/api/ha/devices') {
-      if (!HA_URL || !HA_TOKEN) {
-        return new Response(JSON.stringify({ success: false, error: 'HA not configured' }), { status: 503, headers });
+    // GET /api/cloud/devices - List all solar devices
+    if (path === '/api/cloud/devices') {
+      if (!PI_URL || !PI_TOKEN) {
+        return new Response(JSON.stringify({ success: false, error: 'Cloud not configured' }), { status: 503, headers });
       }
       try {
-        const data = await fetchHADevices(HA_URL, HA_TOKEN);
-        return new Response(JSON.stringify({ success: true, dataSource: 'HomeAssistant', ...data }), { headers });
+        const data = await fetchCloudDevices(PI_URL, PI_TOKEN);
+        return new Response(JSON.stringify({ success: true, dataSource: 'LightEarthCloud', ...data }), { headers });
       } catch (error) {
         return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers });
       }
     }
 
-    // GET /api/ha/monthly/{deviceId} - Get current month energy data from HA
-    if (path.match(/^\/api\/ha\/monthly\/([^\/]+)$/)) {
-      if (!HA_URL || !HA_TOKEN) {
-        return new Response(JSON.stringify({ success: false, error: 'HA not configured' }), { status: 503, headers });
+    // GET /api/cloud/monthly/{deviceId} - Get current month energy data
+    if (path.match(/^\/api\/cloud\/monthly\/([^\/]+)$/)) {
+      if (!PI_URL || !PI_TOKEN) {
+        return new Response(JSON.stringify({ success: false, error: 'Cloud not configured' }), { status: 503, headers });
       }
-      const match = path.match(/^\/api\/ha\/monthly\/([^\/]+)$/);
+      const match = path.match(/^\/api\/cloud\/monthly\/([^\/]+)$/);
       const deviceId = match[1];
       
       if (!isValidDeviceId(deviceId)) {
@@ -294,40 +295,19 @@ export default {
       }
       
       try {
-        const data = await fetchHAMonthlyEnergy(HA_URL, HA_TOKEN, deviceId);
-        return new Response(JSON.stringify({ success: true, dataSource: 'HomeAssistant', deviceId, ...data }), { headers });
+        const data = await fetchCloudMonthlyEnergy(PI_URL, PI_TOKEN, deviceId);
+        return new Response(JSON.stringify({ success: true, dataSource: 'LightEarthCloud', deviceId, ...data }), { headers });
       } catch (error) {
         return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers });
       }
     }
 
-    // GET /api/ha/power-history/{deviceId}/{date}
-    if (path.match(/^\/api\/ha\/power-history\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/)) {
-      if (!HA_URL || !HA_TOKEN) {
-        return new Response(JSON.stringify({ success: false, error: 'HA not configured' }), { status: 503, headers });
+    // GET /api/cloud/power-history/{deviceId}/{date}
+    if (path.match(/^\/api\/cloud\/power-history\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/)) {
+      if (!PI_URL || !PI_TOKEN) {
+        return new Response(JSON.stringify({ success: false, error: 'Cloud not configured' }), { status: 503, headers });
       }
-      const match = path.match(/^\/api\/ha\/power-history\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/);
-      const deviceId = match[1];
-      const queryDate = match[2];
-      
-      if (!isValidDeviceId(deviceId)) {
-        return new Response(JSON.stringify({ success: false, error: 'Invalid deviceId format' }), { status: 400, headers });
-      }
-      
-      try {
-        const data = await fetchHAPowerHistory(HA_URL, HA_TOKEN, deviceId, queryDate);
-        return new Response(JSON.stringify({ success: true, dataSource: 'HomeAssistant', deviceId, date: queryDate, ...data }), { headers });
-      } catch (error) {
-        return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers });
-      }
-    }
-
-    // GET /api/ha/soc-history/{deviceId}/{date}
-    if (path.match(/^\/api\/ha\/soc-history\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/)) {
-      if (!HA_URL || !HA_TOKEN) {
-        return new Response(JSON.stringify({ success: false, error: 'HA not configured' }), { status: 503, headers });
-      }
-      const match = path.match(/^\/api\/ha\/soc-history\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/);
+      const match = path.match(/^\/api\/cloud\/power-history\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/);
       const deviceId = match[1];
       const queryDate = match[2];
       
@@ -336,59 +316,19 @@ export default {
       }
       
       try {
-        const data = await fetchHASOCHistory(HA_URL, HA_TOKEN, deviceId, queryDate);
-        return new Response(JSON.stringify({ success: true, dataSource: 'HomeAssistant', deviceId, date: queryDate, ...data }), { headers });
+        const data = await fetchCloudPowerHistory(PI_URL, PI_TOKEN, deviceId, queryDate);
+        return new Response(JSON.stringify({ success: true, dataSource: 'LightEarthCloud', deviceId, date: queryDate, ...data }), { headers });
       } catch (error) {
         return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers });
       }
     }
 
-    // GET /api/ha/states/{deviceId}
-    if (path.match(/^\/api\/ha\/states\/([^\/]+)$/)) {
-      if (!HA_URL || !HA_TOKEN) {
-        return new Response(JSON.stringify({ success: false, error: 'HA not configured' }), { status: 503, headers });
+    // GET /api/cloud/soc-history/{deviceId}/{date}
+    if (path.match(/^\/api\/cloud\/soc-history\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/)) {
+      if (!PI_URL || !PI_TOKEN) {
+        return new Response(JSON.stringify({ success: false, error: 'Cloud not configured' }), { status: 503, headers });
       }
-      const match = path.match(/^\/api\/ha\/states\/([^\/]+)$/);
-      const deviceId = match[1];
-      
-      if (!isValidDeviceId(deviceId)) {
-        return new Response(JSON.stringify({ success: false, error: 'Invalid deviceId format' }), { status: 400, headers });
-      }
-      
-      try {
-        const data = await fetchHAStates(HA_URL, HA_TOKEN, deviceId);
-        return new Response(JSON.stringify({ success: true, dataSource: 'HomeAssistant', deviceId, ...data }), { headers });
-      } catch (error) {
-        return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers });
-      }
-    }
-
-    // GET /api/ha/device-info/{deviceId} - Get device info (model, type, firmware)
-    if (path.match(/^\/api\/ha\/device-info\/([^\/]+)$/)) {
-      if (!HA_URL || !HA_TOKEN) {
-        return new Response(JSON.stringify({ success: false, error: 'HA not configured' }), { status: 503, headers });
-      }
-      const match = path.match(/^\/api\/ha\/device-info\/([^\/]+)$/);
-      const deviceId = match[1];
-      
-      if (!isValidDeviceId(deviceId)) {
-        return new Response(JSON.stringify({ success: false, error: 'Invalid deviceId format' }), { status: 400, headers });
-      }
-      
-      try {
-        const data = await fetchHADeviceInfo(HA_URL, HA_TOKEN, deviceId);
-        return new Response(JSON.stringify({ success: true, dataSource: 'HomeAssistant', deviceId, ...data }), { headers });
-      } catch (error) {
-        return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers });
-      }
-    }
-
-    // GET /api/ha/temperature/{deviceId}/{date} - Temperature min/max for the day
-    if (path.match(/^\/api\/ha\/temperature\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/)) {
-      if (!HA_URL || !HA_TOKEN) {
-        return new Response(JSON.stringify({ success: false, error: 'HA not configured' }), { status: 503, headers });
-      }
-      const match = path.match(/^\/api\/ha\/temperature\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/);
+      const match = path.match(/^\/api\/cloud\/soc-history\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/);
       const deviceId = match[1];
       const queryDate = match[2];
       
@@ -397,8 +337,69 @@ export default {
       }
       
       try {
-        const data = await fetchHATemperatureHistory(HA_URL, HA_TOKEN, deviceId, queryDate);
-        return new Response(JSON.stringify({ success: true, dataSource: 'HomeAssistant', deviceId, date: queryDate, ...data }), { headers });
+        const data = await fetchCloudSOCHistory(PI_URL, PI_TOKEN, deviceId, queryDate);
+        return new Response(JSON.stringify({ success: true, dataSource: 'LightEarthCloud', deviceId, date: queryDate, ...data }), { headers });
+      } catch (error) {
+        return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers });
+      }
+    }
+
+    // GET /api/cloud/states/{deviceId}
+    if (path.match(/^\/api\/cloud\/states\/([^\/]+)$/)) {
+      if (!PI_URL || !PI_TOKEN) {
+        return new Response(JSON.stringify({ success: false, error: 'Cloud not configured' }), { status: 503, headers });
+      }
+      const match = path.match(/^\/api\/cloud\/states\/([^\/]+)$/);
+      const deviceId = match[1];
+      
+      if (!isValidDeviceId(deviceId)) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid deviceId format' }), { status: 400, headers });
+      }
+      
+      try {
+        const data = await fetchCloudStates(PI_URL, PI_TOKEN, deviceId);
+        return new Response(JSON.stringify({ success: true, dataSource: 'LightEarthCloud', deviceId, ...data }), { headers });
+      } catch (error) {
+        return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers });
+      }
+    }
+
+    // GET /api/cloud/device-info/{deviceId} - Get device info (model, type, firmware)
+    if (path.match(/^\/api\/cloud\/device-info\/([^\/]+)$/)) {
+      if (!PI_URL || !PI_TOKEN) {
+        return new Response(JSON.stringify({ success: false, error: 'Cloud not configured' }), { status: 503, headers });
+      }
+      const match = path.match(/^\/api\/cloud\/device-info\/([^\/]+)$/);
+      const deviceId = match[1];
+      
+      if (!isValidDeviceId(deviceId)) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid deviceId format' }), { status: 400, headers });
+      }
+      
+      try {
+        const data = await fetchCloudDeviceInfo(PI_URL, PI_TOKEN, deviceId);
+        return new Response(JSON.stringify({ success: true, dataSource: 'LightEarthCloud', deviceId, ...data }), { headers });
+      } catch (error) {
+        return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers });
+      }
+    }
+
+    // GET /api/cloud/temperature/{deviceId}/{date} - Temperature min/max for the day
+    if (path.match(/^\/api\/cloud\/temperature\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/)) {
+      if (!PI_URL || !PI_TOKEN) {
+        return new Response(JSON.stringify({ success: false, error: 'Cloud not configured' }), { status: 503, headers });
+      }
+      const match = path.match(/^\/api\/cloud\/temperature\/([^\/]+)\/(\d{4}-\d{2}-\d{2})$/);
+      const deviceId = match[1];
+      const queryDate = match[2];
+      
+      if (!isValidDeviceId(deviceId)) {
+        return new Response(JSON.stringify({ success: false, error: 'Invalid deviceId format' }), { status: 400, headers });
+      }
+      
+      try {
+        const data = await fetchCloudTemperatureHistory(PI_URL, PI_TOKEN, deviceId, queryDate);
+        return new Response(JSON.stringify({ success: true, dataSource: 'LightEarthCloud', deviceId, date: queryDate, ...data }), { headers });
       } catch (error) {
         return new Response(JSON.stringify({ success: false, error: error.message }), { status: 500, headers });
       }
@@ -518,13 +519,13 @@ export default {
   }
 };
 
-// ============ HA HELPER FUNCTIONS ============
+// ============ CLOUD HELPER FUNCTIONS ============
 
-// Get list of all solar devices from HA
-async function fetchHADevices(haUrl, haToken) {
-  const haHeaders = { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' };
-  const response = await fetch(`${haUrl}/api/states`, { headers: haHeaders });
-  if (!response.ok) throw new Error(`HA API error: ${response.status}`);
+// Get list of all solar devices from Cloud
+async function fetchCloudDevices(piUrl, piToken) {
+  const cloudHeaders = { 'Authorization': `Bearer ${piToken}`, 'Content-Type': 'application/json' };
+  const response = await fetch(`${piUrl}/api/states`, { headers: cloudHeaders });
+  if (!response.ok) throw new Error(`Cloud API error: ${response.status}`);
 
   const states = await response.json();
   
@@ -575,11 +576,11 @@ async function fetchHADevices(haUrl, haToken) {
   };
 }
 
-// Get current month energy data from HA
-async function fetchHAMonthlyEnergy(haUrl, haToken, deviceId) {
-  const haHeaders = { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' };
-  const response = await fetch(`${haUrl}/api/states`, { headers: haHeaders });
-  if (!response.ok) throw new Error(`HA API error: ${response.status}`);
+// Get current month energy data from Cloud
+async function fetchCloudMonthlyEnergy(piUrl, piToken, deviceId) {
+  const cloudHeaders = { 'Authorization': `Bearer ${piToken}`, 'Content-Type': 'application/json' };
+  const response = await fetch(`${piUrl}/api/states`, { headers: cloudHeaders });
+  if (!response.ok) throw new Error(`Cloud API error: ${response.status}`);
 
   const states = await response.json();
   const devicePrefix = `sensor.device_${deviceId.toLowerCase()}`;
@@ -632,8 +633,8 @@ async function fetchHAMonthlyEnergy(haUrl, haToken, deviceId) {
   };
 }
 
-async function fetchHAPowerHistory(haUrl, haToken, deviceId, queryDate) {
-  const haHeaders = { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' };
+async function fetchCloudPowerHistory(piUrl, piToken, deviceId, queryDate) {
+  const cloudHeaders = { 'Authorization': `Bearer ${piToken}`, 'Content-Type': 'application/json' };
   
   const sensors = {
     pv: `sensor.device_${deviceId.toLowerCase()}_pv_power`,
@@ -648,10 +649,10 @@ async function fetchHAPowerHistory(haUrl, haToken, deviceId, queryDate) {
   const endTimeUTC = vnDayEnd.toISOString();
   
   const entityIds = Object.values(sensors).join(',');
-  const historyUrl = `${haUrl}/api/history/period/${startTimeUTC}?end_time=${endTimeUTC}&filter_entity_id=${entityIds}&minimal_response&significant_changes_only`;
+  const historyUrl = `${piUrl}/api/history/period/${startTimeUTC}?end_time=${endTimeUTC}&filter_entity_id=${entityIds}&minimal_response&significant_changes_only`;
 
-  const response = await fetch(historyUrl, { headers: haHeaders });
-  if (!response.ok) throw new Error(`HA API error: ${response.status}`);
+  const response = await fetch(historyUrl, { headers: cloudHeaders });
+  if (!response.ok) throw new Error(`Cloud API error: ${response.status}`);
 
   const historyData = await response.json();
   
@@ -717,8 +718,8 @@ async function fetchHAPowerHistory(haUrl, haToken, deviceId, queryDate) {
   };
 }
 
-async function fetchHASOCHistory(haUrl, haToken, deviceId, queryDate) {
-  const haHeaders = { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' };
+async function fetchCloudSOCHistory(piUrl, piToken, deviceId, queryDate) {
+  const cloudHeaders = { 'Authorization': `Bearer ${piToken}`, 'Content-Type': 'application/json' };
   const socEntity = `sensor.device_${deviceId.toLowerCase()}_battery_soc`;
   
   const vnDayStart = new Date(`${queryDate}T00:00:00+07:00`);
@@ -726,10 +727,10 @@ async function fetchHASOCHistory(haUrl, haToken, deviceId, queryDate) {
   const startTimeUTC = vnDayStart.toISOString();
   const endTimeUTC = vnDayEnd.toISOString();
   
-  const historyUrl = `${haUrl}/api/history/period/${startTimeUTC}?end_time=${endTimeUTC}&filter_entity_id=${socEntity}&minimal_response`;
+  const historyUrl = `${piUrl}/api/history/period/${startTimeUTC}?end_time=${endTimeUTC}&filter_entity_id=${socEntity}&minimal_response`;
 
-  const response = await fetch(historyUrl, { headers: haHeaders });
-  if (!response.ok) throw new Error(`HA API error: ${response.status}`);
+  const response = await fetch(historyUrl, { headers: cloudHeaders });
+  if (!response.ok) throw new Error(`Cloud API error: ${response.status}`);
 
   const historyData = await response.json();
   if (!historyData || historyData.length === 0 || historyData[0].length === 0) {
@@ -752,10 +753,10 @@ async function fetchHASOCHistory(haUrl, haToken, deviceId, queryDate) {
   return { timeline, count: timeline.length };
 }
 
-async function fetchHAStates(haUrl, haToken, deviceId) {
-  const haHeaders = { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' };
-  const response = await fetch(`${haUrl}/api/states`, { headers: haHeaders });
-  if (!response.ok) throw new Error(`HA API error: ${response.status}`);
+async function fetchCloudStates(piUrl, piToken, deviceId) {
+  const cloudHeaders = { 'Authorization': `Bearer ${piToken}`, 'Content-Type': 'application/json' };
+  const response = await fetch(`${piUrl}/api/states`, { headers: cloudHeaders });
+  if (!response.ok) throw new Error(`Cloud API error: ${response.status}`);
 
   const states = await response.json();
   const devicePrefix = `sensor.device_${deviceId.toLowerCase()}`;
@@ -770,11 +771,11 @@ async function fetchHAStates(haUrl, haToken, deviceId) {
   return result;
 }
 
-async function fetchHADeviceInfo(haUrl, haToken, deviceId) {
-  const haHeaders = { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' };
+async function fetchCloudDeviceInfo(piUrl, piToken, deviceId) {
+  const cloudHeaders = { 'Authorization': `Bearer ${piToken}`, 'Content-Type': 'application/json' };
   
-  const response = await fetch(`${haUrl}/api/states`, { headers: haHeaders });
-  if (!response.ok) throw new Error(`HA API error: ${response.status}`);
+  const response = await fetch(`${piUrl}/api/states`, { headers: cloudHeaders });
+  if (!response.ok) throw new Error(`Cloud API error: ${response.status}`);
   
   const states = await response.json();
   const devicePrefix = `sensor.device_${deviceId.toLowerCase()}`;
@@ -787,12 +788,12 @@ async function fetchHADeviceInfo(haUrl, haToken, deviceId) {
       manufacturer: null, 
       sw_version: null, 
       hw_version: null,
-      error: 'Device not found in HA' 
+      error: 'Device not found' 
     };
   }
   
   try {
-    const configResponse = await fetch(`${haUrl}/api/config/device_registry`, { headers: haHeaders });
+    const configResponse = await fetch(`${piUrl}/api/config/device_registry`, { headers: cloudHeaders });
     if (configResponse.ok) {
       const devices = await configResponse.json();
       const device = devices.find(d => {
@@ -831,8 +832,8 @@ async function fetchHADeviceInfo(haUrl, haToken, deviceId) {
   };
 }
 
-async function fetchHATemperatureHistory(haUrl, haToken, deviceId, queryDate) {
-  const haHeaders = { 'Authorization': `Bearer ${haToken}`, 'Content-Type': 'application/json' };
+async function fetchCloudTemperatureHistory(piUrl, piToken, deviceId, queryDate) {
+  const cloudHeaders = { 'Authorization': `Bearer ${piToken}`, 'Content-Type': 'application/json' };
   
   const tempEntity = `sensor.device_${deviceId.toLowerCase()}_device_temperature`;
   
@@ -841,10 +842,10 @@ async function fetchHATemperatureHistory(haUrl, haToken, deviceId, queryDate) {
   const startTimeUTC = vnDayStart.toISOString();
   const endTimeUTC = vnDayEnd.toISOString();
   
-  const historyUrl = `${haUrl}/api/history/period/${startTimeUTC}?end_time=${endTimeUTC}&filter_entity_id=${tempEntity}&minimal_response`;
+  const historyUrl = `${piUrl}/api/history/period/${startTimeUTC}?end_time=${endTimeUTC}&filter_entity_id=${tempEntity}&minimal_response`;
 
-  const response = await fetch(historyUrl, { headers: haHeaders });
-  if (!response.ok) throw new Error(`HA API error: ${response.status}`);
+  const response = await fetch(historyUrl, { headers: cloudHeaders });
+  if (!response.ok) throw new Error(`Cloud API error: ${response.status}`);
 
   const historyData = await response.json();
   if (!historyData || historyData.length === 0 || historyData[0].length === 0) {
