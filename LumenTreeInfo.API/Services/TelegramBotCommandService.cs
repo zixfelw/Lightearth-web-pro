@@ -23,7 +23,7 @@ public class TelegramBotCommandService : BackgroundService
     // Last processed update ID
     private long _lastUpdateId = 0;
     
-    // Monitored devices (persisted to file)
+    // Monitored devices (persisted to file) - Key is "chatId_deviceId" to allow multiple users to monitor same device
     private static readonly ConcurrentDictionary<string, MonitoredDevice> _monitoredDevices = new(StringComparer.OrdinalIgnoreCase);
     
     // User conversation states for multi-step commands
@@ -323,9 +323,12 @@ public class TelegramBotCommandService : BackgroundService
             }
         }
         
-        if (_monitoredDevices.ContainsKey(deviceId))
+        // Create unique key: chatId_deviceId (allows multiple users to monitor same device)
+        var userDeviceKey = $"{chatId}_{deviceId}";
+        
+        if (_monitoredDevices.ContainsKey(userDeviceKey))
         {
-            await SendMessageAsync(chatId, $"ℹ️ Thiết bị `{deviceId}` đã có trong danh sách theo dõi.");
+            await SendMessageAsync(chatId, $"ℹ️ Thiết bị `{deviceId}` đã có trong danh sách theo dõi của bạn.");
             return;
         }
         
@@ -338,7 +341,7 @@ public class TelegramBotCommandService : BackgroundService
             ExistsInHA = deviceExists
         };
         
-        _monitoredDevices[deviceId] = device;
+        _monitoredDevices[userDeviceKey] = device;
         SaveDevicesToFile();  // Persist to file
         
         var statusIcon = deviceExists ? "✅" : "⚠️";
@@ -401,17 +404,11 @@ public class TelegramBotCommandService : BackgroundService
             deviceId = input.ToUpper();
         }
         
-        if (_monitoredDevices.TryRemove(deviceId, out var removed))
+        // Create unique key: chatId_deviceId
+        var userDeviceKey = $"{chatId}_{deviceId}";
+        
+        if (_monitoredDevices.TryRemove(userDeviceKey, out var removed))
         {
-            // Only allow removing own devices
-            if (removed.ChatId != chatId)
-            {
-                // Restore if not owner
-                _monitoredDevices[deviceId] = removed;
-                await SendMessageAsync(chatId, $"❌ Bạn không có quyền xóa thiết bị `{deviceId}`");
-                return;
-            }
-            
             SaveDevicesToFile();  // Persist to file
             await SendMessageAsync(chatId, $"✅ Đã xóa thiết bị `{deviceId}` khỏi danh sách theo dõi.");
         }
@@ -650,38 +647,50 @@ public class TelegramBotCommandService : BackgroundService
     }
 
     /// <summary>
-    /// Check if a device is being monitored
+    /// Check if a device is being monitored by any user
     /// </summary>
     public static bool IsDeviceMonitored(string deviceId)
     {
         // If no devices configured, monitor all (backward compatible)
         if (_monitoredDevices.IsEmpty) return true;
-        return _monitoredDevices.ContainsKey(deviceId);
+        // Check if any user is monitoring this device
+        return _monitoredDevices.Values.Any(d => d.DeviceId.Equals(deviceId, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
-    /// Get list of monitored devices
+    /// Get list of unique monitored device IDs
     /// </summary>
     public static IReadOnlyCollection<string> GetMonitoredDevices()
     {
-        return _monitoredDevices.Keys.ToList().AsReadOnly();
+        return _monitoredDevices.Values.Select(d => d.DeviceId).Distinct().ToList().AsReadOnly();
     }
     
     /// <summary>
-    /// Get monitored devices count
+    /// Get monitored devices count (unique devices)
     /// </summary>
-    public static int GetMonitoredDevicesCount() => _monitoredDevices.Count;
+    public static int GetMonitoredDevicesCount() => _monitoredDevices.Values.Select(d => d.DeviceId).Distinct().Count();
     
     /// <summary>
-    /// Get Chat ID for a specific device (returns the user who added it)
+    /// Get all Chat IDs monitoring a specific device (multiple users can monitor same device)
+    /// </summary>
+    public static IReadOnlyCollection<long> GetDeviceChatIds(string deviceId)
+    {
+        return _monitoredDevices.Values
+            .Where(d => d.DeviceId.Equals(deviceId, StringComparison.OrdinalIgnoreCase))
+            .Select(d => d.ChatId)
+            .Distinct()
+            .ToList()
+            .AsReadOnly();
+    }
+    
+    /// <summary>
+    /// Get Chat ID for a specific device (returns first user who added it - for backward compatibility)
     /// </summary>
     public static long? GetDeviceChatId(string deviceId)
     {
-        if (_monitoredDevices.TryGetValue(deviceId, out var device))
-        {
-            return device.ChatId;
-        }
-        return null;
+        var device = _monitoredDevices.Values
+            .FirstOrDefault(d => d.DeviceId.Equals(deviceId, StringComparison.OrdinalIgnoreCase));
+        return device?.ChatId;
     }
     
     /// <summary>

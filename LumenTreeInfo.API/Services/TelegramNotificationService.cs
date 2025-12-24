@@ -364,16 +364,26 @@ public class TelegramNotificationService : BackgroundService
     }
     
     /// <summary>
-    /// Send message to a specific device's owner
+    /// Send message to ALL users monitoring a specific device
     /// </summary>
     public async Task<bool> SendMessageToDeviceOwnerAsync(string deviceId, string message)
     {
-        var chatId = TelegramBotCommandService.GetDeviceChatId(deviceId);
-        if (chatId.HasValue)
+        // Get ALL chat IDs monitoring this device (multiple users can monitor same device)
+        var chatIds = TelegramBotCommandService.GetDeviceChatIds(deviceId);
+        
+        if (chatIds.Count > 0)
         {
-            return await SendTelegramMessageAsync(message, chatId.Value.ToString());
+            var allSuccess = true;
+            foreach (var chatId in chatIds)
+            {
+                var success = await SendTelegramMessageAsync(message, chatId.ToString());
+                if (!success) allSuccess = false;
+            }
+            _logger.LogInformation("Sent notification for device {DeviceId} to {Count} users", deviceId, chatIds.Count);
+            return allSuccess;
         }
-        // Fallback to default chat ID if device owner not found
+        
+        // Fallback to default chat ID if no device owners found
         return await SendTelegramMessageAsync(message);
     }
 
