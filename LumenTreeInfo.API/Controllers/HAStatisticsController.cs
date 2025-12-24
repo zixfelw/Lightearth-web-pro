@@ -152,6 +152,9 @@ public class HAStatisticsController : ControllerBase
                         }
                     }
                     
+                    // Calculate essential total from monthly data
+                    var essentialTotal = yearlyTotals.MonthlyEssential.Sum();
+                    
                     return Ok(new {
                         success = true,
                         deviceId = deviceId.ToUpper(),
@@ -162,6 +165,7 @@ public class HAStatisticsController : ControllerBase
                             pv = Math.Round(yearlyTotals.PvYear, 1),
                             load = Math.Round(yearlyTotals.LoadYear, 1),
                             grid = Math.Round(yearlyTotals.GridYear, 1),
+                            essential = Math.Round(essentialTotal, 1),  // Backup/Essential load
                             battery = Math.Round(yearlyTotals.ChargeYear - yearlyTotals.DischargeYear, 1),
                             charge = Math.Round(yearlyTotals.ChargeYear, 1),
                             discharge = Math.Round(yearlyTotals.DischargeYear, 1)

@@ -4794,6 +4794,7 @@
                 }
                 
                 // Store for import
+                // Map: load = main load, backup = essential (backup load when power outage)
                 haYearlyData = {
                     deviceId: deviceId,
                     year: result.year,
@@ -4801,11 +4802,10 @@
                     months: result.months.map(m => ({
                         month: m.month,
                         monthNumber: m.monthNumber,
-                        load: m.load,
-                        grid: m.grid,
-                        pv: m.pv,
-                        battery: m.battery || 0,
-                        backup: 0
+                        load: m.load,           // Main load (tải chính)
+                        grid: m.grid,           // Grid input (điện lưới)
+                        pv: m.pv,               // PV generation
+                        backup: m.essential || 0 // Essential/Backup load (tải backup)
                     })),
                     totals: result.totals
                 };
@@ -4834,8 +4834,8 @@
                                 <div style="font-size: 1.4em; font-weight: bold; color: #60a5fa;">${result.totals.grid} kWh</div>
                             </div>
                             <div style="background: rgba(168, 85, 247, 0.15); padding: 12px; border-radius: 8px; text-align: center;">
-                                <div style="font-size: 0.85em; color: #9ca3af;">🔋 Battery (Nam)</div>
-                                <div style="font-size: 1.4em; font-weight: bold; color: #a855f7;">${result.totals.battery} kWh</div>
+                                <div style="font-size: 0.85em; color: #9ca3af;">⚡ Backup (Nam)</div>
+                                <div style="font-size: 1.4em; font-weight: bold; color: #a855f7;">${result.totals.essential || 0} kWh</div>
                             </div>
                         </div>
                         <div style="margin-top: 15px; color: #9ca3af; font-size: 0.85em; text-align: center;">
