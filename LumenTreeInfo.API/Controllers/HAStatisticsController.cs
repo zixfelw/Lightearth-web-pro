@@ -154,6 +154,7 @@ public class HAStatisticsController : ControllerBase
 
     /// <summary>
     /// Get yearly statistics from LEHT API (fallback)
+    /// Uses parallel requests for faster response
     /// </summary>
     private async Task<IActionResult> GetYearlyFromLehtAsync(string deviceId, int targetYear)
     {
@@ -161,21 +162,20 @@ public class HAStatisticsController : ControllerBase
         {
             var leht = await GetLehtClientAsync();
             
-            var months = new List<object>();
-            double totalPv = 0, totalLoad = 0, totalGrid = 0, totalBat = 0;
-            
-            // Get data for each month
+            // Get data for each month - determine range
             var currentDate = DateTime.Now;
             var endMonth = (targetYear == currentDate.Year) ? currentDate.Month : 12;
             
-            for (int m = 1; m <= endMonth; m++)
+            Log.Information("LEHT: Fetching {Count} months for {DeviceId} year {Year}", endMonth, deviceId, targetYear);
+            var startTime = DateTime.Now;
+            
+            // Create parallel tasks for all months (much faster!)
+            var tasks = Enumerable.Range(1, endMonth).Select(async m =>
             {
                 var monthStr = $"{targetYear}-{m:D2}";
-                
                 try
                 {
                     var data = await leht.GetMonthDataAsync(deviceId, monthStr);
-                    
                     if (data != null)
                     {
                         // Parse totals from tableValueInfo arrays (values / 10 = kWh)
@@ -183,61 +183,82 @@ public class HAStatisticsController : ControllerBase
                         var loadTotal = data.Homeload?.TableValueInfo?.Sum(v => v / 10.0) ?? 0;
                         var gridTotal = data.Grid?.TableValueInfo?.Sum(v => v / 10.0) ?? 0;
                         var batTotal = data.Bat?.TableValueInfo?.Sum(v => v / 10.0) ?? 0;
-                        
-                        // Count days with data
                         var daysWithData = data.Pv?.TableValueInfo?.Count(v => v > 0) ?? 0;
                         
-                        if (pvTotal > 0 || loadTotal > 0)
-                        {
-                            months.Add(new {
-                                month = monthStr,
-                                monthNumber = m,
-                                pv = Math.Round(pvTotal, 2),
-                                load = Math.Round(loadTotal, 2),
-                                grid = Math.Round(gridTotal, 2),
-                                battery = Math.Round(batTotal, 2),
-                                charge = 0,
-                                discharge = 0,
-                                daysWithData = daysWithData
-                            });
-                            
-                            totalPv += pvTotal;
-                            totalLoad += loadTotal;
-                            totalGrid += gridTotal;
-                            totalBat += batTotal;
-                        }
+                        return new {
+                            monthNumber = m,
+                            month = monthStr,
+                            pv = pvTotal,
+                            load = loadTotal,
+                            grid = gridTotal,
+                            battery = batTotal,
+                            daysWithData = daysWithData,
+                            hasData = pvTotal > 0 || loadTotal > 0
+                        };
                     }
                 }
                 catch (Exception ex)
                 {
                     Log.Warning("Failed to get LEHT data for {Month}: {Error}", monthStr, ex.Message);
                 }
-            }
+                return new { monthNumber = m, month = monthStr, pv = 0.0, load = 0.0, grid = 0.0, battery = 0.0, daysWithData = 0, hasData = false };
+            }).ToList();
             
-            if (months.Count == 0)
+            // Wait for all with timeout
+            var results = await Task.WhenAll(tasks);
+            var elapsed = (DateTime.Now - startTime).TotalMilliseconds;
+            
+            Log.Information("LEHT: Fetched {Count} months in {Elapsed}ms", endMonth, elapsed);
+            
+            // Filter and sort months with data
+            var monthsWithData = results
+                .Where(r => r.hasData)
+                .OrderBy(r => r.monthNumber)
+                .Select(r => new {
+                    month = r.month,
+                    monthNumber = r.monthNumber,
+                    pv = Math.Round(r.pv, 2),
+                    load = Math.Round(r.load, 2),
+                    grid = Math.Round(r.grid, 2),
+                    battery = Math.Round(r.battery, 2),
+                    charge = 0,
+                    discharge = 0,
+                    daysWithData = r.daysWithData
+                })
+                .ToList();
+            
+            if (monthsWithData.Count == 0)
             {
                 return NotFound(new { 
                     success = false, 
                     message = $"No data found for device {deviceId} in year {targetYear}",
                     deviceId = deviceId,
                     year = targetYear,
-                    source = "leht"
+                    source = "leht",
+                    elapsed = $"{elapsed:F0}ms"
                 });
             }
+            
+            // Calculate totals
+            var totalPv = results.Sum(r => r.pv);
+            var totalLoad = results.Sum(r => r.load);
+            var totalGrid = results.Sum(r => r.grid);
+            var totalBat = results.Sum(r => r.battery);
             
             return Ok(new {
                 success = true,
                 deviceId = deviceId.ToUpper(),
                 year = targetYear,
                 source = "leht",
-                totalMonths = months.Count,
+                totalMonths = monthsWithData.Count,
                 totals = new {
                     pv = Math.Round(totalPv, 2),
                     load = Math.Round(totalLoad, 2),
                     grid = Math.Round(totalGrid, 2),
                     battery = Math.Round(totalBat, 2)
                 },
-                months = months,
+                months = monthsWithData,
+                elapsed = $"{elapsed:F0}ms",
                 timestamp = DateTime.Now
             });
         }
