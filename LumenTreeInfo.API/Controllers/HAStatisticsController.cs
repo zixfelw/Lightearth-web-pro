@@ -118,22 +118,29 @@ public class HAStatisticsController : ControllerBase
                     {
                         var pv = yearlyTotals.MonthlyPv[m];
                         var load = yearlyTotals.MonthlyLoad[m];
+                        var totalLoad = yearlyTotals.MonthlyTotalLoad[m];
                         var grid = yearlyTotals.MonthlyGrid[m];
                         var charge = yearlyTotals.MonthlyCharge[m];
                         var discharge = yearlyTotals.MonthlyDischarge[m];
+                        var essential = yearlyTotals.MonthlyEssential[m];
+                        
+                        // Use totalLoad if load is 0
+                        var finalLoad = load > 0 ? load : totalLoad;
                         
                         // Only include months with data
-                        if (pv > 0 || load > 0)
+                        if (pv > 0 || finalLoad > 0)
                         {
                             months.Add(new {
                                 month = $"{targetYear}-{(m + 1):D2}",
                                 monthNumber = m + 1,
                                 pv = Math.Round(pv, 1),
-                                load = Math.Round(load, 1),
+                                load = Math.Round(finalLoad, 1),
+                                totalLoad = Math.Round(totalLoad, 1),
                                 grid = Math.Round(grid, 1),
                                 battery = Math.Round(charge - discharge, 1),
                                 charge = Math.Round(charge, 1),
                                 discharge = Math.Round(discharge, 1),
+                                essential = Math.Round(essential, 1),
                                 savedKwh = Math.Round(yearlyTotals.MonthlySavedKwh[m], 1),
                                 savingsVnd = Math.Round(yearlyTotals.MonthlySavingsVnd[m], 0)
                             });

@@ -605,9 +605,11 @@ public class MultiDeviceHomeAssistantClient : IDisposable
                 {
                     data.MonthlyPv = ParseDoubleArrayAttribute(pvYearState.Attributes, "monthly_pv");
                     data.MonthlyLoad = ParseDoubleArrayAttribute(pvYearState.Attributes, "monthly_load");
+                    data.MonthlyTotalLoad = ParseDoubleArrayAttribute(pvYearState.Attributes, "monthly_total_load");
                     data.MonthlyGrid = ParseDoubleArrayAttribute(pvYearState.Attributes, "monthly_grid");
                     data.MonthlyCharge = ParseDoubleArrayAttribute(pvYearState.Attributes, "monthly_charge");
                     data.MonthlyDischarge = ParseDoubleArrayAttribute(pvYearState.Attributes, "monthly_discharge");
+                    data.MonthlyEssential = ParseDoubleArrayAttribute(pvYearState.Attributes, "monthly_essential");
                     data.MonthlySavedKwh = ParseDoubleArrayAttribute(pvYearState.Attributes, "monthly_saved_kwh");
                     data.MonthlySavingsVnd = ParseDoubleArrayAttribute(pvYearState.Attributes, "monthly_savings_vnd");
                     
@@ -1335,9 +1337,11 @@ public class YearlySensorData
     // Monthly breakdown from attributes (index 0 = January, 11 = December)
     public double[] MonthlyPv { get; set; } = new double[12];
     public double[] MonthlyLoad { get; set; } = new double[12];
+    public double[] MonthlyTotalLoad { get; set; } = new double[12];
     public double[] MonthlyGrid { get; set; } = new double[12];
     public double[] MonthlyCharge { get; set; } = new double[12];
     public double[] MonthlyDischarge { get; set; } = new double[12];
+    public double[] MonthlyEssential { get; set; } = new double[12];
     public double[] MonthlySavedKwh { get; set; } = new double[12];
     public double[] MonthlySavingsVnd { get; set; } = new double[12];
     
