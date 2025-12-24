@@ -581,6 +581,7 @@ public class MultiDeviceHomeAssistantClient : IDisposable
 
     /// <summary>
     /// Get yearly energy totals directly from *_year sensors (fast, no WebSocket needed)
+    /// Also extracts monthly breakdown from sensor attributes
     /// </summary>
     public async Task<YearlySensorData?> GetYearlySensorDataAsync(string deviceSn)
     {
@@ -595,8 +596,31 @@ public class MultiDeviceHomeAssistantClient : IDisposable
             var data = new YearlySensorData();
 
             // Read *_year sensors directly
-            if (_statesCache.TryGetValue($"sensor.device_{deviceSnLower}_pv_year", out var pvYear))
-                data.PvYear = ParseDoubleState(pvYear.State);
+            if (_statesCache.TryGetValue($"sensor.device_{deviceSnLower}_pv_year", out var pvYearState))
+            {
+                data.PvYear = ParseDoubleState(pvYearState.State);
+                
+                // Extract monthly breakdown from attributes
+                if (pvYearState.Attributes != null)
+                {
+                    data.MonthlyPv = ParseDoubleArrayAttribute(pvYearState.Attributes, "monthly_pv");
+                    data.MonthlyLoad = ParseDoubleArrayAttribute(pvYearState.Attributes, "monthly_load");
+                    data.MonthlyGrid = ParseDoubleArrayAttribute(pvYearState.Attributes, "monthly_grid");
+                    data.MonthlyCharge = ParseDoubleArrayAttribute(pvYearState.Attributes, "monthly_charge");
+                    data.MonthlyDischarge = ParseDoubleArrayAttribute(pvYearState.Attributes, "monthly_discharge");
+                    data.MonthlySavedKwh = ParseDoubleArrayAttribute(pvYearState.Attributes, "monthly_saved_kwh");
+                    data.MonthlySavingsVnd = ParseDoubleArrayAttribute(pvYearState.Attributes, "monthly_savings_vnd");
+                    
+                    if (pvYearState.Attributes.TryGetValue("year", out var yearObj))
+                    {
+                        if (yearObj is JsonElement je && je.TryGetInt32(out var yr))
+                            data.Year = yr;
+                        else if (int.TryParse(yearObj?.ToString(), out var yr2))
+                            data.Year = yr2;
+                    }
+                }
+            }
+            
             if (_statesCache.TryGetValue($"sensor.device_{deviceSnLower}_load_year", out var loadYear))
                 data.LoadYear = ParseDoubleState(loadYear.State);
             if (_statesCache.TryGetValue($"sensor.device_{deviceSnLower}_total_load_year", out var totalLoadYear))
@@ -610,7 +634,8 @@ public class MultiDeviceHomeAssistantClient : IDisposable
 
             if (data.PvYear > 0 || data.LoadYear > 0)
             {
-                Log.Information($"HA Yearly Sensors for {deviceSn}: PV={data.PvYear}kWh, Load={data.LoadYear}kWh, Grid={data.GridYear}kWh");
+                var monthsWithData = data.MonthlyPv.Count(v => v > 0);
+                Log.Information($"HA Yearly Sensors for {deviceSn}: PV={data.PvYear}kWh, Load={data.LoadYear}kWh, {monthsWithData} months with data");
                 return data;
             }
 
@@ -621,6 +646,33 @@ public class MultiDeviceHomeAssistantClient : IDisposable
             Log.Error($"Error getting yearly sensor data for {deviceSn}: {ex.Message}");
             return null;
         }
+    }
+
+    private static double[] ParseDoubleArrayAttribute(Dictionary<string, object> attributes, string key)
+    {
+        var result = new double[12];
+        if (!attributes.TryGetValue(key, out var value) || value == null)
+            return result;
+
+        try
+        {
+            if (value is JsonElement je && je.ValueKind == JsonValueKind.Array)
+            {
+                int i = 0;
+                foreach (var item in je.EnumerateArray())
+                {
+                    if (i >= 12) break;
+                    if (item.TryGetDouble(out var d))
+                        result[i] = d;
+                    i++;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Debug($"Error parsing {key}: {ex.Message}");
+        }
+        return result;
     }
 
     /// <summary>
@@ -1270,7 +1322,7 @@ public class HaHistoryState
 }
 
 /// <summary>
-/// Yearly sensor data (from *_year sensors)
+/// Yearly sensor data (from *_year sensors with monthly breakdown in attributes)
 /// </summary>
 public class YearlySensorData
 {
@@ -1279,6 +1331,17 @@ public class YearlySensorData
     public double GridYear { get; set; }
     public double ChargeYear { get; set; }
     public double DischargeYear { get; set; }
+    
+    // Monthly breakdown from attributes (index 0 = January, 11 = December)
+    public double[] MonthlyPv { get; set; } = new double[12];
+    public double[] MonthlyLoad { get; set; } = new double[12];
+    public double[] MonthlyGrid { get; set; } = new double[12];
+    public double[] MonthlyCharge { get; set; } = new double[12];
+    public double[] MonthlyDischarge { get; set; } = new double[12];
+    public double[] MonthlySavedKwh { get; set; } = new double[12];
+    public double[] MonthlySavingsVnd { get; set; } = new double[12];
+    
+    public int Year { get; set; }
 }
 
 /// <summary>

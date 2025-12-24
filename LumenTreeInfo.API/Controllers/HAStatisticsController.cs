@@ -106,36 +106,55 @@ public class HAStatisticsController : ControllerBase
             Log.Information("Getting yearly statistics for {DeviceId} year {Year}", deviceId, targetYear);
 
             // For current year, we can read *_year sensors directly (much simpler!)
+            // Monthly breakdown is in sensor attributes
             if (targetYear == currentYear)
             {
                 var yearlyTotals = await _haClient!.GetYearlySensorDataAsync(deviceId);
                 if (yearlyTotals != null)
                 {
-                    // Also get monthly data for current month
-                    var monthlyTotals = await _haClient.GetMonthlySensorDataAsync(deviceId);
+                    // Build monthly breakdown from attributes
+                    var months = new List<object>();
+                    for (int m = 0; m < 12; m++)
+                    {
+                        var pv = yearlyTotals.MonthlyPv[m];
+                        var load = yearlyTotals.MonthlyLoad[m];
+                        var grid = yearlyTotals.MonthlyGrid[m];
+                        var charge = yearlyTotals.MonthlyCharge[m];
+                        var discharge = yearlyTotals.MonthlyDischarge[m];
+                        
+                        // Only include months with data
+                        if (pv > 0 || load > 0)
+                        {
+                            months.Add(new {
+                                month = $"{targetYear}-{(m + 1):D2}",
+                                monthNumber = m + 1,
+                                pv = Math.Round(pv, 1),
+                                load = Math.Round(load, 1),
+                                grid = Math.Round(grid, 1),
+                                battery = Math.Round(charge - discharge, 1),
+                                charge = Math.Round(charge, 1),
+                                discharge = Math.Round(discharge, 1),
+                                savedKwh = Math.Round(yearlyTotals.MonthlySavedKwh[m], 1),
+                                savingsVnd = Math.Round(yearlyTotals.MonthlySavingsVnd[m], 0)
+                            });
+                        }
+                    }
                     
                     return Ok(new {
                         success = true,
                         deviceId = deviceId.ToUpper(),
                         year = targetYear,
                         source = "ha_sensors",
-                        totalMonths = monthlyTotals != null ? 1 : 0,
+                        totalMonths = months.Count,
                         totals = new {
-                            pv = yearlyTotals.PvYear,
-                            load = yearlyTotals.LoadYear,
-                            grid = yearlyTotals.GridYear,
-                            battery = Math.Round(yearlyTotals.ChargeYear - yearlyTotals.DischargeYear, 2),
-                            charge = yearlyTotals.ChargeYear,
-                            discharge = yearlyTotals.DischargeYear
+                            pv = Math.Round(yearlyTotals.PvYear, 1),
+                            load = Math.Round(yearlyTotals.LoadYear, 1),
+                            grid = Math.Round(yearlyTotals.GridYear, 1),
+                            battery = Math.Round(yearlyTotals.ChargeYear - yearlyTotals.DischargeYear, 1),
+                            charge = Math.Round(yearlyTotals.ChargeYear, 1),
+                            discharge = Math.Round(yearlyTotals.DischargeYear, 1)
                         },
-                        currentMonth = monthlyTotals != null ? new {
-                            month = DateTime.Now.ToString("yyyy-MM"),
-                            pv = monthlyTotals.PvMonth,
-                            load = monthlyTotals.LoadMonth,
-                            grid = monthlyTotals.GridMonth,
-                            charge = monthlyTotals.ChargeMonth,
-                            discharge = monthlyTotals.DischargeMonth
-                        } : null,
+                        months = months,
                         timestamp = DateTime.Now
                     });
                 }
