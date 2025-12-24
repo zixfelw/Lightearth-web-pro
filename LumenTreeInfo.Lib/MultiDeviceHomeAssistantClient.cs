@@ -1,3 +1,5 @@
+using System.Net.WebSockets;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using RestSharp;
@@ -658,6 +660,417 @@ public class MultiDeviceHomeAssistantClient : IDisposable
         return null;
     }
 
+    /// <summary>
+    /// Get yearly energy statistics using WebSocket API (long-term statistics)
+    /// This can retrieve data for an entire year since long-term statistics are never purged
+    /// </summary>
+    public async Task<YearlyEnergyStatistics?> GetYearlyStatisticsAsync(string deviceSn, int year)
+    {
+        if (!await CheckAvailabilityAsync())
+            return null;
+
+        try
+        {
+            var deviceSnLower = deviceSn.ToLower();
+            var result = new YearlyEnergyStatistics
+            {
+                DeviceId = deviceSn.ToUpper(),
+                Year = year
+            };
+
+            // Build entity IDs for statistics
+            var pvEntity = $"sensor.device_{deviceSnLower}_pv_today";
+            var loadEntity = $"sensor.device_{deviceSnLower}_load_today";
+            var gridEntity = $"sensor.device_{deviceSnLower}_grid_in_today";
+            var chargeEntity = $"sensor.device_{deviceSnLower}_charge_today";
+            var dischargeEntity = $"sensor.device_{deviceSnLower}_discharge_today";
+            
+            // Alternative entity names
+            var altLoadEntity = $"sensor.device_{deviceSnLower}_total_load_today";
+
+            // Time range for the entire year
+            var startTime = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            var endTime = new DateTime(year, 12, 31, 23, 59, 59, DateTimeKind.Utc);
+            
+            // If year is current year, end at today
+            if (year == DateTime.UtcNow.Year)
+            {
+                endTime = DateTime.UtcNow;
+            }
+
+            // Try WebSocket API first for long-term statistics
+            var wsStats = await GetLongTermStatisticsViaWebSocketAsync(
+                new[] { pvEntity, loadEntity, altLoadEntity, gridEntity, chargeEntity, dischargeEntity },
+                startTime, endTime, "day"
+            );
+
+            if (wsStats != null && wsStats.Count > 0)
+            {
+                result.Source = "websocket";
+                result.Months = AggregateToMonthly(wsStats, deviceSnLower, year);
+            }
+            else
+            {
+                // Fallback: Use REST API history (limited to 10 days by default)
+                Log.Warning($"WebSocket statistics unavailable, falling back to REST API history for {deviceSn}");
+                result.Source = "history";
+                result.Months = await GetYearlyFromHistoryApiAsync(deviceSn, year);
+            }
+
+            // Calculate totals
+            foreach (var month in result.Months)
+            {
+                result.TotalPv += month.PvEnergy;
+                result.TotalLoad += month.LoadEnergy;
+                result.TotalGrid += month.GridEnergy;
+                result.TotalBattery += month.BatteryEnergy;
+            }
+
+            Log.Information($"Got yearly statistics for {deviceSn} year {year}: {result.Months.Count} months, PV={result.TotalPv:F1}kWh, Load={result.TotalLoad:F1}kWh via {result.Source}");
+            return result;
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Error getting yearly statistics for {deviceSn}: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Get long-term statistics via WebSocket API
+    /// </summary>
+    private async Task<Dictionary<string, List<LongTermStatisticsPoint>>?> GetLongTermStatisticsViaWebSocketAsync(
+        string[] statisticIds, DateTime startTime, DateTime endTime, string period = "day")
+    {
+        ClientWebSocket? ws = null;
+        try
+        {
+            // Convert HTTP URL to WebSocket URL
+            var wsUrl = _baseUrl.Replace("http://", "ws://").Replace("https://", "wss://");
+            wsUrl = wsUrl.TrimEnd('/') + "/api/websocket";
+            
+            ws = new ClientWebSocket();
+            ws.Options.SetRequestHeader("User-Agent", "LumenTreeInfo/1.0");
+            
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            await ws.ConnectAsync(new Uri(wsUrl), cts.Token);
+            
+            // Wait for auth_required
+            var authRequired = await ReceiveMessageAsync(ws, cts.Token);
+            if (authRequired == null || !authRequired.TryGetProperty("type", out var typeElement) || 
+                typeElement.GetString() != "auth_required")
+            {
+                Log.Warning("WebSocket: Expected auth_required message");
+                return null;
+            }
+
+            // Send auth
+            var authMessage = JsonSerializer.Serialize(new { type = "auth", access_token = _token });
+            await SendMessageAsync(ws, authMessage, cts.Token);
+
+            // Wait for auth_ok
+            var authResult = await ReceiveMessageAsync(ws, cts.Token);
+            if (authResult == null || !authResult.TryGetProperty("type", out typeElement) || 
+                typeElement.GetString() != "auth_ok")
+            {
+                Log.Warning("WebSocket: Authentication failed");
+                return null;
+            }
+
+            // Request statistics
+            var startTimeIso = startTime.ToString("yyyy-MM-ddTHH:mm:ssZ");
+            var endTimeIso = endTime.ToString("yyyy-MM-ddTHH:mm:ssZ");
+            
+            var statsRequest = new
+            {
+                id = 1,
+                type = "recorder/statistics_during_period",
+                start_time = startTimeIso,
+                end_time = endTimeIso,
+                statistic_ids = statisticIds,
+                period = period,
+                types = new[] { "sum", "state", "mean", "min", "max" }
+            };
+            
+            await SendMessageAsync(ws, JsonSerializer.Serialize(statsRequest), cts.Token);
+
+            // Wait for result
+            var result = await ReceiveMessageAsync(ws, cts.Token);
+            if (result == null)
+            {
+                Log.Warning("WebSocket: No response for statistics request");
+                return null;
+            }
+
+            if (!result.TryGetProperty("success", out var successElement) || !successElement.GetBoolean())
+            {
+                if (result.TryGetProperty("error", out var errorElement))
+                {
+                    Log.Warning($"WebSocket: Statistics request failed: {errorElement}");
+                }
+                return null;
+            }
+
+            // Parse result
+            var statistics = new Dictionary<string, List<LongTermStatisticsPoint>>();
+            
+            if (result.TryGetProperty("result", out var resultElement) && resultElement.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var prop in resultElement.EnumerateObject())
+                {
+                    var entityId = prop.Name;
+                    var points = new List<LongTermStatisticsPoint>();
+                    
+                    if (prop.Value.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var item in prop.Value.EnumerateArray())
+                        {
+                            var point = new LongTermStatisticsPoint();
+                            
+                            if (item.TryGetProperty("start", out var startEl))
+                                point.Start = startEl.GetInt64();
+                            if (item.TryGetProperty("end", out var endEl))
+                                point.End = endEl.GetInt64();
+                            if (item.TryGetProperty("sum", out var sumEl) && sumEl.ValueKind != JsonValueKind.Null)
+                                point.Sum = sumEl.GetDouble();
+                            if (item.TryGetProperty("state", out var stateEl) && stateEl.ValueKind != JsonValueKind.Null)
+                                point.State = stateEl.GetDouble();
+                            if (item.TryGetProperty("mean", out var meanEl) && meanEl.ValueKind != JsonValueKind.Null)
+                                point.Mean = meanEl.GetDouble();
+                            if (item.TryGetProperty("min", out var minEl) && minEl.ValueKind != JsonValueKind.Null)
+                                point.Min = minEl.GetDouble();
+                            if (item.TryGetProperty("max", out var maxEl) && maxEl.ValueKind != JsonValueKind.Null)
+                                point.Max = maxEl.GetDouble();
+                            
+                            points.Add(point);
+                        }
+                    }
+                    
+                    statistics[entityId] = points;
+                    Log.Debug($"WebSocket: Got {points.Count} statistics points for {entityId}");
+                }
+            }
+
+            await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Done", CancellationToken.None);
+            return statistics;
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"WebSocket statistics error: {ex.Message}");
+            return null;
+        }
+        finally
+        {
+            ws?.Dispose();
+        }
+    }
+
+    private async Task SendMessageAsync(ClientWebSocket ws, string message, CancellationToken ct)
+    {
+        var bytes = Encoding.UTF8.GetBytes(message);
+        await ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, ct);
+    }
+
+    private async Task<JsonElement?> ReceiveMessageAsync(ClientWebSocket ws, CancellationToken ct)
+    {
+        var buffer = new byte[8192];
+        var result = new StringBuilder();
+        
+        WebSocketReceiveResult wsResult;
+        do
+        {
+            wsResult = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
+            result.Append(Encoding.UTF8.GetString(buffer, 0, wsResult.Count));
+        } while (!wsResult.EndOfMessage);
+
+        if (result.Length == 0)
+            return null;
+
+        using var doc = JsonDocument.Parse(result.ToString());
+        return doc.RootElement.Clone();
+    }
+
+    /// <summary>
+    /// Aggregate daily statistics to monthly
+    /// </summary>
+    private List<MonthlyEnergyStatistics> AggregateToMonthly(
+        Dictionary<string, List<LongTermStatisticsPoint>> stats, string deviceSnLower, int year)
+    {
+        var monthlyData = new Dictionary<int, MonthlyEnergyStatistics>();
+
+        // Initialize all 12 months
+        for (int m = 1; m <= 12; m++)
+        {
+            monthlyData[m] = new MonthlyEnergyStatistics
+            {
+                Month = $"{year}-{m:D2}",
+                Year = year,
+                MonthNumber = m
+            };
+        }
+
+        // Entity name patterns to look for
+        var pvPatterns = new[] { $"sensor.device_{deviceSnLower}_pv_today" };
+        var loadPatterns = new[] { $"sensor.device_{deviceSnLower}_load_today", $"sensor.device_{deviceSnLower}_total_load_today" };
+        var gridPatterns = new[] { $"sensor.device_{deviceSnLower}_grid_in_today" };
+        var chargePatterns = new[] { $"sensor.device_{deviceSnLower}_charge_today" };
+        var dischargePatterns = new[] { $"sensor.device_{deviceSnLower}_discharge_today" };
+
+        // Process statistics
+        foreach (var kv in stats)
+        {
+            var entityId = kv.Key.ToLower();
+            var points = kv.Value;
+
+            // Track daily values for each month
+            var monthlyValues = new Dictionary<int, double>();
+            var monthlyDays = new Dictionary<int, HashSet<int>>();
+
+            foreach (var point in points.Where(p => p.StartDateTime.Year == year))
+            {
+                var month = point.StartDateTime.Month;
+                var day = point.StartDateTime.Day;
+                
+                // Use sum for energy values (cumulative daily totals)
+                var value = point.Sum ?? point.State ?? 0;
+                
+                if (!monthlyValues.ContainsKey(month))
+                {
+                    monthlyValues[month] = 0;
+                    monthlyDays[month] = new HashSet<int>();
+                }
+                
+                monthlyValues[month] += value;
+                monthlyDays[month].Add(day);
+            }
+
+            // Assign to correct category
+            foreach (var mv in monthlyValues)
+            {
+                var month = mv.Key;
+                var value = Math.Round(mv.Value, 2);
+                
+                if (pvPatterns.Any(p => entityId.Contains(p)))
+                    monthlyData[month].PvEnergy += value;
+                else if (loadPatterns.Any(p => entityId.Contains(p)))
+                    monthlyData[month].LoadEnergy = Math.Max(monthlyData[month].LoadEnergy, value);
+                else if (gridPatterns.Any(p => entityId.Contains(p)))
+                    monthlyData[month].GridEnergy += value;
+                else if (chargePatterns.Any(p => entityId.Contains(p)))
+                    monthlyData[month].ChargeEnergy += value;
+                else if (dischargePatterns.Any(p => entityId.Contains(p)))
+                    monthlyData[month].DischargeEnergy += value;
+                
+                if (monthlyDays.ContainsKey(month))
+                    monthlyData[month].DaysWithData = Math.Max(monthlyData[month].DaysWithData, monthlyDays[month].Count);
+            }
+        }
+
+        // Calculate battery energy (charge - discharge)
+        foreach (var m in monthlyData.Values)
+        {
+            m.BatteryEnergy = m.ChargeEnergy - m.DischargeEnergy;
+        }
+
+        // Return only months with data
+        return monthlyData.Values
+            .Where(m => m.PvEnergy > 0 || m.LoadEnergy > 0 || m.GridEnergy > 0)
+            .OrderBy(m => m.MonthNumber)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Fallback: Get yearly data from REST API history (limited to recent days)
+    /// </summary>
+    private async Task<List<MonthlyEnergyStatistics>> GetYearlyFromHistoryApiAsync(string deviceSn, int year)
+    {
+        var result = new List<MonthlyEnergyStatistics>();
+        var deviceSnLower = deviceSn.ToLower();
+        
+        // REST API history is limited to ~10 days, so we can only get recent data
+        // Try to get whatever is available
+        try
+        {
+            var entities = new[]
+            {
+                $"sensor.device_{deviceSnLower}_pv_today",
+                $"sensor.device_{deviceSnLower}_load_today",
+                $"sensor.device_{deviceSnLower}_total_load_today",
+                $"sensor.device_{deviceSnLower}_grid_in_today"
+            };
+            
+            // Get last 10 days
+            var endTime = DateTime.Now;
+            var startTime = endTime.AddDays(-10);
+            
+            var request = new RestRequest($"/api/history/period/{startTime:yyyy-MM-ddTHH:mm:ss}", Method.Get);
+            request.AddQueryParameter("filter_entity_id", string.Join(",", entities));
+            request.AddQueryParameter("end_time", endTime.ToString("yyyy-MM-ddTHH:mm:ss"));
+            request.AddQueryParameter("minimal_response", "true");
+            
+            var response = await _client.ExecuteAsync(request);
+            
+            if (!response.IsSuccessful || string.IsNullOrEmpty(response.Content))
+            {
+                Log.Warning("Failed to get history from REST API");
+                return result;
+            }
+
+            // Parse and aggregate by month
+            var historyArray = JsonSerializer.Deserialize<List<List<HaHistoryState>>>(response.Content);
+            
+            if (historyArray == null || historyArray.Count == 0)
+                return result;
+
+            var monthlyData = new Dictionary<string, MonthlyEnergyStatistics>();
+            
+            foreach (var entityHistory in historyArray)
+            {
+                if (entityHistory == null || entityHistory.Count == 0) continue;
+                var entityId = entityHistory[0]?.EntityId?.ToLower() ?? "";
+                
+                foreach (var state in entityHistory)
+                {
+                    if (string.IsNullOrEmpty(state.State) || !DateTime.TryParse(state.LastChanged, out var timestamp))
+                        continue;
+                    
+                    if (timestamp.Year != year)
+                        continue;
+                    
+                    var monthKey = $"{year}-{timestamp.Month:D2}";
+                    if (!monthlyData.ContainsKey(monthKey))
+                    {
+                        monthlyData[monthKey] = new MonthlyEnergyStatistics
+                        {
+                            Month = monthKey,
+                            Year = year,
+                            MonthNumber = timestamp.Month
+                        };
+                    }
+
+                    if (double.TryParse(state.State, out var value))
+                    {
+                        var m = monthlyData[monthKey];
+                        if (entityId.Contains("pv_today"))
+                            m.PvEnergy = Math.Max(m.PvEnergy, value);
+                        else if (entityId.Contains("load_today") || entityId.Contains("total_load_today"))
+                            m.LoadEnergy = Math.Max(m.LoadEnergy, value);
+                        else if (entityId.Contains("grid_in_today"))
+                            m.GridEnergy = Math.Max(m.GridEnergy, value);
+                    }
+                }
+            }
+
+            result = monthlyData.Values.OrderBy(m => m.MonthNumber).ToList();
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"Error getting yearly history from REST API: {ex.Message}");
+        }
+
+        return result;
+    }
+
     public void Dispose()
     {
         _client?.Dispose();
@@ -756,4 +1169,101 @@ public class HaHistoryState
     
     [JsonPropertyName("last_updated")]
     public string? LastUpdated { get; set; }
+}
+
+/// <summary>
+/// Long-term statistics data for a single period (hour/day/week/month)
+/// </summary>
+public class LongTermStatisticsPoint
+{
+    [JsonPropertyName("start")]
+    public long Start { get; set; }  // ms since UNIX epoch
+    
+    [JsonPropertyName("end")]
+    public long End { get; set; }  // ms since UNIX epoch
+    
+    [JsonPropertyName("mean")]
+    public double? Mean { get; set; }
+    
+    [JsonPropertyName("min")]
+    public double? Min { get; set; }
+    
+    [JsonPropertyName("max")]
+    public double? Max { get; set; }
+    
+    [JsonPropertyName("sum")]
+    public double? Sum { get; set; }
+    
+    [JsonPropertyName("state")]
+    public double? State { get; set; }
+    
+    // Computed property for DateTime
+    public DateTime StartDateTime => DateTimeOffset.FromUnixTimeMilliseconds(Start).DateTime;
+    public DateTime EndDateTime => DateTimeOffset.FromUnixTimeMilliseconds(End).DateTime;
+}
+
+/// <summary>
+/// Monthly energy statistics summary
+/// </summary>
+public class MonthlyEnergyStatistics
+{
+    [JsonPropertyName("month")]
+    public string Month { get; set; } = "";  // Format: "2024-12"
+    
+    [JsonPropertyName("year")]
+    public int Year { get; set; }
+    
+    [JsonPropertyName("monthNumber")]
+    public int MonthNumber { get; set; }
+    
+    [JsonPropertyName("pv")]
+    public double PvEnergy { get; set; }  // kWh
+    
+    [JsonPropertyName("load")]
+    public double LoadEnergy { get; set; }  // kWh
+    
+    [JsonPropertyName("grid")]
+    public double GridEnergy { get; set; }  // kWh
+    
+    [JsonPropertyName("battery")]
+    public double BatteryEnergy { get; set; }  // kWh (charge - discharge)
+    
+    [JsonPropertyName("charge")]
+    public double ChargeEnergy { get; set; }  // kWh
+    
+    [JsonPropertyName("discharge")]
+    public double DischargeEnergy { get; set; }  // kWh
+    
+    [JsonPropertyName("daysWithData")]
+    public int DaysWithData { get; set; }
+}
+
+/// <summary>
+/// Yearly energy statistics response
+/// </summary>
+public class YearlyEnergyStatistics
+{
+    [JsonPropertyName("deviceId")]
+    public string DeviceId { get; set; } = "";
+    
+    [JsonPropertyName("year")]
+    public int Year { get; set; }
+    
+    [JsonPropertyName("months")]
+    public List<MonthlyEnergyStatistics> Months { get; set; } = new();
+    
+    [JsonPropertyName("totalPv")]
+    public double TotalPv { get; set; }
+    
+    [JsonPropertyName("totalLoad")]
+    public double TotalLoad { get; set; }
+    
+    [JsonPropertyName("totalGrid")]
+    public double TotalGrid { get; set; }
+    
+    [JsonPropertyName("totalBattery")]
+    public double TotalBattery { get; set; }
+    
+    [JsonPropertyName("source")]
+    public string Source { get; set; } = "";  // "websocket" or "history"
 }
