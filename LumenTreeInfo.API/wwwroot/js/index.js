@@ -1,11 +1,11 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13136 - Add device info from HA (inverter model), add Min/Max labels to temperature badge
+ * Version: 13137 - Improved data source handling, Min/Max labels for temperature badge
  * 
  * Features:
  * - Real-time data via SignalR
  * - Battery Cell monitoring (16 cells) with Day Max voltage
- * - SOC Chart V5 - DATA FROM https://soc.applike098.workers.dev/data/today
+ * - SOC Chart V5 - Cloud data integration
  * - External HTML Tooltip (zoom-proof)
  * - Energy flow visualization
  * - Chart.js visualizations
@@ -81,19 +81,17 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
     
-    // Lightearth API - Direct from lesvr.suntcn.com via Cloudflare Worker proxy
-    // PRIMARY: lightearth.applike098.workers.dev
-    // FALLBACK: lightearth-proxy.minhlongt358.workers.dev
+    // LightEarth API endpoints with fallback support
     const LIGHTEARTH_PROXIES = [
-        'https://lightearth.applike098.workers.dev',           // Primary
-        'https://lightearth-proxy.minhlongt358.workers.dev'    // Fallback
+        'https://lightearth.applike098.workers.dev',
+        'https://lightearth-proxy.minhlongt358.workers.dev'
     ];
     
-    // Track which proxy is currently working (persist across requests)
+    // Track which endpoint is currently working (persist across requests)
     let currentProxyIndex = 0;
-    const PROXY_INDEX_KEY = 'solar_proxy_index';
+    const PROXY_INDEX_KEY = 'solar_endpoint_index';
     
-    // Load saved proxy index from localStorage
+    // Load saved endpoint index from localStorage
     try {
         const savedIndex = localStorage.getItem(PROXY_INDEX_KEY);
         if (savedIndex !== null) {
@@ -102,30 +100,29 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     } catch (e) { /* ignore */ }
     
-    // Get current proxy base URL
+    // Get current endpoint base URL
     function getCurrentProxy() {
         return LIGHTEARTH_PROXIES[currentProxyIndex];
     }
     
-    // Switch to fallback proxy
+    // Switch to fallback endpoint
     function switchToFallbackProxy() {
-        const oldProxy = getCurrentProxy();
+        const oldEndpoint = getCurrentProxy();
         currentProxyIndex = (currentProxyIndex + 1) % LIGHTEARTH_PROXIES.length;
         localStorage.setItem(PROXY_INDEX_KEY, String(currentProxyIndex));
-        console.log(`🔄 Switching proxy: ${oldProxy} → ${getCurrentProxy()}`);
+        console.log(`🔄 Switching endpoint`);
         return getCurrentProxy();
     }
     
-    // Reset to primary proxy (call when primary works again)
+    // Reset to primary endpoint (call when primary works again)
     function resetToPrimaryProxy() {
         if (currentProxyIndex !== 0) {
             currentProxyIndex = 0;
             localStorage.setItem(PROXY_INDEX_KEY, '0');
-            console.log(`✅ Reset to primary proxy: ${getCurrentProxy()}`);
         }
     }
     
-    // Dynamic LIGHTEARTH_API that uses current proxy
+    // Dynamic LIGHTEARTH_API that uses current endpoint
     const LIGHTEARTH_API = {
         get base() { return getCurrentProxy(); },
         bat: (deviceId, date) => `${getCurrentProxy()}/api/bat/${deviceId}/${date}`,
@@ -142,7 +139,7 @@ document.addEventListener('DOMContentLoaded', function () {
         cloudTemperature: (deviceId, date) => `${getCurrentProxy()}/api/cloud/temperature/${deviceId}/${date}`
     };
     
-    // Fetch with automatic proxy fallback
+    // Fetch with automatic endpoint fallback
     async function fetchWithProxyFallback(urlBuilder, options = {}) {
         const maxRetries = LIGHTEARTH_PROXIES.length;
         let lastError = null;
@@ -191,7 +188,7 @@ document.addEventListener('DOMContentLoaded', function () {
         date: null,
         timestamp: 0
     };
-    const LIGHTEARTH_CACHE_TTL = 30 * 60 * 1000; // 30 minutes - INCREASED to reduce Cloudflare API calls
+    const LIGHTEARTH_CACHE_TTL = 30 * 60 * 1000; // 30 minutes cache
     
     // LocalStorage cache keys for persistent caching across page reloads
     const LS_CACHE_KEYS = {
@@ -631,7 +628,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
     async function fetchRealtimeData(deviceId) {
         try {
-            // Use configured API source (Workers or Sandbox)
+            // Use configured API source
             const apiUrl = getRealtimeApiUrl(deviceId);
             console.log(`📡 Fetching from ${API_SOURCES[currentApiSource].name}:`, apiUrl);
             const response = await fetch(apiUrl);
@@ -652,12 +649,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
             
-            // Detect format: new HA API has deviceData, old proxy has data
+            // Detect format: Cloud API has deviceData, Legacy has data
             const isNewFormat = data.deviceData !== undefined;
             let displayData, cellsData;
             
             if (isNewFormat) {
-                // New format from /api/realtime/all (HA fallback)
+                // New format from Cloud API
                 const dd = data.deviceData || {};
                 displayData = {
                     pvTotalPower: dd.pv?.totalPower || 0,
@@ -677,9 +674,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     inverterAcOutPower: dd.acOutput?.power || 0
                 };
                 cellsData = data.batteryCells;
-                console.log('📊 Using NEW format (HA)', displayData);
+                console.log('📊 Using Cloud format', displayData);
             } else if (data.data) {
-                // Old format from proxy
+                // Legacy format from API
                 displayData = {
                     pvTotalPower: data.data.totalPvPower || 0,
                     pv1Power: data.data.pv1Power || 0,
@@ -698,7 +695,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     inverterAcOutPower: data.data.acOutputPower || 0
                 };
                 cellsData = data.cells;
-                console.log('📊 Using OLD format (Proxy)', displayData);
+                console.log('📊 Using Legacy format', displayData);
             } else {
                 return; // No valid data
             }
@@ -842,7 +839,7 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log('📦 Using cached chart data for instant display');
             // Apply cached data based on source type
             if (lightearthCache.data.dataSource === 'LightEarthCloud') {
-                updateChartFromHAData(lightearthCache.data);
+                updateChartFromCloudData(lightearthCache.data);
             } else {
                 updateSummaryFromLightearthData(lightearthCache.data);
             }
@@ -863,7 +860,7 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log('🌡️ Fetching temperature data...');
         fetchTemperatureMinMax(deviceId, queryDate);
         
-        // Fetch device info (inverter model) from HA
+        // Fetch device info (inverter model)
         fetchDeviceInfo(deviceId);
         
         // ALWAYS fetch chart data if cache is empty or stale
@@ -933,7 +930,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Fetch day data in background (for summary stats: Năng lượng - Pin Lưu Trữ - Nguồn Điện)
     // PRIORITY ORDER:
     // 1. Railway API (LightEarth Cloud data) - always try first for all devices
-    // 2. Lightearth API (lesvr.suntcn.com via Cloudflare Worker) - for chart data
+    // 2. Lightearth API - for chart data
     async function fetchDayDataInBackground(deviceId, date) {
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
         const now = Date.now();
@@ -990,7 +987,7 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log("📦 [Priority 1] Using cached summary data, skipping Railway API");
         }
         
-        // STEP 2: Try LightEarth Cloud Power History API for chart data (via Cloudflare Worker)
+        // STEP 2: Try LightEarth Cloud Power History API for chart data
         let chartDataLoaded = false;
         
         // Check cache first
@@ -1002,57 +999,57 @@ document.addEventListener('DOMContentLoaded', function () {
             const cacheAge = Math.round((now - lightearthCache.timestamp) / 1000);
             console.log(`📦 Using cached chart data (age: ${cacheAge}s)`);
             
-            // Check if cached data is from HA or Lightearth
+            // Check if cached data is from Cloud or Legacy API
             if (lightearthCache.data.dataSource === 'LightEarthCloud') {
-                updateChartFromHAData(lightearthCache.data);
+                updateChartFromCloudData(lightearthCache.data);
             } else {
                 updateSummaryFromLightearthData(lightearthCache.data);
             }
             return;
         }
         
-        // Try HA Power History API first (via Cloudflare Worker with proxy fallback)
+        // Try Cloud Power History API first
         try {
-            console.log("📊 [Priority 2] Fetching chart data from LightEarth Cloud API (via Worker)...");
+            console.log("📊 [Priority 2] Fetching chart data from Cloud API...");
             
-            // Use fetchWithProxyFallback to automatically try fallback proxy if primary fails
+            // Use fetchWithProxyFallback to automatically try fallback if primary fails
             const haResponse = await fetchWithProxyFallback(
                 () => LIGHTEARTH_API.cloudPowerHistory(deviceId, queryDate)
             );
             
             const cloudChartData = await haResponse.json();
-            console.log("📊 HA Power History response:", cloudChartData);
+            console.log("📊 Cloud API response:", cloudChartData);
             
             if (cloudChartData.success && cloudChartData.timeline && cloudChartData.timeline.length > 0) {
-                console.log(`✅ [Priority 2] HA Power History SUCCESS: ${cloudChartData.timeline.length} data points (proxy: ${getCurrentProxy()})`);
+                console.log(`✅ [Priority 2] Cloud API SUCCESS: ${cloudChartData.timeline.length} data points`);
                 
-                // Cache the HA data
+                // Cache the Cloud data
                 lightearthCache = {
                     data: { ...cloudChartData, dataSource: 'LightEarthCloud' },
                     deviceId: deviceId,
                     date: queryDate,
                     timestamp: now
                 };
-                console.log("💾 HA chart data cached (TTL: 30 minutes)");
+                console.log("💾 Chart data cached (TTL: 30 minutes)");
                 saveCacheToLocalStorage(); // Persist to localStorage
                 
-                // Update chart with HA data
-                updateChartFromHAData(cloudChartData);
+                // Update chart with Cloud data
+                updateChartFromCloudData(cloudChartData);
                 chartDataLoaded = true;
                 return; // Success - no need to try Lightearth API
             } else {
-                console.warn("⚠️ [Priority 2] HA Power History returned no data");
+                console.warn("⚠️ [Priority 2] Cloud API returned no data");
             }
         } catch (haError) {
-            console.warn("⚠️ [Priority 2] HA Power History API failed:", haError.message);
-            // fetchWithProxyFallback already tried all proxies, show rate limit warning
+            console.warn("⚠️ [Priority 2] Cloud API failed:", haError.message);
+            // fetchWithProxyFallback already tried all endpoints, show rate limit warning
             if (haError.message.includes('429')) {
                 showRateLimitWarning();
                 return;
             }
         }
         
-        // STEP 3: Fallback to Lightearth API for chart data (with proxy fallback)
+        // STEP 3: Fallback to Lightearth API for chart data
         // Skip if we recently got rate limited (within last 5 minutes)
         const rateLimitKey = 'solar_rate_limit_until';
         const rateLimitUntil = parseInt(localStorage.getItem(rateLimitKey) || '0');
@@ -1062,8 +1059,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         
         try {
-            // Use Lightearth API with proxy fallback - fetch all 3 endpoints in parallel
-            console.log(`📊 [Priority 3] Fetching chart data from Lightearth API (proxy: ${getCurrentProxy()})...`);
+            // Use Lightearth API with fallback - fetch all 3 endpoints in parallel
+            console.log(`📊 [Priority 3] Fetching chart data from Lightearth API...`);
             
             const [batResponse, pvResponse, otherResponse] = await Promise.all([
                 fetchWithProxyFallback(() => LIGHTEARTH_API.bat(deviceId, queryDate)),
@@ -1077,7 +1074,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 otherResponse.json()
             ]);
             
-            console.log(`✅ Lightearth data received (proxy: ${getCurrentProxy()}):`, { batData, pvData, otherData });
+            console.log(`✅ Lightearth data received:`, { batData, pvData, otherData });
             
             // Check if data is valid (returnValue === 1)
             if (batData.returnValue !== 1 || pvData.returnValue !== 1 || otherData.returnValue !== 1) {
@@ -1164,7 +1161,7 @@ document.addEventListener('DOMContentLoaded', function () {
             bat: { tableValueInfo: batData },
             load: { tableValueInfo: loadData },
             grid: { tableValueInfo: gridData },
-            essentialLoad: { tableValueInfo: new Array(288).fill(0) } // Not available from HA
+            essentialLoad: { tableValueInfo: new Array(288).fill(0) } // Not available from Cloud API
         };
     }
     
@@ -1216,17 +1213,16 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
     
-    // Update chart from LightEarth Cloud Power History data (via Cloudflare Worker)
-    // NEW Timeline format v2.3: [{time: "HH:mm", pv: 0, battery: 0, grid: 0, load: 0}, ...]
-    // Worker now returns local Vietnam time strings (not ISO)
-    function updateChartFromHAData(haData) {
-        if (!haData || !haData.timeline || haData.timeline.length === 0) {
-            console.warn("⚠️ No HA data to update chart");
+    // Update chart from LightEarth Cloud Power History data
+    // Timeline format: [{time: "HH:mm", pv: 0, battery: 0, grid: 0, load: 0}, ...]
+    function updateChartFromCloudData(cloudData) {
+        if (!cloudData || !cloudData.timeline || cloudData.timeline.length === 0) {
+            console.warn("⚠️ No Cloud data to update chart");
             return;
         }
         
-        const timeline = haData.timeline;
-        console.log(`📊 Converting HA data to chart format: ${timeline.length} data points`);
+        const timeline = cloudData.timeline;
+        console.log(`📊 Converting Cloud data to chart format: ${timeline.length} data points`);
         
         // Get current time slot - for TODAY, we limit data to current time
         const now = new Date();
@@ -1311,7 +1307,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // Count non-null values for logging
         const nonNullCount = pvData.filter(v => v !== null).length;
-        console.log(`📊 HA data converted: ${timeline.length} points -> ${nonNullCount} chart slots`);
+        console.log(`📊 Cloud data converted: ${timeline.length} points -> ${nonNullCount} chart slots`);
         console.log("📊 Sample data - PV max:", Math.max(...pvData.filter(v => v !== null && v > 0), 0), "Load max:", Math.max(...loadData.filter(v => v !== null && v > 0), 0));
         
         // Convert to chart format and update
@@ -1326,7 +1322,7 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log("📊 Updating combined energy chart with LightEarth Cloud data");
         updateCharts(chartData);
         
-        // Update peak stats from HA data
+        // Update peak stats from Cloud data
         const filteredTimeline = timeline.filter((point, index) => {
             let slotIndex;
             if (point.time && point.time.includes(':') && point.time.length <= 5) {
@@ -1337,12 +1333,11 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             return slotIndex <= maxAllowedSlot;
         });
-        updateEnergyChartPeakStatsFromHA(filteredTimeline);
+        updateEnergyChartPeakStats(filteredTimeline);
     }
     
-    // Update peak stats from LightEarth Cloud Power History
-    // v2.3: time is now "HH:mm" string format (or legacy ISO)
-    function updateEnergyChartPeakStatsFromHA(timeline) {
+    // Update peak stats from Cloud Power History
+    function updateEnergyChartPeakStats(timeline) {
         if (!timeline || timeline.length === 0) return;
         
         // Find peak values and times
@@ -1489,12 +1484,12 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log("📊 Day data loaded - Realtime display will show empty until system data arrives");
     }
     
-    // Fetch Temperature Min/Max for the day from LightEarth Cloud via Cloudflare Worker
+    // Fetch Temperature Min/Max for the day from Cloud API
     async function fetchTemperatureMinMax(deviceId, date) {
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
         
-        // Use Cloudflare Worker API with proxy fallback
-        console.log(`🌡️ Fetching temperature (proxy: ${getCurrentProxy()})...`);
+        // Fetch temperature data
+        console.log(`🌡️ Fetching temperature data...`);
         
         try {
             const response = await fetchWithProxyFallback(
@@ -1522,7 +1517,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (badge) badge.classList.add('hidden');
             }
         } catch (error) {
-            console.warn("🌡️ Temperature API unavailable (all proxies failed):", error.message);
+            console.warn("🌡️ Temperature API unavailable:", error.message);
             // Hide the badge if API fails
             const badge = document.getElementById('tempMinMaxBadge');
             if (badge) badge.classList.add('hidden');
@@ -1530,7 +1525,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // ========================================
-    // DEVICE INFO - Get inverter model from HA
+    // DEVICE INFO - Get inverter model from Cloud API
     // With localStorage caching (24h TTL) to reduce API calls
     // ========================================
     
@@ -1562,7 +1557,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
         
-        console.log(`📦 Fetching device info (proxy: ${getCurrentProxy()})...`);
+        console.log(`📦 Fetching device info...`);
         
         fetchWithProxyFallback(() => LIGHTEARTH_API.cloudDeviceInfo(deviceId))
             .then(response => response.json())
@@ -3286,7 +3281,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     
-    // Show rate limit warning to user (Cloudflare 429 error)
+    // Show rate limit warning to user
     function showRateLimitWarning() {
         // Check if warning already shown recently
         const lastWarning = parseInt(localStorage.getItem('solar_rate_limit_warning') || '0');
