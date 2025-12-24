@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentDeviceId = '';
     
     // Connection status tracking
-    let mqttConnected = false;
+    let systemConnected = false;
     let httpApiConnected = false;
     let lastHttpApiUpdate = 0;
     
@@ -295,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let lastCellUpdateTime = 0;
     
     // Battery cell communication state
-    let hasCellData = false; // True only after receiving REAL data from MQTT
+    let hasCellData = false; // True only after receiving REAL data from system
     let cellDataReceived = false; // Flag to track if we ever received cell data
     
     // Realtime polling interval
@@ -493,7 +493,7 @@ document.addEventListener('DOMContentLoaded', function () {
         connection.on("ReceiveRealTimeData", function (data) {
             console.log("Received real-time data:", data);
             updateRealTimeDisplay(data);
-            updateConnectionStatus('connected', 'mqtt');
+            updateConnectionStatus('connected', 'system');
         });
 
         // Handle battery cell data
@@ -506,19 +506,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
         connection.on("SubscriptionConfirmed", function (deviceId) {
             console.log(`Subscribed to device: ${deviceId}`);
-            updateConnectionStatus('connected', 'mqtt');
+            updateConnectionStatus('connected', 'system');
         });
 
         startSignalRConnection();
     }
 
-    function updateConnectionStatus(status, source = 'mqtt') {
+    function updateConnectionStatus(status, source = 'system') {
         const indicator = document.getElementById('connectionIndicator');
         const text = document.getElementById('connectionText');
         
         // Track connection status by source
-        if (source === 'mqtt') {
-            mqttConnected = (status === 'connected');
+        if (source === 'system') {
+            systemConnected = (status === 'connected');
         } else if (source === 'http') {
             httpApiConnected = (status === 'connected');
             if (status === 'connected') {
@@ -526,13 +526,13 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
         
-        // Determine overall status - HTTP API takes priority if MQTT is down
+        // Determine overall status - HTTP API takes priority if system is down
         let displayStatus = 'disconnected';
         let displayText = 'Mất kết nối';
         
-        if (mqttConnected) {
+        if (systemConnected) {
             displayStatus = 'connected';
-            displayText = 'MQTT: Đã kết nối';
+            displayText = 'Hệ thống: Đã kết nối';
         } else if (httpApiConnected) {
             displayStatus = 'connected';
             displayText = 'HTTP API: Đang hoạt động';
@@ -558,11 +558,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function startSignalRConnection() {
-        updateConnectionStatus('connecting', 'mqtt');
+        updateConnectionStatus('connecting', 'system');
         try {
             await connection.start();
             console.log("SignalR Connected");
-            updateConnectionStatus('connected', 'mqtt');
+            updateConnectionStatus('connected', 'system');
 
             let deviceToSubscribe = document.getElementById('deviceId')?.value?.trim();
             if (!deviceToSubscribe) {
@@ -574,7 +574,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         } catch (err) {
             console.error("SignalR Connection Error:", err);
-            updateConnectionStatus('disconnected', 'mqtt');
+            updateConnectionStatus('disconnected', 'system');
             setTimeout(startSignalRConnection, 5000);
         }
     }
@@ -752,7 +752,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
     connection.onclose(async () => {
         console.log("SignalR connection closed");
-        updateConnectionStatus('disconnected', 'mqtt');
+        updateConnectionStatus('disconnected', 'system');
         await startSignalRConnection();
     });
 
@@ -1484,9 +1484,9 @@ document.addEventListener('DOMContentLoaded', function () {
         updateCharts(chartData);
         
         // NOTE: Realtime display will NOT be updated from day data
-        // Only show real values when MQTT realtime data is available
+        // Only show real values when system realtime data is available
         // Day data is historical - not suitable for "Luồng năng lượng thời gian thực"
-        console.log("📊 Day data loaded - Realtime display will show empty until MQTT data arrives");
+        console.log("📊 Day data loaded - Realtime display will show empty until system data arrives");
     }
     
     // Fetch Temperature Min/Max for the day from LightEarth Cloud via Cloudflare Worker
@@ -2083,7 +2083,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (noData) {
             // Display empty state - no demo data
             updateValue('pv-power', '--');
-            updateValueHTML('pv-desc', `<span class="text-slate-400">Chờ dữ liệu MQTT</span>`);
+            updateValueHTML('pv-desc', `<span class="text-slate-400">Chờ dữ liệu hệ thống</span>`);
             
             updateValue('grid-power', '--');
             updateValue('grid-voltage', '--');
@@ -2290,12 +2290,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         </svg>
                         <span class="text-slate-500 dark:text-slate-400 text-sm font-medium">Đang chờ dữ liệu cell volt...</span>
                     </div>
-                    <p class="text-xs text-slate-400 dark:text-slate-500 text-center">Dữ liệu sẽ hiển thị khi nhận được từ thiết bị qua MQTT</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 text-center">Dữ liệu sẽ hiển thị khi nhận được từ hệ thống</p>
                 </div>
             `;
         }
         
-        console.log("Battery cell section initialized - waiting for real MQTT data");
+        console.log("Battery cell section initialized - waiting for real system data");
     }
 
     // Request cell data reload via SignalR
@@ -2344,7 +2344,7 @@ document.addEventListener('DOMContentLoaded', function () {
         cellDataReceived = true;
         hasCellData = true;
         
-        console.log("Received real cell data from MQTT:", validCells.length, "cells");
+        console.log("Received real cell data from system:", validCells.length, "cells");
         
         // Update cell update time
         updateCellUpdateTime();

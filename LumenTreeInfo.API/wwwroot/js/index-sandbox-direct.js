@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let lastCellUpdateTime = 0;
     
     // Battery cell communication state
-    let hasCellData = false; // True only after receiving REAL data from MQTT
+    let hasCellData = false; // True only after receiving REAL data from system
     let cellDataReceived = false; // Flag to track if we ever received cell data
     
     // Realtime polling interval
