@@ -1978,6 +1978,126 @@ body:has(#mainHeader.header-hidden) #compactSearch {
         animation: none !important;
         opacity: 0.4 !important;
     }
+    
+    /* ========== MOBILE ENERGY FLOW ANIMATIONS - CENTERED ========== */
+    /* Override keyframes for mobile to center the dots on the flow lines */
+    
+    /* PV flow - starts at left column center (16.67%) */
+    .energy-dot-pv,
+    .energy-dot-pv-2,
+    .energy-dot-pv-3,
+    .energy-dot-pv-4,
+    .energy-dot-pv-5 {
+        animation-name: pv-flow-mobile !important;
+    }
+    
+    /* EVN flow - starts at right column center (83.33%) */
+    .energy-dot-evn,
+    .energy-dot-evn-2,
+    .energy-dot-evn-3,
+    .energy-dot-evn-4,
+    .energy-dot-evn-5 {
+        animation-name: evn-flow-mobile !important;
+    }
+    
+    /* Battery charging - from center to left column */
+    .energy-dot-battery.charging,
+    .energy-dot-battery-2.charging,
+    .energy-dot-battery-3.charging {
+        animation-name: battery-charge-mobile !important;
+    }
+    
+    /* Battery discharging - from left column to center */
+    .energy-dot-battery.discharging,
+    .energy-dot-battery-2.discharging,
+    .energy-dot-battery-3.discharging {
+        animation-name: battery-discharge-mobile !important;
+    }
+    
+    /* Essential flow - from center straight down */
+    .energy-dot-essential,
+    .energy-dot-essential-2,
+    .energy-dot-essential-3 {
+        animation-name: essential-flow-mobile !important;
+    }
+    
+    /* Load flow - from center to right column */
+    .energy-dot-load,
+    .energy-dot-load-2,
+    .energy-dot-load-3 {
+        animation-name: load-flow-mobile !important;
+    }
+}
+
+/* Mobile-specific keyframes - adjusted positions for 3-column grid layout */
+/* On mobile, grid uses gap-2 (0.5rem) so positions need slight adjustment */
+/* The flow lines use left-[16.67%] and left-[83.33%] which are 1/6 and 5/6 of container */
+
+@keyframes pv-flow-mobile {
+    0% { 
+        left: 16.67%; 
+        top: 0%; 
+        opacity: 0; 
+        transform: translate(-50%, -50%) scale(0.5); 
+    }
+    5% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    30% { left: 16.67%; top: 48%; }
+    50% { left: 33.33%; top: 50%; }
+    70% { left: 50%; top: 52%; }
+    95% { left: 50%; top: 98%; opacity: 1; }
+    100% { left: 50%; top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+}
+
+@keyframes evn-flow-mobile {
+    0% { 
+        left: 83.33%; 
+        top: 0%; 
+        opacity: 0; 
+        transform: translate(-50%, -50%) scale(0.5); 
+    }
+    5% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    30% { left: 83.33%; top: 48%; }
+    50% { left: 66.67%; top: 50%; }
+    70% { left: 50%; top: 52%; }
+    95% { left: 50%; top: 98%; opacity: 1; }
+    100% { left: 50%; top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+}
+
+@keyframes battery-charge-mobile {
+    0% { left: 50%; top: 0%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    5% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    30% { left: 50%; top: 48%; }
+    50% { left: 33.33%; top: 50%; }
+    70% { left: 16.67%; top: 52%; }
+    95% { left: 16.67%; top: 98%; opacity: 1; }
+    100% { left: 16.67%; top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+}
+
+@keyframes battery-discharge-mobile {
+    0% { left: 16.67%; top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    5% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    30% { left: 16.67%; top: 52%; }
+    50% { left: 33.33%; top: 50%; }
+    70% { left: 50%; top: 48%; }
+    95% { left: 50%; top: 2%; opacity: 1; }
+    100% { left: 50%; top: 0%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+}
+
+@keyframes essential-flow-mobile {
+    0% { left: 50%; top: 0%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    10% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    90% { opacity: 1; }
+    100% { left: 50%; top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+}
+
+@keyframes load-flow-mobile {
+    0% { left: 50%; top: 0%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    5% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    30% { left: 50%; top: 48%; }
+    50% { left: 66.67%; top: 50%; }
+    70% { left: 83.33%; top: 52%; }
+    95% { left: 83.33%; top: 98%; opacity: 1; }
+    100% { left: 83.33%; top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
 }
 
 /* Respect user's reduced motion preference */
