@@ -4,7 +4,7 @@ using System.Collections.Concurrent;
 namespace LumenTreeInfo.API.Services;
 
 /// <summary>
-/// Background service that collects power data from Home Assistant every 5 minutes
+/// Background service that collects power data from LightEarth Cloud every 5 minutes
 /// and stores it in memory for the energy chart.
 /// This solves the problem where HA recorder doesn't store power sensor history.
 /// </summary>
@@ -59,7 +59,7 @@ public class PowerHistoryCollector : BackgroundService
         
         if (haClient == null)
         {
-            _logger.LogWarning("Home Assistant client not available");
+            _logger.LogDebug("Cloud client not available");
             return;
         }
 

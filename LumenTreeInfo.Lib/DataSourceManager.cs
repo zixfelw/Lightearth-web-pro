@@ -3,18 +3,18 @@ using Serilog;
 namespace LumenTreeInfo.Lib;
 
 /// <summary>
-/// Manages data sources with automatic fallback from MQTT to Home Assistant
+/// Manages data sources with automatic fallback from MQTT to LightEarth Cloud
 /// </summary>
 public class DataSourceManager : IDisposable
 {
     private readonly SolarInverterMonitor _mqttMonitor;
-    private readonly HomeAssistantClient? _haClient;
+    private readonly HomeAssistantClient? _cloudClient;
     private readonly string _deviceSn;
-    private readonly bool _haEnabled;
+    private readonly bool _cloudEnabled;
     
     private DataSource _currentSource = DataSource.None;
     private DateTime _lastMqttData = DateTime.MinValue;
-    private DateTime _lastHaData = DateTime.MinValue;
+    private DateTime _lastCloudData = DateTime.MinValue;
     private readonly TimeSpan _mqttTimeout = TimeSpan.FromSeconds(30);
     private readonly object _lock = new();
     private bool _mqttFailed = false;
@@ -29,12 +29,12 @@ public class DataSourceManager : IDisposable
     {
         None,
         Mqtt,
-        HomeAssistant
+        Cloud  // Changed from HomeAssistant
     }
 
     public DataSource CurrentSource => _currentSource;
     public bool IsMqttConnected => _mqttMonitor.UserId != null && DateTime.Now - _lastMqttData < _mqttTimeout;
-    public bool IsHaAvailable => _haClient?.IsAvailable ?? false;
+    public bool IsHaAvailable => _cloudClient?.IsAvailable ?? false;
     public SolarInverterMonitor.DeviceData? LatestDeviceData => _latestDeviceData;
     public SolarInverterMonitor.BatteryCellData? LatestBatteryCellData => _latestBatteryCellData;
 
@@ -52,7 +52,7 @@ public class DataSourceManager : IDisposable
     }
 
     /// <summary>
-    /// Create DataSourceManager with MQTT and Home Assistant fallback
+    /// Create DataSourceManager with MQTT and Cloud fallback
     /// </summary>
     public DataSourceManager(string userId, string deviceSn, string? haUrl, string? haToken)
     {
@@ -64,78 +64,78 @@ public class DataSourceManager : IDisposable
         _mqttMonitor.DeviceDataReceived += OnMqttDeviceDataReceived;
         _mqttMonitor.BatteryCellDataReceived += OnMqttBatteryCellDataReceived;
 
-        // Initialize Home Assistant Client if configured
+        // Initialize Cloud Client if configured
         if (!string.IsNullOrEmpty(haUrl) && !string.IsNullOrEmpty(haToken))
         {
-            _haClient = new HomeAssistantClient(haUrl, haToken, deviceSn);
-            _haEnabled = true;
-            Log.Information($"DataSourceManager initialized with HA as PRIMARY: {haUrl}");
+            _cloudClient = new HomeAssistantClient(haUrl, haToken, deviceSn);
+            _cloudEnabled = true;
+            Log.Debug("DataSourceManager initialized with Cloud as PRIMARY");
         }
         else
         {
-            _haEnabled = false;
-            Log.Information("DataSourceManager initialized with MQTT only (no HA configured)");
+            _cloudEnabled = false;
+            Log.Debug("DataSourceManager initialized with MQTT only (no Cloud configured)");
         }
     }
 
     /// <summary>
     /// Start monitoring with automatic source selection
-    /// Priority: Home Assistant (if configured) > MQTT
+    /// Priority: Cloud (if configured) > MQTT
     /// </summary>
     public async Task StartAsync()
     {
-        Log.Information("Starting DataSourceManager...");
+        Log.Debug("Starting DataSourceManager...");
 
-        // If Home Assistant is configured, try it FIRST (primary source)
-        if (_haEnabled && _haClient != null)
+        // If Cloud is configured, try it FIRST (primary source)
+        if (_cloudEnabled && _cloudClient != null)
         {
-            Log.Information("Home Assistant is configured, trying as PRIMARY source...");
+            Log.Debug("Cloud is configured, trying as PRIMARY source...");
             try
             {
-                var haAvailable = await _haClient.CheckAvailabilityAsync();
-                if (haAvailable)
+                var cloudAvailable = await _cloudClient.CheckAvailabilityAsync();
+                if (cloudAvailable)
                 {
-                    SetDataSource(DataSource.HomeAssistant);
-                    Log.Information("Home Assistant connected as PRIMARY data source");
-                    _ = StartHaPollingAsync();
+                    SetDataSource(DataSource.Cloud);
+                    Log.Debug("Cloud connected as PRIMARY data source");
+                    _ = StartCloudPollingAsync();
                     _ = StartHealthCheckAsync();
-                    return; // Don't try MQTT if HA works
+                    return; // Don't try MQTT if Cloud works
                 }
                 else
                 {
-                    Log.Warning("Home Assistant not available, will try MQTT as fallback");
+                    Log.Debug("Cloud not available, will try MQTT as fallback");
                 }
             }
             catch (Exception ex)
             {
-                Log.Warning($"Home Assistant connection failed: {ex.Message}, will try MQTT");
+                Log.Debug($"Cloud connection failed: {ex.Message}, will try MQTT");
             }
         }
 
-        // Try MQTT as fallback (or primary if HA not configured)
+        // Try MQTT as fallback (or primary if Cloud not configured)
         try
         {
-            Log.Information("Trying MQTT connection...");
+            Log.Debug("Trying MQTT connection...");
             await _mqttMonitor.ConnectAsync();
             _ = _mqttMonitor.StartMonitoringAsync();
             SetDataSource(DataSource.Mqtt);
-            Log.Information("MQTT connection established");
+            Log.Debug("MQTT connection established");
         }
         catch (Exception ex)
         {
             _mqttFailed = true;
             _mqttRetryCount++;
-            Log.Warning($"MQTT connection failed (attempt {_mqttRetryCount}): {ex.Message}");
+            Log.Debug($"MQTT connection failed (attempt {_mqttRetryCount}): {ex.Message}");
             
             if (_mqttRetryCount >= MaxMqttRetries)
             {
-                Log.Error($"MQTT failed {MaxMqttRetries} times, disabling MQTT retries");
+                Log.Debug($"MQTT failed {MaxMqttRetries} times, disabling MQTT retries");
             }
             
             // If both failed, log error
             if (_currentSource == DataSource.None)
             {
-                Log.Error("No data source available - both HA and MQTT failed");
+                Log.Debug("No data source available - both Cloud and MQTT failed");
             }
         }
 
@@ -148,7 +148,7 @@ public class DataSourceManager : IDisposable
     /// </summary>
     public async Task StopAsync()
     {
-        Log.Information("Stopping DataSourceManager...");
+        Log.Debug("Stopping DataSourceManager...");
         _mqttMonitor.StopMonitoring();
         await _mqttMonitor.DisconnectAsync();
     }
@@ -163,18 +163,18 @@ public class DataSourceManager : IDisposable
             await _mqttMonitor.RequestDeviceInfoAsync(_deviceSn);
             await _mqttMonitor.RequestBatteryCellInfoAsync(_deviceSn);
         }
-        else if (_currentSource == DataSource.HomeAssistant && _haClient != null)
+        else if (_currentSource == DataSource.Cloud && _cloudClient != null)
         {
-            var deviceData = await _haClient.GetDeviceDataAsync();
+            var deviceData = await _cloudClient.GetDeviceDataAsync();
             if (deviceData != null)
             {
-                UpdateDeviceData(deviceData, DataSource.HomeAssistant);
+                UpdateDeviceData(deviceData, DataSource.Cloud);
             }
 
-            var cellData = await _haClient.GetBatteryCellDataAsync();
+            var cellData = await _cloudClient.GetBatteryCellDataAsync();
             if (cellData != null)
             {
-                UpdateBatteryCellData(cellData, DataSource.HomeAssistant);
+                UpdateBatteryCellData(cellData, DataSource.Cloud);
             }
         }
     }
@@ -190,7 +190,7 @@ public class DataSourceManager : IDisposable
             IsMqttConnected = IsMqttConnected,
             IsHaAvailable = IsHaAvailable,
             LastMqttData = _lastMqttData,
-            LastHaData = _lastHaData,
+            LastHaData = _lastCloudData,
             DeviceSn = _deviceSn,
             HasDeviceData = _latestDeviceData != null,
             HasBatteryCellData = _latestBatteryCellData != null
@@ -215,8 +215,8 @@ public class DataSourceManager : IDisposable
             
             if (source == DataSource.Mqtt)
                 _lastMqttData = DateTime.Now;
-            else if (source == DataSource.HomeAssistant)
-                _lastHaData = DateTime.Now;
+            else if (source == DataSource.Cloud)
+                _lastCloudData = DateTime.Now;
 
             if (_currentSource != source)
             {
@@ -245,34 +245,34 @@ public class DataSourceManager : IDisposable
         {
             var oldSource = _currentSource;
             _currentSource = source;
-            Log.Information($"Data source changed: {oldSource} -> {source}");
+            Log.Debug($"Data source changed: {oldSource} -> {source}");
             DataSourceChanged?.Invoke(this, source);
         }
     }
 
-    private async Task StartHaPollingAsync()
+    private async Task StartCloudPollingAsync()
     {
-        Log.Information("Starting Home Assistant polling...");
+        Log.Debug("Starting Cloud polling...");
         
-        while (_currentSource == DataSource.HomeAssistant && _haClient != null)
+        while (_currentSource == DataSource.Cloud && _cloudClient != null)
         {
             try
             {
-                var deviceData = await _haClient.GetDeviceDataAsync();
+                var deviceData = await _cloudClient.GetDeviceDataAsync();
                 if (deviceData != null)
                 {
-                    UpdateDeviceData(deviceData, DataSource.HomeAssistant);
+                    UpdateDeviceData(deviceData, DataSource.Cloud);
                 }
 
-                var cellData = await _haClient.GetBatteryCellDataAsync();
+                var cellData = await _cloudClient.GetBatteryCellDataAsync();
                 if (cellData != null)
                 {
-                    UpdateBatteryCellData(cellData, DataSource.HomeAssistant);
+                    UpdateBatteryCellData(cellData, DataSource.Cloud);
                 }
             }
             catch (Exception ex)
             {
-                Log.Warning($"HA polling error: {ex.Message}");
+                Log.Debug($"Cloud polling error: {ex.Message}");
             }
 
             await Task.Delay(5000); // Poll every 5 seconds
@@ -281,7 +281,7 @@ public class DataSourceManager : IDisposable
 
     private async Task StartHealthCheckAsync()
     {
-        Log.Information("Starting health check task...");
+        Log.Debug("Starting health check task...");
         int healthCheckCount = 0;
 
         while (true)
@@ -292,19 +292,19 @@ public class DataSourceManager : IDisposable
 
             try
             {
-                // If using Home Assistant, just verify it's still working
-                if (_currentSource == DataSource.HomeAssistant)
+                // If using Cloud, just verify it's still working
+                if (_currentSource == DataSource.Cloud)
                 {
-                    if (_haClient != null)
+                    if (_cloudClient != null)
                     {
-                        var haAvailable = await _haClient.CheckAvailabilityAsync();
-                        if (!haAvailable)
+                        var cloudAvailable = await _cloudClient.CheckAvailabilityAsync();
+                        if (!cloudAvailable)
                         {
-                            Log.Warning("Home Assistant became unavailable");
+                            Log.Debug("Cloud became unavailable");
                             // Don't try MQTT if it already failed multiple times
                             if (!_mqttFailed || _mqttRetryCount < MaxMqttRetries)
                             {
-                                Log.Information("Attempting to switch to MQTT...");
+                                Log.Debug("Attempting to switch to MQTT...");
                                 try
                                 {
                                     await _mqttMonitor.ConnectAsync();
@@ -315,7 +315,7 @@ public class DataSourceManager : IDisposable
                                 {
                                     _mqttFailed = true;
                                     _mqttRetryCount++;
-                                    Log.Warning($"MQTT fallback failed: {ex.Message}");
+                                    Log.Debug($"MQTT fallback failed: {ex.Message}");
                                 }
                             }
                         }
@@ -324,7 +324,7 @@ public class DataSourceManager : IDisposable
                             // Log status every 5 minutes (10 health checks)
                             if (healthCheckCount % 10 == 0)
                             {
-                                Log.Information($"Health check OK - Source: HomeAssistant, HA Available: {haAvailable}");
+                                Log.Debug($"Health check OK - Source: Cloud");
                             }
                         }
                     }
@@ -334,17 +334,17 @@ public class DataSourceManager : IDisposable
                 {
                     if (!IsMqttConnected)
                     {
-                        Log.Warning("MQTT connection lost");
+                        Log.Debug("MQTT connection lost");
                         
-                        // Try Home Assistant first if configured
-                        if (_haEnabled && _haClient != null)
+                        // Try Cloud first if configured
+                        if (_cloudEnabled && _cloudClient != null)
                         {
-                            var haAvailable = await _haClient.CheckAvailabilityAsync();
-                            if (haAvailable)
+                            var cloudAvailable = await _cloudClient.CheckAvailabilityAsync();
+                            if (cloudAvailable)
                             {
-                                SetDataSource(DataSource.HomeAssistant);
-                                Log.Information("Switched to Home Assistant");
-                                _ = StartHaPollingAsync();
+                                SetDataSource(DataSource.Cloud);
+                                Log.Debug("Switched to Cloud");
+                                _ = StartCloudPollingAsync();
                                 continue;
                             }
                         }
@@ -354,14 +354,14 @@ public class DataSourceManager : IDisposable
                         {
                             try
                             {
-                                Log.Information($"Attempting MQTT reconnect ({_mqttRetryCount + 1}/{MaxMqttRetries})...");
+                                Log.Debug($"Attempting MQTT reconnect ({_mqttRetryCount + 1}/{MaxMqttRetries})...");
                                 await _mqttMonitor.ConnectAsync();
                                 _mqttRetryCount = 0; // Reset on success
                             }
                             catch (Exception ex)
                             {
                                 _mqttRetryCount++;
-                                Log.Warning($"MQTT reconnect failed: {ex.Message}");
+                                Log.Debug($"MQTT reconnect failed: {ex.Message}");
                             }
                         }
                     }
@@ -370,7 +370,7 @@ public class DataSourceManager : IDisposable
                         _mqttRetryCount = 0; // Reset on success
                         if (healthCheckCount % 10 == 0)
                         {
-                            Log.Information($"Health check OK - Source: MQTT");
+                            Log.Debug($"Health check OK - Source: MQTT");
                         }
                     }
                 }
@@ -380,16 +380,16 @@ public class DataSourceManager : IDisposable
                     // Only try to connect every 5 health checks (2.5 minutes)
                     if (healthCheckCount % 5 == 0)
                     {
-                        Log.Information("No data source, attempting to connect...");
+                        Log.Debug("No data source, attempting to connect...");
                         
-                        // Try HA first
-                        if (_haEnabled && _haClient != null)
+                        // Try Cloud first
+                        if (_cloudEnabled && _cloudClient != null)
                         {
-                            var haAvailable = await _haClient.CheckAvailabilityAsync();
-                            if (haAvailable)
+                            var cloudAvailable = await _cloudClient.CheckAvailabilityAsync();
+                            if (cloudAvailable)
                             {
-                                SetDataSource(DataSource.HomeAssistant);
-                                _ = StartHaPollingAsync();
+                                SetDataSource(DataSource.Cloud);
+                                _ = StartCloudPollingAsync();
                                 continue;
                             }
                         }
@@ -413,7 +413,7 @@ public class DataSourceManager : IDisposable
             }
             catch (Exception ex)
             {
-                Log.Error($"Health check error: {ex.Message}");
+                Log.Debug($"Health check error: {ex.Message}");
             }
         }
     }
@@ -421,7 +421,7 @@ public class DataSourceManager : IDisposable
     public void Dispose()
     {
         _mqttMonitor.Dispose();
-        _haClient?.Dispose();
+        _cloudClient?.Dispose();
     }
 }
 

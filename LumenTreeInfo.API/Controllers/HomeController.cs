@@ -785,7 +785,7 @@ public class HomeController : Controller
             
             Log.Information("Fetching SOC data for device {DeviceId} on {Date}", deviceId, queryDate);
             
-            // Try Home Assistant first (best source for real-time data)
+            // Try Cloud first (best source for real-time data)
             try
             {
                 var haUrl = Environment.GetEnvironmentVariable("HomeAssistant__Url");
@@ -802,13 +802,13 @@ public class HomeController : Controller
                         
                         if (haHistory != null && haHistory.Count > 0)
                         {
-                            Log.Information("Successfully fetched SOC data from Home Assistant for device {DeviceId}: {Count} points", 
+                            Log.Information("Successfully fetched SOC data from Cloud for device {DeviceId}: {Count} points", 
                                 deviceId, haHistory.Count);
                             
                             return Json(new {
                                 deviceId = deviceId.ToUpper(),
                                 date = queryDate,
-                                dataSource = "HomeAssistant",
+                                dataSource = "LightEarthCloud",
                                 timeline = haHistory
                             });
                         }
@@ -817,7 +817,7 @@ public class HomeController : Controller
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "Home Assistant failed for SOC data, trying LEHT API");
+                Log.Debug(ex, "Cloud failed for SOC data, trying LEHT API");
             }
             
             // Try LEHT API second
@@ -911,11 +911,11 @@ public class HomeController : Controller
     }
 
     /// <summary>
-    /// Gets all devices registered in Home Assistant
+    /// Gets all devices registered in LightEarth Cloud
     /// Returns list of device IDs with their current status
     /// </summary>
-    [Route("/api/ha/devices")]
-    public async Task<IActionResult> GetHomeAssistantDevices()
+    [Route("/api/cloud/devices")]
+    public async Task<IActionResult> GetCloudDevices()
     {
         try
         {
@@ -924,10 +924,10 @@ public class HomeController : Controller
 
             if (string.IsNullOrEmpty(haUrl) || string.IsNullOrEmpty(haToken))
             {
-                Log.Warning("Home Assistant not configured");
+                Log.Debug("Cloud not configured");
                 return Json(new { 
                     success = false, 
-                    error = "Home Assistant not configured",
+                    error = "Cloud not configured",
                     devices = new List<object>()
                 });
             }
@@ -936,10 +936,10 @@ public class HomeController : Controller
             
             if (!await haClient.CheckAvailabilityAsync())
             {
-                Log.Warning("Home Assistant is not available");
+                Log.Debug("Cloud is not available");
                 return Json(new { 
                     success = false, 
-                    error = "Home Assistant is not available",
+                    error = "Cloud is not available",
                     devices = new List<object>()
                 });
             }
@@ -988,7 +988,7 @@ public class HomeController : Controller
                 }
             }
 
-            Log.Information($"Found {devices.Count} devices in Home Assistant");
+            Log.Information($"Found {devices.Count} devices in Cloud");
             return Json(new {
                 success = true,
                 count = devices.Count,
@@ -998,7 +998,7 @@ public class HomeController : Controller
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error getting Home Assistant devices");
+            Log.Error(ex, "Error getting Cloud devices");
             return Json(new { 
                 success = false, 
                 error = ex.Message,
@@ -1008,10 +1008,10 @@ public class HomeController : Controller
     }
 
     /// <summary>
-    /// Gets detailed device data from Home Assistant for a specific device
+    /// Gets detailed device data from LightEarth Cloud for a specific device
     /// </summary>
-    [Route("/api/ha/device/{deviceId}")]
-    public async Task<IActionResult> GetHomeAssistantDevice(string deviceId)
+    [Route("/api/cloud/device/{deviceId}")]
+    public async Task<IActionResult> GetCloudDevice(string deviceId)
     {
         try
         {
@@ -1020,14 +1020,14 @@ public class HomeController : Controller
 
             if (string.IsNullOrEmpty(haUrl) || string.IsNullOrEmpty(haToken))
             {
-                return Json(new { success = false, error = "Home Assistant not configured" });
+                return Json(new { success = false, error = "Cloud not configured" });
             }
 
             var haClient = new MultiDeviceHomeAssistantClient(haUrl, haToken);
             
             if (!await haClient.CheckAvailabilityAsync())
             {
-                return Json(new { success = false, error = "Home Assistant is not available" });
+                return Json(new { success = false, error = "Cloud is not available" });
             }
 
             var deviceData = await haClient.GetDeviceDataAsync(deviceId);
@@ -1036,7 +1036,7 @@ public class HomeController : Controller
 
             if (deviceData == null)
             {
-                return Json(new { success = false, error = $"Device {deviceId} not found in Home Assistant" });
+                return Json(new { success = false, error = $"Device {deviceId} not found" });
             }
 
             return Json(new {
@@ -1078,7 +1078,7 @@ public class HomeController : Controller
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "Error getting Home Assistant device {DeviceId}", deviceId);
+            Log.Error(ex, "Error getting Cloud device {DeviceId}", deviceId);
             return Json(new { success = false, error = ex.Message });
         }
     }

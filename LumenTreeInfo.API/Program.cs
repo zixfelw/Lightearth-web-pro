@@ -92,7 +92,7 @@ public class Program
             return new LumentreeClient(cacheService);
         });
 
-        // Add DataSourceManager with MQTT + Home Assistant fallback support
+        // Add DataSourceManager with MQTT + Cloud fallback support
         builder.Services.AddSingleton<DataSourceManager>(serviceProvider => {
             var config = builder.Configuration;
             
@@ -100,7 +100,7 @@ public class Program
             var deviceSn = config["DataSource:DefaultDeviceSn"] ?? "P250801055";
             var userId = "webapp"; // Default user ID for MQTT connection
             
-            // Home Assistant configuration
+            // Cloud configuration (internal)
             var haEnabled = config.GetValue<bool>("HomeAssistant:Enabled", false);
             var haUrl = config["HomeAssistant:Url"];
             var haToken = config["HomeAssistant:Token"];

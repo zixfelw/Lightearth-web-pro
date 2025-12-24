@@ -6,8 +6,8 @@ using Microsoft.AspNetCore.SignalR;
 namespace LumenTreeInfo.API.Controllers;
 
 /// <summary>
-/// API Controller for Realtime data with MQTT + Home Assistant fallback support
-/// Supports multiple devices from Home Assistant
+/// API Controller for Realtime data with MQTT + Cloud fallback support
+/// Supports multiple devices from LightEarth Cloud
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -34,7 +34,20 @@ public class RealtimeController : ControllerBase
     }
 
     /// <summary>
-    /// Get current data source status (MQTT/HomeAssistant)
+    /// Helper to convert DataSource enum to friendly name
+    /// </summary>
+    private string GetDataSourceName(DataSourceManager.DataSource source)
+    {
+        return source switch
+        {
+            DataSourceManager.DataSource.Cloud => "LightEarthCloud",
+            DataSourceManager.DataSource.Mqtt => "MQTT",
+            _ => "None"
+        };
+    }
+
+    /// <summary>
+    /// Get current data source status (MQTT/Cloud)
     /// </summary>
     [HttpGet("status")]
     public IActionResult GetStatus()
@@ -54,14 +67,14 @@ public class RealtimeController : ControllerBase
         return Ok(new
         {
             success = true,
-            currentSource = status.CurrentSource.ToString(),
+            currentSource = GetDataSourceName(status.CurrentSource),
             isMqttConnected = status.IsMqttConnected,
-            isHomeAssistantAvailable = status.IsHaAvailable,
+            isCloudAvailable = status.IsHaAvailable,
             deviceSn = status.DeviceSn,
             hasDeviceData = status.HasDeviceData,
             hasBatteryCellData = status.HasBatteryCellData,
             lastMqttData = status.LastMqttData,
-            lastHaData = status.LastHaData,
+            lastCloudData = status.LastHaData,
             timestamp = DateTime.Now
         });
     }
@@ -96,7 +109,7 @@ public class RealtimeController : ControllerBase
                 {
                     success = false,
                     message = "No device data available yet",
-                    source = status.CurrentSource.ToString(),
+                    source = GetDataSourceName(status.CurrentSource),
                     timestamp = DateTime.Now
                 });
             }
@@ -104,7 +117,7 @@ public class RealtimeController : ControllerBase
             return Ok(new
             {
                 success = true,
-                source = status.CurrentSource.ToString(),
+                source = GetDataSourceName(status.CurrentSource),
                 data = new
                 {
                     deviceId = deviceData.DeviceId,
@@ -190,7 +203,7 @@ public class RealtimeController : ControllerBase
                 {
                     success = false,
                     message = "No battery cell data available yet",
-                    source = status.CurrentSource.ToString(),
+                    source = GetDataSourceName(status.CurrentSource),
                     timestamp = DateTime.Now
                 });
             }
@@ -198,7 +211,7 @@ public class RealtimeController : ControllerBase
             return Ok(new
             {
                 success = true,
-                source = status.CurrentSource.ToString(),
+                source = GetDataSourceName(status.CurrentSource),
                 data = new
                 {
                     deviceId = cellData.DeviceId,
@@ -250,12 +263,12 @@ public class RealtimeController : ControllerBase
             return Ok(new
             {
                 success = true,
-                source = status.CurrentSource.ToString(),
+                source = GetDataSourceName(status.CurrentSource),
                 status = new
                 {
-                    currentSource = status.CurrentSource.ToString(),
+                    currentSource = GetDataSourceName(status.CurrentSource),
                     isMqttConnected = status.IsMqttConnected,
-                    isHomeAssistantAvailable = status.IsHaAvailable,
+                    isCloudAvailable = status.IsHaAvailable,
                     deviceSn = status.DeviceSn
                 },
                 deviceData = deviceData != null ? new
@@ -328,7 +341,7 @@ public class RealtimeController : ControllerBase
     }
 
     /// <summary>
-    /// Get realtime data for a specific device ID from Home Assistant
+    /// Get realtime data for a specific device ID from LightEarth Cloud
     /// </summary>
     [HttpGet("device/{deviceId}")]
     public async Task<IActionResult> GetDeviceById(string deviceId)
@@ -340,7 +353,7 @@ public class RealtimeController : ControllerBase
             return Ok(new
             {
                 success = false,
-                message = "Home Assistant client not configured. Check HomeAssistant__Url and HomeAssistant__Token environment variables.",
+                message = "Cloud client not configured. Check environment variables.",
                 deviceId = deviceId,
                 timestamp = DateTime.Now
             });
@@ -355,11 +368,11 @@ public class RealtimeController : ControllerBase
             {
                 // Device not found - get known devices for helpful message
                 var knownDevices = await _multiDeviceHaClient.ScanDevicesAsync();
-                _logger.LogWarning("Device {DeviceId} not found. Known devices: {Devices}", deviceId, string.Join(", ", knownDevices));
+                _logger.LogDebug("Device {DeviceId} not found. Known devices: {Devices}", deviceId, string.Join(", ", knownDevices));
                 return Ok(new
                 {
                     success = false,
-                    message = $"Device {deviceId} not found in Home Assistant. Known devices: {string.Join(", ", knownDevices)}",
+                    message = $"Device {deviceId} not found. Known devices: {string.Join(", ", knownDevices)}",
                     deviceId = deviceId,
                     knownDevices = knownDevices.ToList(),
                     timestamp = DateTime.Now
@@ -371,7 +384,7 @@ public class RealtimeController : ControllerBase
             return Ok(new
             {
                 success = true,
-                source = "HomeAssistant",
+                source = "LightEarthCloud",
                 deviceData = new
                 {
                     deviceId = deviceData.DeviceId,
@@ -442,7 +455,7 @@ public class RealtimeController : ControllerBase
     }
 
     /// <summary>
-    /// Get list of all known devices in Home Assistant
+    /// Get list of all known devices
     /// </summary>
     [HttpGet("devices")]
     public async Task<IActionResult> GetKnownDevices()
@@ -452,7 +465,7 @@ public class RealtimeController : ControllerBase
             return Ok(new
             {
                 success = false,
-                message = "Home Assistant client not configured",
+                message = "Cloud client not configured",
                 timestamp = DateTime.Now
             });
         }
@@ -500,7 +513,7 @@ public class RealtimeController : ControllerBase
     }
 
     /// <summary>
-    /// Get SOC history timeline for a specific device from Home Assistant
+    /// Get SOC history timeline for a specific device
     /// Returns timeline data suitable for charts
     /// </summary>
     /// <param name="deviceId">The device ID (e.g., P250801055)</param>
@@ -515,7 +528,7 @@ public class RealtimeController : ControllerBase
             return Ok(new
             {
                 success = false,
-                message = "Home Assistant client not configured",
+                message = "Cloud client not configured",
                 deviceId = deviceId,
                 timestamp = DateTime.Now
             });
@@ -523,16 +536,16 @@ public class RealtimeController : ControllerBase
 
         try
         {
-            // Check if device exists in Home Assistant
+            // Check if device exists in Cloud system
             var deviceExists = await _multiDeviceHaClient.DeviceExistsAsync(deviceId);
             
             if (!deviceExists)
             {
-                _logger.LogWarning("Device {DeviceId} not found in Home Assistant", deviceId);
+                _logger.LogDebug("Device {DeviceId} not found", deviceId);
                 return Ok(new
                 {
                     success = false,
-                    message = $"Device {deviceId} not found in Home Assistant",
+                    message = $"Device {deviceId} not found",
                     deviceId = deviceId,
                     timestamp = DateTime.Now
                 });
@@ -606,7 +619,7 @@ public class RealtimeController : ControllerBase
     }
 
     /// <summary>
-    /// Get power history timeline for a specific device from Home Assistant
+    /// Get power history timeline for a specific device
     /// Returns PV, Battery, Grid, Load power values over time for energy charts
     /// </summary>
     /// <param name="deviceId">The device ID (e.g., P250801055)</param>
@@ -690,7 +703,7 @@ public class RealtimeController : ControllerBase
     }
 
     /// <summary>
-    /// Get daily energy summary for a device from Home Assistant
+    /// Get daily energy summary for a device
     /// Returns today's energy values: PV, charge, discharge, grid, load, essential
     /// </summary>
     /// <param name="deviceId">The device ID (e.g., P250801055)</param>
@@ -704,7 +717,7 @@ public class RealtimeController : ControllerBase
             return Ok(new
             {
                 success = false,
-                message = "Home Assistant client not configured",
+                message = "Cloud client not configured",
                 deviceId = deviceId,
                 timestamp = DateTime.Now
             });
@@ -719,7 +732,7 @@ public class RealtimeController : ControllerBase
                 return Ok(new
                 {
                     success = false,
-                    message = $"Device {deviceId} not found in Home Assistant",
+                    message = $"Device {deviceId} not found",
                     deviceId = deviceId,
                     timestamp = DateTime.Now
                 });
@@ -744,7 +757,7 @@ public class RealtimeController : ControllerBase
                 success = true,
                 deviceId = deviceId.ToUpper(),
                 date = DateTime.Today.ToString("yyyy-MM-dd"),
-                dataSource = "HomeAssistant",
+                dataSource = "LightEarthCloud",
                 summary = dailyEnergy,
                 timestamp = DateTime.Now
             });
@@ -776,7 +789,7 @@ public class RealtimeController : ControllerBase
             message = "Power history collector statistics",
             deviceStats = stats,
             totalPoints = stats.Values.Sum(),
-            note = "Data is collected every 5 minutes for all devices in Home Assistant",
+            note = "Data is collected every 5 minutes for all devices",
             timestamp = DateTime.Now
         });
     }
@@ -806,7 +819,7 @@ public class RealtimeController : ControllerBase
     public IActionResult GetConfig()
     {
         var mqttConfig = _configuration.GetSection("Mqtt");
-        var haConfig = _configuration.GetSection("HomeAssistant");
+        var haConfig = _configuration.GetSection("HomeAssistant"); // Keep internal config name
         var dsConfig = _configuration.GetSection("DataSource");
 
         return Ok(new
@@ -818,11 +831,10 @@ public class RealtimeController : ControllerBase
                 username = mqttConfig["Username"],
                 // Don't expose password
             },
-            homeAssistant = new
+            cloud = new
             {
                 enabled = haConfig["Enabled"],
-                url = haConfig["Url"],
-                hasToken = !string.IsNullOrEmpty(haConfig["Token"]) && haConfig["Token"] != "YOUR_LONG_LIVED_ACCESS_TOKEN_HERE"
+                configured = !string.IsNullOrEmpty(haConfig["Token"]) && haConfig["Token"] != "YOUR_LONG_LIVED_ACCESS_TOKEN_HERE"
             },
             dataSource = new
             {

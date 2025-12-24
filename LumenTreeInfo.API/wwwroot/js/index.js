@@ -13,7 +13,7 @@
  */
 
 // Global constants - defined outside DOMContentLoaded to avoid TDZ issues
-// SOC History API (Railway - Home Assistant data)
+// SOC History API (Railway - LightEarth Cloud data)
 const SOC_API_PRIMARY = window.location.origin + '/api/realtime/soc-history';
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // API Configuration - Local Railway API only (simplified)
     const API_SOURCES = {
         local: {
-            name: 'Local API (Home Assistant)',
+            name: 'Local API (LightEarth Cloud)',
             realtime: `${currentOrigin}/api/realtime/all`,
             isLocal: true
         }
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function () {
         month: (deviceId) => `${getCurrentProxy()}/api/month/${deviceId}`,
         year: (deviceId) => `${getCurrentProxy()}/api/year/${deviceId}`,
         historyYear: (deviceId) => `${getCurrentProxy()}/api/history-year/${deviceId}`,
-        // Home Assistant endpoints for chart data
+        // LightEarth Cloud endpoints for chart data
         haPowerHistory: (deviceId, date) => `${getCurrentProxy()}/api/ha/power-history/${deviceId}/${date}`,
         haSocHistory: (deviceId, date) => `${getCurrentProxy()}/api/ha/soc-history/${deviceId}/${date}`,
         haStates: (deviceId) => `${getCurrentProxy()}/api/ha/states/${deviceId}`,
@@ -271,7 +271,7 @@ document.addEventListener('DOMContentLoaded', function () {
         timestamp: 0
     };
     
-    // Default to Local API with Home Assistant
+    // Default to Local API with LightEarth Cloud
     let currentApiSource = 'local';
     
     function getRealtimeApiUrl(deviceId) {
@@ -640,14 +640,14 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await response.json();
             if (data.error) return;
             
-            // Check if device not found in Home Assistant
+            // Check if device not found in LightEarth Cloud
             if (data.success === false) {
                 console.warn(`⚠️ Device ${deviceId} not found:`, data.message);
                 // Show error message to user
                 updateRealTimeDisplay({
                     noRealtimeData: true,
                     deviceNotFound: true,
-                    errorMessage: data.message || `Device ${deviceId} not found in Home Assistant`
+                    errorMessage: data.message || `Device ${deviceId} not found in LightEarth Cloud`
                 });
                 return;
             }
@@ -841,7 +841,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (hasCachedChart) {
             console.log('📦 Using cached chart data for instant display');
             // Apply cached data based on source type
-            if (lightearthCache.data.dataSource === 'HomeAssistant') {
+            if (lightearthCache.data.dataSource === 'LightEarthCloud') {
                 updateChartFromHAData(lightearthCache.data);
             } else {
                 updateSummaryFromLightearthData(lightearthCache.data);
@@ -932,7 +932,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Fetch day data in background (for summary stats: Năng lượng - Pin Lưu Trữ - Nguồn Điện)
     // PRIORITY ORDER:
-    // 1. Railway API (Home Assistant data) - always try first for all devices
+    // 1. Railway API (LightEarth Cloud data) - always try first for all devices
     // 2. Lightearth API (lesvr.suntcn.com via Cloudflare Worker) - for chart data
     async function fetchDayDataInBackground(deviceId, date) {
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
@@ -956,7 +956,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         if (!railwayDataLoaded) {
             try {
-                console.log("📡 [Priority 1] Trying Railway API (Home Assistant)...");
+                console.log("📡 [Priority 1] Trying Railway API (LightEarth Cloud)...");
                 const haEnergyUrl = `${currentOrigin}/api/realtime/daily-energy/${deviceId}`;
                 const haResponse = await fetch(haEnergyUrl);
                 
@@ -990,7 +990,7 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log("📦 [Priority 1] Using cached summary data, skipping Railway API");
         }
         
-        // STEP 2: Try Home Assistant Power History API for chart data (via Cloudflare Worker)
+        // STEP 2: Try LightEarth Cloud Power History API for chart data (via Cloudflare Worker)
         let chartDataLoaded = false;
         
         // Check cache first
@@ -1003,7 +1003,7 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log(`📦 Using cached chart data (age: ${cacheAge}s)`);
             
             // Check if cached data is from HA or Lightearth
-            if (lightearthCache.data.dataSource === 'HomeAssistant') {
+            if (lightearthCache.data.dataSource === 'LightEarthCloud') {
                 updateChartFromHAData(lightearthCache.data);
             } else {
                 updateSummaryFromLightearthData(lightearthCache.data);
@@ -1013,7 +1013,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // Try HA Power History API first (via Cloudflare Worker with proxy fallback)
         try {
-            console.log("📊 [Priority 2] Fetching chart data from Home Assistant API (via Worker)...");
+            console.log("📊 [Priority 2] Fetching chart data from LightEarth Cloud API (via Worker)...");
             
             // Use fetchWithProxyFallback to automatically try fallback proxy if primary fails
             const haResponse = await fetchWithProxyFallback(
@@ -1028,7 +1028,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 // Cache the HA data
                 lightearthCache = {
-                    data: { ...haChartData, dataSource: 'HomeAssistant' },
+                    data: { ...haChartData, dataSource: 'LightEarthCloud' },
                     deviceId: deviceId,
                     date: queryDate,
                     timestamp: now
@@ -1216,7 +1216,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
     
-    // Update chart from Home Assistant Power History data (via Cloudflare Worker)
+    // Update chart from LightEarth Cloud Power History data (via Cloudflare Worker)
     // NEW Timeline format v2.3: [{time: "HH:mm", pv: 0, battery: 0, grid: 0, load: 0}, ...]
     // Worker now returns local Vietnam time strings (not ISO)
     function updateChartFromHAData(haData) {
@@ -1323,7 +1323,7 @@ document.addEventListener('DOMContentLoaded', function () {
             essentialLoad: { tableValueInfo: new Array(288).fill(null) }
         };
         
-        console.log("📊 Updating combined energy chart with Home Assistant data");
+        console.log("📊 Updating combined energy chart with LightEarth Cloud data");
         updateCharts(chartData);
         
         // Update peak stats from HA data
@@ -1340,7 +1340,7 @@ document.addEventListener('DOMContentLoaded', function () {
         updateEnergyChartPeakStatsFromHA(filteredTimeline);
     }
     
-    // Update peak stats from Home Assistant Power History
+    // Update peak stats from LightEarth Cloud Power History
     // v2.3: time is now "HH:mm" string format (or legacy ISO)
     function updateEnergyChartPeakStatsFromHA(timeline) {
         if (!timeline || timeline.length === 0) return;
@@ -1411,7 +1411,7 @@ document.addEventListener('DOMContentLoaded', function () {
         updateEl('chart-grid-peak', maxGrid > 0 ? `${Math.round(maxGrid)} W` : '--');
         updateEl('chart-grid-time', maxGridTime);
         
-        console.log("📊 Peak stats updated from Home Assistant:", { 
+        console.log("📊 Peak stats updated from LightEarth Cloud:", { 
             pv: `${maxPv}W @ ${maxPvTime}`,
             charge: `${maxCharge}W @ ${maxChargeTime}`,
             discharge: `${maxDischarge}W @ ${maxDischargeTime}`,
@@ -1489,7 +1489,7 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log("📊 Day data loaded - Realtime display will show empty until MQTT data arrives");
     }
     
-    // Fetch Temperature Min/Max for the day from Home Assistant via Cloudflare Worker
+    // Fetch Temperature Min/Max for the day from LightEarth Cloud via Cloudflare Worker
     async function fetchTemperatureMinMax(deviceId, date) {
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
         
@@ -1645,7 +1645,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // ========================================
     // SOC CHART V5 - Clean Implementation
-    // API: Railway SOC History (Home Assistant data)
+    // API: Railway SOC History (LightEarth Cloud data)
     // ========================================
     
     // SOC Chart variables
@@ -1653,7 +1653,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let socData = [];
     let socAutoReloadInterval = null;
     
-    // Fetch SOC data from Railway API (Home Assistant data only)
+    // Fetch SOC data from Railway API (LightEarth Cloud data only)
     async function fetchSOCData() {
         // Get deviceId from input or URL parameter
         const deviceId = document.getElementById('deviceId')?.value?.trim() || urlParams.get('deviceId');
@@ -1666,7 +1666,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const dateInput = document.getElementById('dateInput')?.value;
         const date = dateInput || new Date().toISOString().split('T')[0];
         
-        // Railway SOC History API (Home Assistant data)
+        // Railway SOC History API (LightEarth Cloud data)
         const railwayUrl = `${SOC_API_PRIMARY}/${deviceId}?date=${date}`;
         
         let data = null;
@@ -1691,7 +1691,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (data && data.timeline && Array.isArray(data.timeline) && data.timeline.length > 0) {
             socData = data.timeline;
             renderSOCChart();
-            updateSOCLastTime('Home Assistant');
+            updateSOCLastTime('LightEarth Cloud');
             startSOCAutoReload();
             console.log(`✅ [SOC] Chart rendered with ${socData.length} points`);
         } else {
@@ -2053,7 +2053,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ========================================
     
     function updateRealTimeDisplay(data) {
-        // Check if device not found in Home Assistant
+        // Check if device not found in LightEarth Cloud
         if (data.deviceNotFound) {
             updateValue('pv-power', 'N/A');
             updateValueHTML('pv-desc', `<span class="text-red-400 text-xs">Thiết bị chưa được thêm vào, vui lòng liên hệ trong nhóm Zalo</span>`);

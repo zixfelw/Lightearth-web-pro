@@ -311,7 +311,7 @@ public class TelegramBotCommandService : BackgroundService
             return;
         }
         
-        // Check if device exists in Home Assistant
+        // Check if device exists in Cloud system
         bool deviceExists = false;
         using (var scope = _serviceProvider.CreateScope())
         {
