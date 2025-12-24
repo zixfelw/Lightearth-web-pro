@@ -757,7 +757,8 @@ public class MultiDeviceHomeAssistantClient : IDisposable
             
             // Wait for auth_required
             var authRequired = await ReceiveMessageAsync(ws, cts.Token);
-            if (authRequired == null || !authRequired.TryGetProperty("type", out var typeElement) || 
+            if (!authRequired.HasValue || 
+                !authRequired.Value.TryGetProperty("type", out var typeElement) || 
                 typeElement.GetString() != "auth_required")
             {
                 Log.Warning("WebSocket: Expected auth_required message");
@@ -770,7 +771,8 @@ public class MultiDeviceHomeAssistantClient : IDisposable
 
             // Wait for auth_ok
             var authResult = await ReceiveMessageAsync(ws, cts.Token);
-            if (authResult == null || !authResult.TryGetProperty("type", out typeElement) || 
+            if (!authResult.HasValue || 
+                !authResult.Value.TryGetProperty("type", out typeElement) || 
                 typeElement.GetString() != "auth_ok")
             {
                 Log.Warning("WebSocket: Authentication failed");
@@ -796,15 +798,16 @@ public class MultiDeviceHomeAssistantClient : IDisposable
 
             // Wait for result
             var result = await ReceiveMessageAsync(ws, cts.Token);
-            if (result == null)
+            if (!result.HasValue)
             {
                 Log.Warning("WebSocket: No response for statistics request");
                 return null;
             }
 
-            if (!result.TryGetProperty("success", out var successElement) || !successElement.GetBoolean())
+            var resultValue = result.Value;
+            if (!resultValue.TryGetProperty("success", out var successElement) || !successElement.GetBoolean())
             {
-                if (result.TryGetProperty("error", out var errorElement))
+                if (resultValue.TryGetProperty("error", out var errorElement))
                 {
                     Log.Warning($"WebSocket: Statistics request failed: {errorElement}");
                 }
@@ -814,7 +817,7 @@ public class MultiDeviceHomeAssistantClient : IDisposable
             // Parse result
             var statistics = new Dictionary<string, List<LongTermStatisticsPoint>>();
             
-            if (result.TryGetProperty("result", out var resultElement) && resultElement.ValueKind == JsonValueKind.Object)
+            if (resultValue.TryGetProperty("result", out var resultElement) && resultElement.ValueKind == JsonValueKind.Object)
             {
                 foreach (var prop in resultElement.EnumerateObject())
                 {
