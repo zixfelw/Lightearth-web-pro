@@ -154,8 +154,8 @@ public class TelegramNotificationService : BackgroundService
         // because GridPower can be 0W when solar is powering everything
         bool isPowerOutage = acInputVoltage < 100; // No grid voltage means outage
         
-        _logger.LogDebug("Device {DeviceId}: AcInputVoltage={Voltage}V, GridPower={Power}W, IsOutage={IsOutage}", 
-            deviceId, acInputVoltage, gridPower, isPowerOutage);
+        _logger.LogDebug("Device {DeviceId}: AcInputVoltage={Voltage}V, GridPower={Power}W, CurrentOutageState={OutageState}, IsPowerOutage={IsOutage}", 
+            deviceId, acInputVoltage, gridPower, state.IsOutage, isPowerOutage);
         
         if (isPowerOutage && !state.IsOutage)
         {
@@ -168,20 +168,41 @@ public class TelegramNotificationService : BackgroundService
             {
                 state.LastNotificationTime = now;
                 SaveDeviceStatesToFile(); // Persist state change
+                _logger.LogInformation("Power outage detected for device {DeviceId}, sending notification", deviceId);
                 await SendPowerOutageNotificationAsync(deviceId, data, isOutage: true);
+            }
+            else
+            {
+                SaveDeviceStatesToFile(); // Still save state even if in cooldown
+                _logger.LogInformation("Power outage detected for device {DeviceId}, but in cooldown period", deviceId);
             }
         }
         else if (!isPowerOutage && state.IsOutage)
         {
-            // Power restored
-            var outageDuration = now - state.OutageStartTime;
-            state.IsOutage = false;
-            SaveDeviceStatesToFile(); // Persist state change
-            
-            // Only notify restoration if outage lasted more than 1 minute
-            if (outageDuration > TimeSpan.FromMinutes(1))
+            // Power restored - check if AC voltage is stable (>= 180V to avoid flicker)
+            if (acInputVoltage >= 180)
             {
-                await SendPowerOutageNotificationAsync(deviceId, data, isOutage: false, outageDuration);
+                var outageDuration = now - state.OutageStartTime;
+                state.IsOutage = false;
+                SaveDeviceStatesToFile(); // Persist state change
+                
+                _logger.LogInformation("Power restored for device {DeviceId} after {Duration}, AcInputVoltage={Voltage}V", 
+                    deviceId, outageDuration, acInputVoltage);
+                
+                // Notify restoration if outage lasted more than 1 minute
+                if (outageDuration > TimeSpan.FromMinutes(1))
+                {
+                    await SendPowerOutageNotificationAsync(deviceId, data, isOutage: false, outageDuration);
+                }
+                else
+                {
+                    _logger.LogDebug("Power restored for device {DeviceId} but outage was less than 1 minute, skipping notification", deviceId);
+                }
+            }
+            else
+            {
+                _logger.LogDebug("Device {DeviceId}: AC voltage {Voltage}V not stable enough for restoration (need >= 180V)", 
+                    deviceId, acInputVoltage);
             }
         }
     }
@@ -422,11 +443,16 @@ public class TelegramNotificationService : BackgroundService
     /// </summary>
     private async Task SendNotificationWithPrefsAsync(string deviceId, string message, NotificationType notifType)
     {
+        _logger.LogInformation("SendNotificationWithPrefsAsync called: Device={DeviceId}, Type={NotifType}", deviceId, notifType);
+        
         var deviceSettings = TelegramBotCommandService.GetDeviceNotificationSettings(deviceId);
+        
+        _logger.LogInformation("Device {DeviceId} has {Count} users monitoring", deviceId, deviceSettings.Count);
         
         if (deviceSettings.Count == 0)
         {
             // Fallback: send to default chat ID if no device settings found
+            _logger.LogInformation("No device settings found for {DeviceId}, using fallback", deviceId);
             await SendTelegramMessageAsync(message);
             return;
         }
@@ -442,6 +468,8 @@ public class TelegramNotificationService : BackgroundService
                 NotificationType.PVEnded => prefs.PVEnded,
                 _ => true
             };
+            
+            _logger.LogDebug("Chat {ChatId} prefs for {NotifType}: shouldSend={ShouldSend}", chatId, notifType, shouldSend);
             
             if (shouldSend)
             {
