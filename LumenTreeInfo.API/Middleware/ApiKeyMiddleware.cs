@@ -27,30 +27,31 @@ public class ApiKeyMiddleware
         "/api/cloud/device/"
     };
     
-    // Paths that are always public (for web app functionality)
+    // Paths that are always public (minimal - only SignalR hub)
     private static readonly string[] PublicPaths = new[]
     {
-        "/api/realtime/device/",      // Device data for specific device (needed by web app)
-        "/api/realtime/daily-energy/", // Daily energy (needed by web app)
-        "/api/proxy/",                 // Proxy endpoints
-        "/api/soc/",                   // SOC data
-        "/api/pv/",                    // PV data
-        "/api/bat/",                   // Battery data
-        "/api/month/",                 // Monthly data
-        "/api/year/",                  // Yearly data
-        "/deviceHub"                   // SignalR hub
+        "/api/proxy/",                 // Proxy endpoints (for Cloudflare Worker)
+        "/deviceHub"                   // SignalR hub (required for real-time)
     };
     
-    // Semi-protected paths - require same-origin OR API key (block direct browser access)
+    // Semi-protected paths - require same-origin OR API key (block direct browser URL access)
+    // Web app AJAX requests will work, direct URL access will be blocked
     private static readonly string[] SameOriginPaths = new[]
     {
-        "/api/realtime/soc-history/",  // SOC history (only from web app)
-        "/api/realtime/power-history/", // Power history (only from web app)
+        "/api/realtime/device/",       // Device data - block direct URL access
+        "/api/realtime/daily-energy/", // Daily energy - block direct URL access
+        "/api/realtime/soc-history/",  // SOC history - block direct URL access
+        "/api/realtime/power-history/", // Power history - block direct URL access
         "/api/cloud/power-history/",   // Cloud power history
         "/api/cloud/soc-history/",     // Cloud SOC history
         "/api/cloud/temperature/",     // Cloud temperature
         "/api/cloud/states/",          // Cloud states
-        "/api/cloud/device-info/"      // Cloud device info
+        "/api/cloud/device-info/",     // Cloud device info
+        "/api/soc/",                   // SOC data
+        "/api/pv/",                    // PV data
+        "/api/bat/",                   // Battery data
+        "/api/month/",                 // Monthly data
+        "/api/year/"                   // Yearly data
     };
 
     public ApiKeyMiddleware(RequestDelegate next, ILogger<ApiKeyMiddleware> logger, IConfiguration configuration)
