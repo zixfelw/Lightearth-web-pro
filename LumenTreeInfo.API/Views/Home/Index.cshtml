@@ -9,7 +9,7 @@
     <title>Giám Sát Năng Lượng Mặt Trời - LightEarth Web Pro</title>
     
     <!-- Preload critical resources -->
-    <link rel="preload" href="/css/index.css?v=20017" as="style">
+    <link rel="preload" href="/css/index.css?v=20018" as="style">
     <link rel="preload" href="/logo.png" as="image">
     
     <!-- Tailwind CSS with custom config -->
@@ -508,8 +508,8 @@
         <div id="solarForecastSection" class="mb-4">
             <div class="flex items-center justify-between mb-2">
                 <div class="flex items-center gap-2">
-                    <span class="text-lg">☀️</span>
-                    <span class="text-xs font-semibold text-slate-700 dark:text-slate-300">Dự báo bức xạ mặt trời</span>
+                    <span class="text-xl sm:text-2xl">☀️</span>
+                    <span class="text-sm sm:text-base font-bold text-slate-700 dark:text-slate-300">Dự báo bức xạ mặt trời</span>
                 </div>
                 <div class="flex items-center gap-1.5">
                     <!-- City Selector Dropdown -->
@@ -601,53 +601,53 @@
                 </div>
             </div>
             
-            <!-- Current Solar Info - Enhanced -->
-            <div class="mb-2 p-2 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+            <!-- Current Solar Info - Enhanced with BIGGER TEXT -->
+            <div class="mb-3 p-3 sm:p-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl border-2 border-amber-200 dark:border-amber-700">
                 <!-- Row 1: Main solar info -->
-                <div class="flex items-center gap-2 flex-wrap">
+                <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl sm:text-2xl" id="solar-current-icon">☀️</span>
+                        <span class="text-sm sm:text-base text-slate-600 dark:text-slate-400 font-medium">Hiện tại:</span>
+                        <span class="text-lg sm:text-xl font-black text-amber-600 dark:text-amber-400" id="solar-current-value">-- W/m²</span>
+                    </div>
+                    <span class="text-slate-300 dark:text-slate-600 text-lg">|</span>
                     <div class="flex items-center gap-1.5">
-                        <span class="text-sm" id="solar-current-icon">☀️</span>
-                        <span class="text-xs text-slate-600 dark:text-slate-400">Hiện tại:</span>
-                        <span class="text-sm font-bold text-amber-600 dark:text-amber-400" id="solar-current-value">-- W/m²</span>
+                        <span class="w-3 h-3 rounded-full" id="solar-level-dot"></span>
+                        <span class="text-sm sm:text-base font-semibold" id="solar-level-text">--</span>
                     </div>
-                    <span class="text-slate-300 dark:text-slate-600">|</span>
-                    <div class="flex items-center gap-1">
-                        <span class="w-2 h-2 rounded-full" id="solar-level-dot"></span>
-                        <span class="text-xs font-medium" id="solar-level-text">--</span>
+                    <span class="text-slate-300 dark:text-slate-600 text-lg">|</span>
+                    <div class="flex items-center gap-1.5">
+                        <span class="text-base sm:text-lg text-slate-500 dark:text-slate-400">🌡️</span>
+                        <span class="text-sm sm:text-base font-semibold text-slate-600 dark:text-slate-300" id="solar-temp">--°C</span>
                     </div>
-                    <span class="text-slate-300 dark:text-slate-600">|</span>
-                    <div class="flex items-center gap-1">
-                        <span class="text-xs text-slate-500 dark:text-slate-400">🌡️</span>
-                        <span class="text-xs font-medium text-slate-600 dark:text-slate-300" id="solar-temp">--°C</span>
-                    </div>
-                    <div class="ml-auto flex items-center gap-1">
-                        <span class="text-xs text-slate-500 dark:text-slate-400">☁️</span>
-                        <span class="text-[10px] text-slate-500 dark:text-slate-400">Mây:</span>
-                        <span class="text-xs font-medium text-slate-600 dark:text-slate-300" id="solar-cloud">--%</span>
+                    <div class="ml-auto flex items-center gap-1.5">
+                        <span class="text-base sm:text-lg text-slate-500 dark:text-slate-400">☁️</span>
+                        <span class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Mây:</span>
+                        <span class="text-sm sm:text-base font-semibold text-slate-600 dark:text-slate-300" id="solar-cloud">--%</span>
                     </div>
                 </div>
                 <!-- Row 2: UV Index, Sunshine Duration, Precipitation -->
-                <div class="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-amber-200/50 dark:border-amber-700/50 flex-wrap">
+                <div class="flex items-center gap-2 sm:gap-3 mt-2 pt-2 border-t border-amber-200/50 dark:border-amber-700/50 flex-wrap">
                     <!-- UV Index -->
-                    <div class="flex items-center gap-1" title="Chỉ số UV - Mức độ tia cực tím">
-                        <span class="text-xs">🔆</span>
-                        <span class="text-[10px] text-slate-500 dark:text-slate-400">UV:</span>
-                        <span class="text-xs font-semibold" id="solar-uv-value">--</span>
-                        <span class="text-[9px] px-1 py-0.5 rounded" id="solar-uv-badge">--</span>
+                    <div class="flex items-center gap-1.5" title="Chỉ số UV - Mức độ tia cực tím">
+                        <span class="text-base sm:text-lg">🔆</span>
+                        <span class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">UV:</span>
+                        <span class="text-sm sm:text-base font-bold" id="solar-uv-value">--</span>
+                        <span class="text-[10px] sm:text-xs px-1.5 py-0.5 rounded font-semibold" id="solar-uv-badge">--</span>
                     </div>
-                    <span class="text-slate-300 dark:text-slate-600">|</span>
+                    <span class="text-slate-300 dark:text-slate-600 text-lg">|</span>
                     <!-- Sunshine Duration (Forecast for today) -->
-                    <div class="flex items-center gap-1" title="Dự báo tổng thời gian nắng hôm nay">
-                        <span class="text-xs">⏱️</span>
-                        <span class="text-[10px] text-slate-500 dark:text-slate-400">Nắng (dự báo):</span>
-                        <span class="text-xs font-semibold text-orange-600 dark:text-orange-400" id="solar-sunshine-duration">--h</span>
+                    <div class="flex items-center gap-1.5" title="Dự báo tổng thời gian nắng hôm nay">
+                        <span class="text-base sm:text-lg">⏱️</span>
+                        <span class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Nắng:</span>
+                        <span class="text-sm sm:text-base font-bold text-orange-600 dark:text-orange-400" id="solar-sunshine-duration">--h</span>
                     </div>
-                    <span class="text-slate-300 dark:text-slate-600">|</span>
+                    <span class="text-slate-300 dark:text-slate-600 text-lg">|</span>
                     <!-- Precipitation Probability -->
-                    <div class="flex items-center gap-1" title="Xác suất mưa hiện tại">
-                        <span class="text-xs">🌧️</span>
-                        <span class="text-[10px] text-slate-500 dark:text-slate-400">Mưa:</span>
-                        <span class="text-xs font-semibold" id="solar-rain-prob">--%</span>
+                    <div class="flex items-center gap-1.5" title="Xác suất mưa hiện tại">
+                        <span class="text-base sm:text-lg">🌧️</span>
+                        <span class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Mưa:</span>
+                        <span class="text-sm sm:text-base font-bold" id="solar-rain-prob">--%</span>
                     </div>
                 </div>
             </div>
@@ -1368,12 +1368,12 @@
     
     
     <!-- CSS first for fast rendering -->
-    <link href="/css/index.css?v=20017" rel="stylesheet" />
+    <link href="/css/index.css?v=20018" rel="stylesheet" />
     
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13146" defer></script>
+    <script src="/js/index.js?v=13147" defer></script>
 
 </body>
 </html>

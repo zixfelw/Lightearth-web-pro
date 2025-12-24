@@ -1828,12 +1828,67 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 /* Solar hour item */
 .solar-hour-item {
     flex-shrink: 0;
-    width: 52px;
-    padding: 8px 4px;
-    border-radius: 10px;
+    width: 60px;
+    padding: 10px 6px;
+    border-radius: 12px;
     text-align: center;
     transition: all 0.2s ease;
-    border: 1px solid transparent;
+    border: 2px solid transparent;
+}
+
+@media (min-width: 640px) {
+    .solar-hour-item {
+        width: 68px;
+        padding: 12px 8px;
+    }
+}
+
+/* Solar hour item time text */
+.solar-hour-item .solar-time {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+@media (min-width: 640px) {
+    .solar-hour-item .solar-time {
+        font-size: 13px;
+    }
+}
+
+/* Solar hour item icon */
+.solar-hour-item .solar-icon {
+    font-size: 20px;
+    margin: 4px 0;
+}
+
+@media (min-width: 640px) {
+    .solar-hour-item .solar-icon {
+        font-size: 24px;
+        margin: 6px 0;
+    }
+}
+
+/* Solar hour item radiation value */
+.solar-hour-item .solar-value {
+    font-size: 13px;
+    font-weight: 800;
+}
+
+@media (min-width: 640px) {
+    .solar-hour-item .solar-value {
+        font-size: 15px;
+    }
+}
+
+/* Solar hour rain probability */
+.solar-hour-item .solar-rain {
+    font-size: 10px;
+}
+
+@media (min-width: 640px) {
+    .solar-hour-item .solar-rain {
+        font-size: 11px;
+    }
 }
 
 .solar-hour-item:hover {
