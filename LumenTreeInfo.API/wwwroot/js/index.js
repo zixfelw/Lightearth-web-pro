@@ -3782,13 +3782,9 @@ document.addEventListener('DOMContentLoaded', function () {
             item.className = `solar-hour-item ${level.bg} ${isCurrentHour ? 'current' : ''}`;
             item.title = tooltip;
             item.innerHTML = `
-                <div class="solar-time ${level.level === 'none' ? 'text-slate-400' : 'text-white/90'}">
-                    ${isNextDay ? '<span class="solar-next-day">+1</span>' : ''}${hourStr}
-                </div>
+                <div class="solar-time ${level.level === 'none' ? 'text-slate-400' : 'text-white/90'}">${hourStr}</div>
                 <div class="solar-icon">${icon}</div>
-                <div class="solar-value ${level.level === 'none' ? 'text-slate-500' : 'text-white'}">
-                    ${Math.round(rad)}
-                </div>
+                <div class="solar-value ${level.level === 'none' ? 'text-slate-500' : 'text-white'}">${Math.round(rad)}</div>
                 ${rain > 30 ? `<div class="solar-rain text-white/90">🌧️${Math.round(rain)}%</div>` : ''}
             `;
             

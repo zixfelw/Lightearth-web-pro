@@ -1856,21 +1856,6 @@ body:has(#mainHeader.header-hidden) #compactSearch {
     }
 }
 
-/* Solar next day indicator (+1) */
-.solar-hour-item .solar-next-day {
-    font-size: 9px;
-    font-weight: 700;
-    color: white;
-    opacity: 0.9;
-    margin-right: 2px;
-}
-
-@media (min-width: 640px) {
-    .solar-hour-item .solar-next-day {
-        font-size: 10px;
-    }
-}
-
 /* Solar hour item icon */
 .solar-hour-item .solar-icon {
     font-size: 18px;
