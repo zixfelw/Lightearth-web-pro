@@ -745,6 +745,34 @@ public class TelegramBotCommandService : BackgroundService
     }
     
     /// <summary>
+    /// Get all monitored devices with full details (for admin)
+    /// </summary>
+    public static IReadOnlyCollection<object> GetAllMonitoredDevicesDetail()
+    {
+        var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        
+        return _monitoredDevices.Values
+            .Select(d => new 
+            {
+                deviceId = d.DeviceId,
+                chatId = d.ChatId,
+                addedBy = d.AddedBy,
+                addedAt = TimeZoneInfo.ConvertTimeFromUtc(d.AddedAt, vietnamTz).ToString("yyyy-MM-dd HH:mm:ss"),
+                existsInHA = d.ExistsInHA,
+                notifications = new 
+                {
+                    powerOutage = (d.Notifications ?? new NotificationPreferences()).PowerOutage,
+                    powerRestored = (d.Notifications ?? new NotificationPreferences()).PowerRestored,
+                    lowBattery = (d.Notifications ?? new NotificationPreferences()).LowBattery,
+                    pvEnded = (d.Notifications ?? new NotificationPreferences()).PVEnded
+                }
+            })
+            .Cast<object>()
+            .ToList()
+            .AsReadOnly();
+    }
+    
+    /// <summary>
     /// Show notification settings for user's devices
     /// </summary>
     private async Task ShowNotificationSettingsAsync(long chatId, string[] args)

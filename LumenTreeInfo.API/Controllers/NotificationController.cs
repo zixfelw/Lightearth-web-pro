@@ -54,18 +54,28 @@ public class NotificationController : ControllerBase
         var monitoredDevices = TelegramBotCommandService.GetMonitoredDevices();
         var totalMonitoredCount = TelegramBotCommandService.GetMonitoredDevicesCount();
         
-        // Get device details per user
-        var userDeviceMap = new Dictionary<long, List<string>>();
+        // Get device details per user with notification settings
+        var userDeviceMap = new Dictionary<long, List<object>>();
         foreach (var deviceId in monitoredDevices)
         {
-            var chatIds = TelegramBotCommandService.GetDeviceChatIds(deviceId);
-            foreach (var chatId in chatIds)
+            var deviceSettings = TelegramBotCommandService.GetDeviceNotificationSettings(deviceId);
+            foreach (var (chatId, prefs) in deviceSettings)
             {
                 if (!userDeviceMap.ContainsKey(chatId))
                 {
-                    userDeviceMap[chatId] = new List<string>();
+                    userDeviceMap[chatId] = new List<object>();
                 }
-                userDeviceMap[chatId].Add(deviceId);
+                userDeviceMap[chatId].Add(new 
+                {
+                    deviceId,
+                    notifications = new 
+                    {
+                        powerOutage = prefs.PowerOutage,
+                        powerRestored = prefs.PowerRestored,
+                        lowBattery = prefs.LowBattery,
+                        pvEnded = prefs.PVEnded
+                    }
+                });
             }
         }
         
@@ -83,6 +93,23 @@ public class NotificationController : ControllerBase
                     devices = kv.Value
                 }).ToList()
             },
+            timestamp = DateTime.UtcNow
+        });
+    }
+    
+    /// <summary>
+    /// Get detailed info about all monitored devices - ADMIN ONLY
+    /// </summary>
+    [HttpGet("devices/detail")]
+    public IActionResult GetDeviceDetails()
+    {
+        var details = TelegramBotCommandService.GetAllMonitoredDevicesDetail();
+        
+        return Ok(new
+        {
+            success = true,
+            totalDevices = details.Count,
+            devices = details,
             timestamp = DateTime.UtcNow
         });
     }
