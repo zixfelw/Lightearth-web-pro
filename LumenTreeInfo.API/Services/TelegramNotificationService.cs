@@ -132,6 +132,7 @@ public class TelegramNotificationService : BackgroundService
                 await CheckPowerOutageAsync(deviceId, deviceData);
                 await CheckLowBatteryAsync(deviceId, deviceData);
                 await CheckPVEndedAsync(deviceId, deviceData);
+                await CheckHourlyStatusAsync(deviceId, deviceData);
             }
             catch (Exception ex)
             {
@@ -362,6 +363,115 @@ public class TelegramNotificationService : BackgroundService
             
             await SendMorningGreetingNotificationAsync(deviceId, data);
         }
+    }
+    
+    /// <summary>
+    /// Check and send hourly status notification (every hour on the hour)
+    /// Time periods: Sáng (5-11), Trưa (11-13), Chiều (13-18), Tối (18-22)
+    /// </summary>
+    private async Task CheckHourlyStatusAsync(string deviceId, SolarInverterMonitor.DeviceData data)
+    {
+        var now = DateTime.UtcNow;
+        var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        var nowVietnam = TimeZoneInfo.ConvertTimeFromUtc(now, vietnamTz);
+        
+        var state = _deviceStates.GetOrAdd(deviceId, _ => new PowerOutageState());
+        
+        // Only send at the start of each hour (within first 2 minutes)
+        // And only between 5 AM - 10 PM (22:00)
+        var hour = nowVietnam.Hour;
+        var minute = nowVietnam.Minute;
+        
+        // Check if it's the right time (first 2 minutes of an hour, between 5-22h)
+        if (minute > 2 || hour < 5 || hour >= 22)
+        {
+            return;
+        }
+        
+        // Check if we already sent for this hour today
+        var currentHourKey = nowVietnam.ToString("yyyy-MM-dd-HH");
+        if (state.LastHourlyStatusKey == currentHourKey)
+        {
+            return; // Already sent for this hour
+        }
+        
+        // Mark as sent for this hour
+        state.LastHourlyStatusKey = currentHourKey;
+        SaveDeviceStatesToFile();
+        
+        _logger.LogInformation("Sending hourly status for device {DeviceId} at {Hour}:00", deviceId, hour);
+        
+        await SendHourlyStatusNotificationAsync(deviceId, data);
+    }
+    
+    /// <summary>
+    /// Get time period greeting based on hour
+    /// </summary>
+    private static (string emoji, string greeting, string period) GetTimePeriodGreeting(int hour)
+    {
+        return hour switch
+        {
+            >= 5 and < 11 => ("🌅", "CHÀO BUỔI SÁNG", "Sáng"),
+            >= 11 and < 13 => ("☀️", "CHÀO BUỔI TRƯA", "Trưa"),
+            >= 13 and < 18 => ("🌤️", "CHÀO BUỔI CHIỀU", "Chiều"),
+            >= 18 and < 22 => ("🌙", "CHÀO BUỔI TỐI", "Tối"),
+            _ => ("⏰", "CẬP NHẬT TRẠNG THÁI", "")
+        };
+    }
+    
+    /// <summary>
+    /// Send hourly status notification with weather forecast
+    /// </summary>
+    private async Task SendHourlyStatusNotificationAsync(string deviceId, SolarInverterMonitor.DeviceData data)
+    {
+        var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        var nowVietnam = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTz);
+        
+        var pv1Power = data.Pv1Power ?? 0;
+        var pv2Power = data.Pv2Power ?? 0;
+        var pv1Voltage = data.Pv1Voltage ?? 0;
+        var pv2Voltage = data.Pv2Voltage ?? 0;
+        var totalPvPower = data.TotalPvPower ?? 0;
+        var acInputVoltage = data.AcInputVoltage ?? 0;
+        var gridStatus = acInputVoltage >= 100 ? "🟢 Online" : "🔴 Offline";
+        var soc = data.BatteryChargePercentage ?? 0;
+        var batteryPower = data.BatteryPower ?? 0;
+        var batteryStatus = batteryPower > 0 ? "🔋 Đang xả" : (batteryPower < 0 ? "⚡ Đang sạc" : "⏸️ Chờ");
+        var homeLoad = data.HomeLoad ?? 0;
+        
+        // Get time period greeting
+        var (emoji, greeting, period) = GetTimePeriodGreeting(nowVietnam.Hour);
+        
+        // Get weather forecast based on user's location setting
+        var (weatherForecast, locationName) = await GetWeatherForecastAsync(deviceId);
+        
+        // Build status message
+        var sb = new StringBuilder();
+        sb.AppendLine($"{emoji} *{greeting}!*");
+        sb.AppendLine();
+        sb.AppendLine($"🔌 Thiết bị: `{deviceId}`");
+        sb.AppendLine($"⏰ Thời gian: {nowVietnam:HH:mm dd/MM/yyyy}");
+        sb.AppendLine();
+        sb.AppendLine("📊 *Trạng thái hiện tại:*");
+        sb.AppendLine($"• PV1: *{pv1Power}W* ({pv1Voltage}V)");
+        sb.AppendLine($"• PV2: *{pv2Power}W* ({pv2Voltage}V)");
+        sb.AppendLine($"• Tổng PV: *{totalPvPower}W*");
+        sb.AppendLine($"• Battery: *{soc}%* ({Math.Abs(batteryPower)}W) {batteryStatus}");
+        sb.AppendLine($"• AC Input: {acInputVoltage}V {gridStatus}");
+        sb.AppendLine($"• Tải tiêu thụ: *{homeLoad}W*");
+        sb.AppendLine();
+        
+        // Weather forecast section
+        if (!string.IsNullOrEmpty(weatherForecast))
+        {
+            sb.AppendLine($"🌤️ *Thời tiết - {locationName}:*");
+            sb.AppendLine(weatherForecast);
+        }
+        
+        sb.AppendLine();
+        sb.AppendLine($"_Báo cáo tự động lúc {nowVietnam.Hour}:00_");
+        
+        await SendNotificationWithPrefsAsync(deviceId, sb.ToString(), NotificationType.HourlyStatus);
     }
     
     /// <summary>
@@ -645,7 +755,8 @@ public class TelegramNotificationService : BackgroundService
         PowerOutage,
         PowerRestored,
         LowBattery,
-        PVEnded
+        PVEnded,
+        HourlyStatus
     }
     
     /// <summary>
@@ -677,6 +788,7 @@ public class TelegramNotificationService : BackgroundService
                 NotificationType.PowerRestored => prefs.PowerRestored,
                 NotificationType.LowBattery => prefs.LowBattery,
                 NotificationType.PVEnded => prefs.PVEnded,
+                NotificationType.HourlyStatus => prefs.HourlyStatus,
                 _ => true
             };
             
@@ -937,6 +1049,10 @@ public class PowerOutageState
     
     /// <summary>Date of last morning greeting reset (to track daily reset)</summary>
     public DateTime LastMorningGreetingResetDate { get; set; }
+    
+    // Hourly status tracking
+    /// <summary>Key to track last hourly status sent (format: yyyy-MM-dd-HH)</summary>
+    public string LastHourlyStatusKey { get; set; } = string.Empty;
 }
 
 /// <summary>

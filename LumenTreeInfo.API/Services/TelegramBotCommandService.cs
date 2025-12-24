@@ -865,9 +865,10 @@ public class TelegramBotCommandService : BackgroundService
                       $"2. {GetIcon(prefs.PowerOutage)} ⚡ Mất điện lưới EVN\n" +
                       $"3. {GetIcon(prefs.PowerRestored)} ✅ Có điện lại\n" +
                       $"4. {GetIcon(prefs.LowBattery)} 🔋 Pin yếu (< 20%)\n" +
-                      $"5. {GetIcon(prefs.PVEnded)} 🌇 Hết PV (chuyển xài pin)\n\n" +
-                      $"📝 *Cách đổi:* Gõ số (1-5) để bật/tắt\n" +
-                      $"Ví dụ: `1` để bật/tắt chào buổi sáng\n\n" +
+                      $"5. {GetIcon(prefs.PVEnded)} 🌇 Hết PV (chuyển xài pin)\n" +
+                      $"6. {GetIcon(prefs.HourlyStatus)} ⏰ Báo cáo mỗi giờ (sáng/trưa/chiều/tối)\n\n" +
+                      $"📝 *Cách đổi:* Gõ số (1-6) để bật/tắt\n" +
+                      $"Ví dụ: `6` để bật báo cáo mỗi giờ\n\n" +
                       $"Gõ `0` để thoát";
         
         _userStates[chatId] = new UserConversationState 
@@ -925,8 +926,13 @@ public class TelegramBotCommandService : BackgroundService
                 newValue = prefs.PVEnded;
                 settingName = "🌇 Hết PV";
                 break;
+            case 6:
+                prefs.HourlyStatus = !prefs.HourlyStatus;
+                newValue = prefs.HourlyStatus;
+                settingName = "⏰ Báo cáo mỗi giờ";
+                break;
             default:
-                await SendMessageAsync(chatId, "❌ Số không hợp lệ. Vui lòng chọn từ 1 đến 5.");
+                await SendMessageAsync(chatId, "❌ Số không hợp lệ. Vui lòng chọn từ 1 đến 6.");
                 return;
         }
         
@@ -1309,6 +1315,9 @@ public class NotificationPreferences
     
     /// <summary>🌇 Hết PV trong ngày (chuyển sang xài pin)</summary>
     public bool PVEnded { get; set; } = true;
+    
+    /// <summary>⏰ Thông báo trạng thái mỗi giờ (mặc định TẮT)</summary>
+    public bool HourlyStatus { get; set; } = false;
 }
 
 // Telegram API response models
