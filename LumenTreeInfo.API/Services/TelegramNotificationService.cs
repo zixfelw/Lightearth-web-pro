@@ -233,12 +233,14 @@ public class TelegramNotificationService : BackgroundService
     
     /// <summary>
     /// Check if PV has ended for the day (sun set) and notify users
-    /// PV ended = PV power drops to 0 after having been > 50W during the day
+    /// PV ended = PV power AND voltage drops to 0 after having been active during the day
     /// Only sends once per day (resets at 6 AM Vietnam time)
     /// </summary>
     private async Task CheckPVEndedAsync(string deviceId, SolarInverterMonitor.DeviceData data)
     {
         var pvPower = data.TotalPvPower ?? 0;
+        var pv1Voltage = data.Pv1Voltage ?? 0;
+        var pv2Voltage = data.Pv2Voltage ?? 0;
         var now = DateTime.UtcNow;
         var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
         var nowVietnam = TimeZoneInfo.ConvertTimeFromUtc(now, vietnamTz);
@@ -262,15 +264,19 @@ public class TelegramNotificationService : BackgroundService
             state.LastPVActiveTime = now;
         }
         
+        // Check if PV is truly off (both power AND voltage must be 0 or very low)
+        // This ensures we don't notify due to temporary sensor glitches
+        bool isPVTrulyOff = pvPower < 10 && pv1Voltage < 10 && pv2Voltage < 10;
+        
         // Check for PV ended condition:
         // 1. PV was active today (> 50W at some point)
-        // 2. PV is now 0 or very low (< 10W)
+        // 2. PV power AND voltage are now 0 or very low (< 10)
         // 3. Haven't sent notification today
         // 4. It's after 4 PM Vietnam time (afternoon/evening - sun set time)
         // 5. PV has been inactive for at least 10 minutes (to avoid flicker)
         if (state.PVWasActiveToday && 
             !state.PVEndedNotifiedToday && 
-            pvPower < 10 && 
+            isPVTrulyOff && 
             nowVietnam.Hour >= 16 &&  // After 4 PM
             state.LastPVActiveTime != DateTime.MinValue &&
             (now - state.LastPVActiveTime) > TimeSpan.FromMinutes(10))
@@ -278,8 +284,8 @@ public class TelegramNotificationService : BackgroundService
             state.PVEndedNotifiedToday = true;
             SaveDeviceStatesToFile();
             
-            _logger.LogInformation("PV ended for device {DeviceId}: Was active, now {Power}W after 4PM", 
-                deviceId, pvPower);
+            _logger.LogInformation("PV ended for device {DeviceId}: Power={Power}W, PV1={Pv1}V, PV2={Pv2}V after 4PM", 
+                deviceId, pvPower, pv1Voltage, pv2Voltage);
             
             await SendPVEndedNotificationAsync(deviceId, data);
         }
@@ -297,12 +303,15 @@ public class TelegramNotificationService : BackgroundService
         var gridStatus = acInputVoltage >= 100 ? "🟢 Online" : "🔴 Offline";
         var batteryPower = data.BatteryPower ?? 0;
         var batteryStatus = batteryPower > 0 ? "🔋 Đang xả pin" : (batteryPower < 0 ? "⚡ Đang sạc" : "⏸️ Chờ");
+        var pv1Voltage = data.Pv1Voltage ?? 0;
+        var pv2Voltage = data.Pv2Voltage ?? 0;
         
-        var message = $"🌅 *HếT PV TRONG NGÀY*\n\n" +
+        var message = $"🌅 *HẾT PV TRONG NGÀY*\n\n" +
                       $"🔌 Thiết bị: `{deviceId}`\n" +
                       $"⏰ Thời gian: {nowVietnam:HH:mm:ss dd/MM/yyyy}\n\n" +
                       $"📊 Trạng thái hiện tại:\n" +
-                      $"• PV: *0W* ☀️\n" +
+                      $"• PV1: *{data.Pv1Power ?? 0}W* ({pv1Voltage}V)\n" +
+                      $"• PV2: *{data.Pv2Power ?? 0}W* ({pv2Voltage}V)\n" +
                       $"• Battery: *{data.BatteryChargePercentage ?? 0}%* ({Math.Abs(batteryPower)}W) {batteryStatus}\n" +
                       $"• AC Input: {acInputVoltage}V {gridStatus}\n" +
                       $"• Load: {data.HomeLoad ?? 0}W\n\n" +
