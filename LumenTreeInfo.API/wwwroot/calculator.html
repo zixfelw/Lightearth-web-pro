@@ -4761,49 +4761,35 @@
                     }
                 };
                 
-                // Display preview
+                // Display preview - Monthly summary only (no daily details)
                 let previewHtml = `
-                    <div style="background: rgba(245, 158, 11, 0.1); padding: 15px; border-radius: 10px; margin-bottom: 15px;">
-                        <div style="font-size: 1.1em; font-weight: bold; color: #f59e0b; margin-bottom: 10px;">
+                    <div style="background: rgba(245, 158, 11, 0.1); padding: 20px; border-radius: 12px; border: 2px solid rgba(245, 158, 11, 0.3);">
+                        <div style="font-size: 1.2em; font-weight: bold; color: #f59e0b; margin-bottom: 15px; text-align: center;">
                             ⚡ Device: ${deviceId} - Thang ${month}/${year}
                         </div>
-                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; color: #cbd5e0;">
-                            <div>☀️ PV: <strong style="color: #f59e0b;">${lightearthData.summary.pv} kWh</strong></div>
-                            <div>🏠 Load: <strong>${lightearthData.summary.load} kWh</strong></div>
-                            <div>🔌 Grid: <strong>${lightearthData.summary.grid} kWh</strong></div>
-                            <div>🔋 Battery: <strong>${lightearthData.summary.bat} kWh</strong></div>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; color: #cbd5e0;">
+                            <div style="background: rgba(245, 158, 11, 0.15); padding: 12px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 0.85em; color: #9ca3af;">☀️ PV</div>
+                                <div style="font-size: 1.4em; font-weight: bold; color: #f59e0b;">${lightearthData.summary.pv} kWh</div>
+                            </div>
+                            <div style="background: rgba(74, 222, 128, 0.15); padding: 12px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 0.85em; color: #9ca3af;">🏠 Load</div>
+                                <div style="font-size: 1.4em; font-weight: bold; color: #4ade80;">${lightearthData.summary.load} kWh</div>
+                            </div>
+                            <div style="background: rgba(96, 165, 250, 0.15); padding: 12px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 0.85em; color: #9ca3af;">🔌 Grid</div>
+                                <div style="font-size: 1.4em; font-weight: bold; color: #60a5fa;">${lightearthData.summary.grid} kWh</div>
+                            </div>
+                            <div style="background: rgba(168, 85, 247, 0.15); padding: 12px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 0.85em; color: #9ca3af;">🔋 Battery</div>
+                                <div style="font-size: 1.4em; font-weight: bold; color: #a855f7;">${lightearthData.summary.bat} kWh</div>
+                            </div>
                         </div>
-                        <div style="margin-top: 10px; color: #9ca3af; font-size: 0.85em;">
-                            📅 ${dailyData.length} ngay co du lieu (${elapsed}ms)
+                        <div style="margin-top: 15px; color: #9ca3af; font-size: 0.85em; text-align: center;">
+                            ✅ ${dailyData.length} ngay du lieu | ⏱️ ${elapsed}ms
                         </div>
                     </div>
-                    <div style="max-height: 250px; overflow-y: auto;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 0.85em;">
-                            <thead>
-                                <tr style="background: rgba(245, 158, 11, 0.2);">
-                                    <th style="padding: 8px; text-align: left; border-bottom: 2px solid #f59e0b;">Ngay</th>
-                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #f59e0b;">PV</th>
-                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #f59e0b;">Load</th>
-                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #f59e0b;">Grid</th>
-                                    <th style="padding: 8px; text-align: right; border-bottom: 2px solid #f59e0b;">Bat</th>
-                                </tr>
-                            </thead>
-                            <tbody>
                 `;
-                
-                dailyData.forEach(d => {
-                    previewHtml += `
-                        <tr>
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568;">${d.date}</td>
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right; color: #f59e0b;">${d.pv.toFixed(1)}</td>
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right;">${d.load.toFixed(1)}</td>
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right;">${d.grid.toFixed(1)}</td>
-                            <td style="padding: 6px 8px; border-bottom: 1px solid #4a5568; text-align: right;">${d.bat.toFixed(1)}</td>
-                        </tr>
-                    `;
-                });
-                
-                previewHtml += '</tbody></table></div>';
                 
                 document.getElementById('lumentreePreview').innerHTML = previewHtml;
                 document.getElementById('lumentreeResultSection').classList.add('show');
