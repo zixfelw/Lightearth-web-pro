@@ -368,6 +368,7 @@ public class TelegramNotificationService : BackgroundService
     /// <summary>
     /// Check and send hourly status notification (every hour on the hour)
     /// Time periods: Sáng (5-11), Trưa (11-13), Chiều (13-18), Tối (18-22)
+    /// Sends from 5AM to 9PM (21:59), total 17 notifications per day if enabled
     /// </summary>
     private async Task CheckHourlyStatusAsync(string deviceId, SolarInverterMonitor.DeviceData data)
     {
@@ -377,29 +378,36 @@ public class TelegramNotificationService : BackgroundService
         
         var state = _deviceStates.GetOrAdd(deviceId, _ => new PowerOutageState());
         
-        // Only send at the start of each hour (within first 2 minutes)
-        // And only between 5 AM - 10 PM (22:00)
         var hour = nowVietnam.Hour;
         var minute = nowVietnam.Minute;
         
-        // Check if it's the right time (first 2 minutes of an hour, between 5-22h)
-        if (minute > 2 || hour < 5 || hour >= 22)
+        // Only send between 5 AM - 9 PM (21:59) Vietnam time
+        // That's 17 hours: 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21
+        if (hour < 5 || hour >= 22)
         {
             return;
         }
         
-        // Check if we already sent for this hour today
+        // Check if we already sent for this hour
+        // Key format: yyyy-MM-dd-HH (e.g., "2025-12-25-14")
         var currentHourKey = nowVietnam.ToString("yyyy-MM-dd-HH");
         if (state.LastHourlyStatusKey == currentHourKey)
         {
             return; // Already sent for this hour
         }
         
-        // Mark as sent for this hour
+        // Send within first 5 minutes of the hour to ensure delivery
+        // System checks every 15 seconds, so this gives plenty of chances
+        if (minute > 5)
+        {
+            return;
+        }
+        
+        // Mark as sent for this hour BEFORE sending to prevent duplicates
         state.LastHourlyStatusKey = currentHourKey;
         SaveDeviceStatesToFile();
         
-        _logger.LogInformation("Sending hourly status for device {DeviceId} at {Hour}:00", deviceId, hour);
+        _logger.LogInformation("Sending hourly status for device {DeviceId} at {Hour}:00 Vietnam time", deviceId, hour);
         
         await SendHourlyStatusNotificationAsync(deviceId, data);
     }
