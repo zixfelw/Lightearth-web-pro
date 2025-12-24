@@ -240,8 +240,8 @@
                         <span b-iwpun16f09 id="connectionText" class="text-[10px] sm:text-xs text-slate-300 font-medium">Đang kết nối...</span>
                     </div>
                     
-                    <!-- Calculator Button in Header - Direct link to /calculator -->
-                    <a b-iwpun16f09 href="/calculator" 
+                    <!-- Calculator Button in Header - Direct link to /calculator with deviceId -->
+                    <a b-iwpun16f09 id="calcLinkHeader" href="/calculator" 
                             class="hidden sm:flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg transition-all shadow-lg shadow-emerald-900/30 no-underline">
                         <i b-iwpun16f09 data-lucide="calculator" class="w-4 h-4"></i>
                         <span b-iwpun16f09 class="text-sm font-medium">Tính Tiết Kiệm</span>
@@ -413,8 +413,8 @@
                 </button>
             </div>
             
-            <!-- Calculate Button -->
-            <a href="/calculator" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-semibold transition-colors flex-shrink-0" title="Tính Tiết Kiệm">
+            <!-- Calculate Button with deviceId -->
+            <a id="calcLinkCompact" href="/calculator" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-semibold transition-colors flex-shrink-0" title="Tính Tiết Kiệm">
                 <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
                 <span>Tính Tiết Kiệm</span>
             </a>
@@ -1296,8 +1296,8 @@
 
     </main>
     
-    <!-- Floating Action Button - Calculator - Direct link to /calculator -->
-    <a b-iwpun16f09 href="/calculator" 
+    <!-- Floating Action Button - Calculator with deviceId -->
+    <a b-iwpun16f09 id="calcLinkFAB" href="/calculator" 
             class="fab gradient-brand shadow-brand text-white sm:hidden no-underline flex items-center justify-center"
             title="Tính Tiết Kiệm">
         <i b-iwpun16f09 data-lucide="calculator" class="w-6 h-6"></i>
@@ -1328,8 +1328,21 @@
             localStorage.theme = html.classList.contains('dark') ? 'dark' : 'light';
         });
         
-        // Calculator Modal removed - now using direct links to /calculator
-        // DeviceId is passed via URL when navigating to calculator page
+        // Update calculator links with current deviceId
+        (function updateCalculatorLinks() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const deviceId = urlParams.get('deviceId');
+            
+            if (deviceId) {
+                const calcUrl = '/calculator?deviceId=' + encodeURIComponent(deviceId);
+                
+                // Update all calculator links
+                ['calcLinkHeader', 'calcLinkCompact', 'calcLinkFAB'].forEach(id => {
+                    const link = document.getElementById(id);
+                    if (link) link.href = calcUrl;
+                });
+            }
+        })();
         
         // ========================================
         // HEADER SCROLL HIDE - Always hide when scrolled
