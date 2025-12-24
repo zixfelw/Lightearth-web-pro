@@ -42,6 +42,50 @@ public class NotificationController : ControllerBase
             timestamp = DateTime.UtcNow
         });
     }
+    
+    /// <summary>
+    /// Get statistics about Telegram bot users - ADMIN ONLY
+    /// </summary>
+    [HttpGet("users")]
+    public IActionResult GetUserStats()
+    {
+        // Get all unique Chat IDs (users)
+        var allChatIds = TelegramBotCommandService.GetAllChatIds();
+        var monitoredDevices = TelegramBotCommandService.GetMonitoredDevices();
+        var totalMonitoredCount = TelegramBotCommandService.GetMonitoredDevicesCount();
+        
+        // Get device details per user
+        var userDeviceMap = new Dictionary<long, List<string>>();
+        foreach (var deviceId in monitoredDevices)
+        {
+            var chatIds = TelegramBotCommandService.GetDeviceChatIds(deviceId);
+            foreach (var chatId in chatIds)
+            {
+                if (!userDeviceMap.ContainsKey(chatId))
+                {
+                    userDeviceMap[chatId] = new List<string>();
+                }
+                userDeviceMap[chatId].Add(deviceId);
+            }
+        }
+        
+        return Ok(new
+        {
+            success = true,
+            stats = new
+            {
+                totalUsers = allChatIds.Count,
+                totalDevices = totalMonitoredCount,
+                users = userDeviceMap.Select(kv => new 
+                {
+                    chatId = kv.Key,
+                    deviceCount = kv.Value.Count,
+                    devices = kv.Value
+                }).ToList()
+            },
+            timestamp = DateTime.UtcNow
+        });
+    }
 
     /// <summary>
     /// Send a test notification to Telegram
