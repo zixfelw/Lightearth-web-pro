@@ -100,7 +100,12 @@ public class TelegramBotCommandService : BackgroundService
                 {
                     foreach (var device in devices)
                     {
-                        _monitoredDevices[device.DeviceId] = device;
+                        // Use composite key: chatId_deviceId to support multiple users monitoring same device
+                        var key = $"{device.ChatId}_{device.DeviceId}";
+                        _monitoredDevices[key] = device;
+                        
+                        // Ensure Notifications object exists (for backward compatibility with old data)
+                        device.Notifications ??= new NotificationPreferences();
                     }
                     _logger.LogInformation("Loaded {Count} monitored devices from file", devices.Count);
                 }
