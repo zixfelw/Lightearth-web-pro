@@ -258,6 +258,12 @@ public class TelegramBotCommandService : BackgroundService
                 await CheckDeviceAsync(chatId, args);
                 break;
                 
+            case "/settings":
+            case "/caidat":
+            case "/thongbao":
+                await ShowNotificationSettingsAsync(chatId, args);
+                break;
+                
             default:
                 if (command.StartsWith("/"))
                 {
@@ -280,14 +286,19 @@ public class TelegramBotCommandService : BackgroundService
 • `/status` - Xem trạng thái tổng quan
 • `/check <DeviceID>` - Kiểm tra thiết bị cụ thể
 
+⚙️ *Cài đặt:*
+• `/settings` - Tùy chỉnh thông báo
+
 🔔 *Thông báo tự động:*
 • ⚡ Mất điện lưới EVN
 • ✅ Có điện lại (kèm thời gian mất)
 • 🔋 Pin yếu (< 20%)
+• 🌅 Hết PV (chuyển sang pin lưu trữ)
 
 💡 *Ví dụ:*
 `/add H250619922`
-`/check P250617024`";
+`/check P250617024`
+`/settings`";
 
         await SendMessageAsync(chatId, message);
     }
@@ -621,7 +632,8 @@ public class TelegramBotCommandService : BackgroundService
                     new { command = "remove", description = "➖ Xóa thiết bị" },
                     new { command = "list", description = "📋 Danh sách thiết bị" },
                     new { command = "status", description = "📊 Trạng thái hệ thống" },
-                    new { command = "check", description = "🔍 Kiểm tra thiết bị" }
+                    new { command = "check", description = "🔍 Kiểm tra thiết bị" },
+                    new { command = "settings", description = "⚙️ Cài đặt thông báo" }
                 }
             };
             
@@ -702,6 +714,177 @@ public class TelegramBotCommandService : BackgroundService
     }
     
     /// <summary>
+    /// Get notification preferences for a specific device and chat
+    /// </summary>
+    public static NotificationPreferences? GetNotificationPreferences(string deviceId, long chatId)
+    {
+        var userDeviceKey = $"{chatId}_{deviceId}";
+        if (_monitoredDevices.TryGetValue(userDeviceKey, out var device))
+        {
+            return device.Notifications ?? new NotificationPreferences();
+        }
+        return null;
+    }
+    
+    /// <summary>
+    /// Get all monitored devices with their notification preferences for a specific device
+    /// Returns list of (ChatId, NotificationPreferences)
+    /// </summary>
+    public static IReadOnlyCollection<(long ChatId, NotificationPreferences Prefs)> GetDeviceNotificationSettings(string deviceId)
+    {
+        return _monitoredDevices.Values
+            .Where(d => d.DeviceId.Equals(deviceId, StringComparison.OrdinalIgnoreCase))
+            .Select(d => (d.ChatId, d.Notifications ?? new NotificationPreferences()))
+            .ToList()
+            .AsReadOnly();
+    }
+    
+    /// <summary>
+    /// Show notification settings for user's devices
+    /// </summary>
+    private async Task ShowNotificationSettingsAsync(long chatId, string[] args)
+    {
+        // Get user's devices
+        var userDevices = _monitoredDevices.Values
+            .Where(d => d.ChatId == chatId)
+            .ToList();
+        
+        if (userDevices.Count == 0)
+        {
+            await SendMessageAsync(chatId, "⚙️ *Cài đặt thông báo*\n\n_(Bạn chưa có thiết bị nào)_\n\nThêm thiết bị bằng lệnh /add");
+            return;
+        }
+        
+        // If device ID provided, show settings for that device
+        if (args.Length > 0)
+        {
+            var deviceId = args[0].ToUpper();
+            var userDeviceKey = $"{chatId}_{deviceId}";
+            
+            if (_monitoredDevices.TryGetValue(userDeviceKey, out var device))
+            {
+                await ShowDeviceNotificationSettingsAsync(chatId, device);
+                return;
+            }
+            else
+            {
+                await SendMessageAsync(chatId, $"❌ Không tìm thấy thiết bị `{deviceId}` trong danh sách của bạn.");
+                return;
+            }
+        }
+        
+        // Show list of devices to choose from
+        if (userDevices.Count == 1)
+        {
+            // Only one device, show settings directly
+            await ShowDeviceNotificationSettingsAsync(chatId, userDevices[0]);
+            return;
+        }
+        
+        // Multiple devices, ask user to choose
+        var sb = new StringBuilder("⚙️ *Cài đặt thông báo*\n\nChọn thiết bị để cài đặt:\n\n");
+        for (int i = 0; i < userDevices.Count; i++)
+        {
+            sb.AppendLine($"{i + 1}. `{userDevices[i].DeviceId}`");
+        }
+        sb.AppendLine("\n📝 Nhập *số thứ tự* hoặc *Device ID*:");
+        
+        _userStates[chatId] = new UserConversationState 
+        { 
+            WaitingFor = WaitingState.SettingsDeviceId,
+            DeviceList = userDevices.Select(d => d.DeviceId).ToList()
+        };
+        
+        await SendMessageAsync(chatId, sb.ToString());
+    }
+    
+    /// <summary>
+    /// Show notification settings for a specific device
+    /// </summary>
+    private async Task ShowDeviceNotificationSettingsAsync(long chatId, MonitoredDevice device)
+    {
+        var prefs = device.Notifications ?? new NotificationPreferences();
+        
+        string GetIcon(bool enabled) => enabled ? "✅" : "❌";
+        
+        var message = $"⚙️ *Cài đặt thông báo - {device.DeviceId}*\n\n" +
+                      $"1. {GetIcon(prefs.PowerOutage)} Mất điện lưới EVN\n" +
+                      $"2. {GetIcon(prefs.PowerRestored)} Có điện lại\n" +
+                      $"3. {GetIcon(prefs.LowBattery)} Pin yếu (< 20%)\n" +
+                      $"4. {GetIcon(prefs.PVEnded)} Hết PV (chuyển xài pin)\n\n" +
+                      $"📝 *Cách đổi:* Gõ số (1-4) để bật/tắt\n" +
+                      $"Ví dụ: `1` để bật/tắt thông báo mất điện\n\n" +
+                      $"Gõ `0` để thoát";
+        
+        _userStates[chatId] = new UserConversationState 
+        { 
+            WaitingFor = WaitingState.SettingsToggle,
+            DeviceList = new List<string> { device.DeviceId }
+        };
+        
+        await SendMessageAsync(chatId, message);
+    }
+    
+    /// <summary>
+    /// Toggle a notification setting for a device
+    /// </summary>
+    private async Task ToggleNotificationSettingAsync(long chatId, string deviceId, int settingNumber)
+    {
+        var userDeviceKey = $"{chatId}_{deviceId}";
+        
+        if (!_monitoredDevices.TryGetValue(userDeviceKey, out var device))
+        {
+            await SendMessageAsync(chatId, "❌ Không tìm thấy thiết bị.");
+            return;
+        }
+        
+        device.Notifications ??= new NotificationPreferences();
+        var prefs = device.Notifications;
+        
+        string settingName;
+        bool newValue;
+        
+        switch (settingNumber)
+        {
+            case 1:
+                prefs.PowerOutage = !prefs.PowerOutage;
+                newValue = prefs.PowerOutage;
+                settingName = "⚡ Mất điện lưới EVN";
+                break;
+            case 2:
+                prefs.PowerRestored = !prefs.PowerRestored;
+                newValue = prefs.PowerRestored;
+                settingName = "✅ Có điện lại";
+                break;
+            case 3:
+                prefs.LowBattery = !prefs.LowBattery;
+                newValue = prefs.LowBattery;
+                settingName = "🔋 Pin yếu";
+                break;
+            case 4:
+                prefs.PVEnded = !prefs.PVEnded;
+                newValue = prefs.PVEnded;
+                settingName = "🌅 Hết PV";
+                break;
+            default:
+                await SendMessageAsync(chatId, "❌ Số không hợp lệ. Vui lòng chọn từ 1 đến 4.");
+                return;
+        }
+        
+        SaveDevicesToFile();  // Persist changes
+        
+        var statusIcon = newValue ? "✅ BẬT" : "❌ TẮT";
+        await SendMessageAsync(chatId, $"✅ *Đã cập nhật!*\n\n{settingName}: {statusIcon}\n\nGõ số khác để tiếp tục hoặc `0` để thoát.");
+        
+        // Keep in settings mode for this device
+        _userStates[chatId] = new UserConversationState 
+        { 
+            WaitingFor = WaitingState.SettingsToggle,
+            DeviceList = new List<string> { deviceId }
+        };
+    }
+    
+    /// <summary>
     /// Handle conversation response from user
     /// </summary>
     private async Task HandleConversationResponseAsync(long chatId, string text, UserConversationState state)
@@ -737,6 +920,51 @@ public class TelegramBotCommandService : BackgroundService
             case WaitingState.CheckDeviceId:
                 await CheckDeviceAsync(chatId, new[] { text });
                 break;
+                
+            case WaitingState.SettingsDeviceId:
+                // User selected a device for settings
+                string? selectedDeviceId = null;
+                if (int.TryParse(text, out int idx) && state.DeviceList != null)
+                {
+                    if (idx >= 1 && idx <= state.DeviceList.Count)
+                    {
+                        selectedDeviceId = state.DeviceList[idx - 1];
+                    }
+                }
+                else
+                {
+                    selectedDeviceId = text.ToUpper();
+                }
+                
+                if (selectedDeviceId != null)
+                {
+                    await ShowNotificationSettingsAsync(chatId, new[] { selectedDeviceId });
+                }
+                else
+                {
+                    await SendMessageAsync(chatId, "❌ Lựa chọn không hợp lệ.");
+                }
+                break;
+                
+            case WaitingState.SettingsToggle:
+                // User is toggling a setting
+                if (text == "0")
+                {
+                    await SendMessageAsync(chatId, "✅ Đã thoát cài đặt thông báo.");
+                    return;
+                }
+                
+                if (int.TryParse(text, out int settingNum) && state.DeviceList?.Count > 0)
+                {
+                    await ToggleNotificationSettingAsync(chatId, state.DeviceList[0], settingNum);
+                }
+                else
+                {
+                    await SendMessageAsync(chatId, "❌ Vui lòng nhập số từ 1-4 để bật/tắt, hoặc `0` để thoát.");
+                    // Keep in settings mode
+                    _userStates[chatId] = state;
+                }
+                break;
         }
     }
 }
@@ -759,7 +987,9 @@ public enum WaitingState
     None,
     AddDeviceId,
     RemoveDeviceId,
-    CheckDeviceId
+    CheckDeviceId,
+    SettingsDeviceId,
+    SettingsToggle
 }
 
 /// <summary>
@@ -772,6 +1002,27 @@ public class MonitoredDevice
     public long ChatId { get; set; }  // Telegram Chat ID of the user who added this device
     public string AddedBy { get; set; } = string.Empty;  // Username or display name
     public bool ExistsInHA { get; set; }
+    
+    // Notification preferences (all enabled by default)
+    public NotificationPreferences Notifications { get; set; } = new NotificationPreferences();
+}
+
+/// <summary>
+/// User notification preferences for each alert type
+/// </summary>
+public class NotificationPreferences
+{
+    /// <summary>⚡ Mất điện lưới EVN</summary>
+    public bool PowerOutage { get; set; } = true;
+    
+    /// <summary>✅ Có điện lại</summary>
+    public bool PowerRestored { get; set; } = true;
+    
+    /// <summary>🔋 Pin yếu (< 20%)</summary>
+    public bool LowBattery { get; set; } = true;
+    
+    /// <summary>🌅 Hết PV trong ngày (chuyển sang xài pin)</summary>
+    public bool PVEnded { get; set; } = true;
 }
 
 // Telegram API response models

@@ -130,6 +130,7 @@ public class TelegramNotificationService : BackgroundService
                 
                 await CheckPowerOutageAsync(deviceId, deviceData);
                 await CheckLowBatteryAsync(deviceId, deviceData);
+                await CheckPVEndedAsync(deviceId, deviceData);
             }
             catch (Exception ex)
             {
@@ -167,7 +168,7 @@ public class TelegramNotificationService : BackgroundService
             {
                 state.LastNotificationTime = now;
                 SaveDeviceStatesToFile(); // Persist state change
-                await SendPowerOutageNotificationAsync(deviceId, data, true);
+                await SendPowerOutageNotificationAsync(deviceId, data, isOutage: true);
             }
         }
         else if (!isPowerOutage && state.IsOutage)
@@ -180,7 +181,7 @@ public class TelegramNotificationService : BackgroundService
             // Only notify restoration if outage lasted more than 1 minute
             if (outageDuration > TimeSpan.FromMinutes(1))
             {
-                await SendPowerOutageNotificationAsync(deviceId, data, false, outageDuration);
+                await SendPowerOutageNotificationAsync(deviceId, data, isOutage: false, outageDuration);
             }
         }
     }
@@ -229,6 +230,86 @@ public class TelegramNotificationService : BackgroundService
             SaveDeviceStatesToFile(); // Persist state change
         }
     }
+    
+    /// <summary>
+    /// Check if PV has ended for the day (sun set) and notify users
+    /// PV ended = PV power drops to 0 after having been > 50W during the day
+    /// Only sends once per day (resets at 6 AM Vietnam time)
+    /// </summary>
+    private async Task CheckPVEndedAsync(string deviceId, SolarInverterMonitor.DeviceData data)
+    {
+        var pvPower = data.TotalPvPower ?? 0;
+        var now = DateTime.UtcNow;
+        var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        var nowVietnam = TimeZoneInfo.ConvertTimeFromUtc(now, vietnamTz);
+        
+        var state = _deviceStates.GetOrAdd(deviceId, _ => new PowerOutageState());
+        
+        // Reset PV tracking at 6 AM Vietnam time
+        if (nowVietnam.Hour == 6 && state.PVEndedNotifiedToday)
+        {
+            state.PVEndedNotifiedToday = false;
+            state.PVWasActiveToday = false;
+            state.LastPVActiveTime = DateTime.MinValue;
+            SaveDeviceStatesToFile();
+            _logger.LogDebug("Reset PV tracking for device {DeviceId} at 6 AM", deviceId);
+        }
+        
+        // Track if PV was active today (> 50W for at least 1 check)
+        if (pvPower > 50)
+        {
+            state.PVWasActiveToday = true;
+            state.LastPVActiveTime = now;
+        }
+        
+        // Check for PV ended condition:
+        // 1. PV was active today (> 50W at some point)
+        // 2. PV is now 0 or very low (< 10W)
+        // 3. Haven't sent notification today
+        // 4. It's after 4 PM Vietnam time (afternoon/evening - sun set time)
+        // 5. PV has been inactive for at least 10 minutes (to avoid flicker)
+        if (state.PVWasActiveToday && 
+            !state.PVEndedNotifiedToday && 
+            pvPower < 10 && 
+            nowVietnam.Hour >= 16 &&  // After 4 PM
+            state.LastPVActiveTime != DateTime.MinValue &&
+            (now - state.LastPVActiveTime) > TimeSpan.FromMinutes(10))
+        {
+            state.PVEndedNotifiedToday = true;
+            SaveDeviceStatesToFile();
+            
+            _logger.LogInformation("PV ended for device {DeviceId}: Was active, now {Power}W after 4PM", 
+                deviceId, pvPower);
+            
+            await SendPVEndedNotificationAsync(deviceId, data);
+        }
+    }
+    
+    /// <summary>
+    /// Send PV ended notification to device owner(s)
+    /// </summary>
+    private async Task SendPVEndedNotificationAsync(string deviceId, SolarInverterMonitor.DeviceData data)
+    {
+        var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        var nowVietnam = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTz);
+        
+        var acInputVoltage = data.AcInputVoltage ?? 0;
+        var gridStatus = acInputVoltage >= 100 ? "🟢 Online" : "🔴 Offline";
+        var batteryPower = data.BatteryPower ?? 0;
+        var batteryStatus = batteryPower > 0 ? "🔋 Đang xả pin" : (batteryPower < 0 ? "⚡ Đang sạc" : "⏸️ Chờ");
+        
+        var message = $"🌅 *HếT PV TRONG NGÀY*\n\n" +
+                      $"🔌 Thiết bị: `{deviceId}`\n" +
+                      $"⏰ Thời gian: {nowVietnam:HH:mm:ss dd/MM/yyyy}\n\n" +
+                      $"📊 Trạng thái hiện tại:\n" +
+                      $"• PV: *0W* ☀️\n" +
+                      $"• Battery: *{data.BatteryChargePercentage ?? 0}%* ({Math.Abs(batteryPower)}W) {batteryStatus}\n" +
+                      $"• AC Input: {acInputVoltage}V {gridStatus}\n" +
+                      $"• Load: {data.HomeLoad ?? 0}W\n\n" +
+                      $"⚠️ Hệ thống chuyển sang xài pin lưu trữ!";
+        
+        await SendNotificationWithPrefsAsync(deviceId, message, NotificationType.PVEnded);
+    }
 
     private async Task SendPowerOutageNotificationAsync(string deviceId, SolarInverterMonitor.DeviceData data, bool isOutage, TimeSpan? duration = null)
     {
@@ -266,8 +347,9 @@ public class TelegramNotificationService : BackgroundService
                       $"• Battery: {data.BatteryChargePercentage ?? 0}%";
         }
         
-        // Send to the user who added this device
-        await SendMessageToDeviceOwnerAsync(deviceId, message);
+        // Send to users with notification enabled
+        var notifType = isOutage ? NotificationType.PowerOutage : NotificationType.PowerRestored;
+        await SendNotificationWithPrefsAsync(deviceId, message, notifType);
     }
 
     private async Task SendLowBatteryNotificationAsync(string deviceId, SolarInverterMonitor.DeviceData data, BatteryAlertLevel level)
@@ -311,8 +393,59 @@ public class TelegramNotificationService : BackgroundService
                       $"• Load: {data.HomeLoad ?? 0}W\n\n" +
                       $"{warning}";
         
-        // Send to the user who added this device
-        await SendMessageToDeviceOwnerAsync(deviceId, message);
+        // Send to users with notification enabled
+        await SendNotificationWithPrefsAsync(deviceId, message, NotificationType.LowBattery);
+    }
+    
+    /// <summary>
+    /// Notification types for filtering
+    /// </summary>
+    private enum NotificationType
+    {
+        PowerOutage,
+        PowerRestored,
+        LowBattery,
+        PVEnded
+    }
+    
+    /// <summary>
+    /// Send notification only to users who have enabled this notification type
+    /// </summary>
+    private async Task SendNotificationWithPrefsAsync(string deviceId, string message, NotificationType notifType)
+    {
+        var deviceSettings = TelegramBotCommandService.GetDeviceNotificationSettings(deviceId);
+        
+        if (deviceSettings.Count == 0)
+        {
+            // Fallback: send to default chat ID if no device settings found
+            await SendTelegramMessageAsync(message);
+            return;
+        }
+        
+        foreach (var (chatId, prefs) in deviceSettings)
+        {
+            // Check if user has enabled this notification type
+            bool shouldSend = notifType switch
+            {
+                NotificationType.PowerOutage => prefs.PowerOutage,
+                NotificationType.PowerRestored => prefs.PowerRestored,
+                NotificationType.LowBattery => prefs.LowBattery,
+                NotificationType.PVEnded => prefs.PVEnded,
+                _ => true
+            };
+            
+            if (shouldSend)
+            {
+                await SendTelegramMessageAsync(message, chatId.ToString());
+                _logger.LogDebug("Sent {NotifType} notification to chat {ChatId} for device {DeviceId}", 
+                    notifType, chatId, deviceId);
+            }
+            else
+            {
+                _logger.LogDebug("Skipped {NotifType} notification to chat {ChatId} for device {DeviceId} (disabled)", 
+                    notifType, chatId, deviceId);
+            }
+        }
     }
 
     public async Task<bool> SendTelegramMessageAsync(string message)
@@ -400,8 +533,10 @@ public class TelegramNotificationService : BackgroundService
                       $"⏰ Thời gian: {nowVietnam:HH:mm:ss dd/MM/yyyy}\n\n" +
                       $"Bạn sẽ nhận được thông báo khi:\n" +
                       $"• ⚡ Mất điện lưới EVN\n" +
+                      $"• ✅ Có điện lại\n" +
                       $"• 🔋 Pin yếu (< 20%)\n" +
-                      $"• ✅ Điện có lại";
+                      $"• 🌅 Hết PV (chuyển xài pin)\n\n" +
+                      $"💡 Dùng /settings để tùy chỉnh thông báo";
         
         return await SendTelegramMessageAsync(message);
     }
@@ -537,6 +672,16 @@ public class PowerOutageState
     
     // Track last known SOC to detect changes
     public double LastKnownSOC { get; set; } = 100;
+    
+    // PV ended tracking (sun set notification)
+    /// <summary>Whether PV was active today (> 50W at some point)</summary>
+    public bool PVWasActiveToday { get; set; }
+    
+    /// <summary>Last time PV was active (> 50W)</summary>
+    public DateTime LastPVActiveTime { get; set; }
+    
+    /// <summary>Whether PV ended notification was sent today</summary>
+    public bool PVEndedNotifiedToday { get; set; }
 }
 
 /// <summary>
