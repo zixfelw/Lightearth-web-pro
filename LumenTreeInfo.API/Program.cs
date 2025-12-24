@@ -1,5 +1,6 @@
 using LumenTreeInfo.Lib;
 using LumenTreeInfo.API.Services;
+using LumenTreeInfo.API.Middleware;
 using Microsoft.AspNetCore.ResponseCompression;
 using System.IO.Compression;
 
@@ -199,6 +200,9 @@ public class Program
 
         // Add CORS middleware - MUST be after UseRouting but before UseAuthorization
         app.UseCors();
+        
+        // Add API Key protection for sensitive endpoints
+        app.UseApiKeyProtection();
 
         app.UseAuthorization();
 
