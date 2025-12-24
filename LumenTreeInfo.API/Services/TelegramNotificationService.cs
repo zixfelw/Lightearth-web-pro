@@ -128,6 +128,7 @@ public class TelegramNotificationService : BackgroundService
                 var deviceData = await haClient.GetDeviceDataAsync(deviceId);
                 if (deviceData == null) continue;
                 
+                await CheckPVStartedAsync(deviceId, deviceData);
                 await CheckPowerOutageAsync(deviceId, deviceData);
                 await CheckLowBatteryAsync(deviceId, deviceData);
                 await CheckPVEndedAsync(deviceId, deviceData);
@@ -313,6 +314,211 @@ public class TelegramNotificationService : BackgroundService
     }
     
     /// <summary>
+    /// Check if PV has started in the morning and send morning greeting with weather forecast
+    /// PV started = PV1 or PV2 has voltage > 1V AND power > 1W
+    /// Only sends once per day (resets at midnight Vietnam time)
+    /// </summary>
+    private async Task CheckPVStartedAsync(string deviceId, SolarInverterMonitor.DeviceData data)
+    {
+        var pv1Power = data.Pv1Power ?? 0;
+        var pv2Power = data.Pv2Power ?? 0;
+        var pv1Voltage = data.Pv1Voltage ?? 0;
+        var pv2Voltage = data.Pv2Voltage ?? 0;
+        var now = DateTime.UtcNow;
+        var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        var nowVietnam = TimeZoneInfo.ConvertTimeFromUtc(now, vietnamTz);
+        
+        var state = _deviceStates.GetOrAdd(deviceId, _ => new PowerOutageState());
+        
+        // Reset morning greeting at midnight Vietnam time (new day)
+        var todayVietnam = nowVietnam.Date;
+        if (state.LastMorningGreetingResetDate.Date != todayVietnam)
+        {
+            state.MorningGreetingNotifiedToday = false;
+            state.LastMorningGreetingResetDate = todayVietnam;
+            SaveDeviceStatesToFile();
+            _logger.LogDebug("Reset morning greeting for device {DeviceId} at midnight", deviceId);
+        }
+        
+        // Check if PV has started (voltage > 1V AND power > 1W for either PV1 or PV2)
+        bool pv1Started = pv1Voltage > 1 && pv1Power > 1;
+        bool pv2Started = pv2Voltage > 1 && pv2Power > 1;
+        bool pvStarted = pv1Started || pv2Started;
+        
+        // Only check between 5 AM and 9 AM Vietnam time (morning hours)
+        bool isMorningHours = nowVietnam.Hour >= 5 && nowVietnam.Hour <= 9;
+        
+        // Check for PV started condition:
+        // 1. PV has started (voltage and power > 1)
+        // 2. Haven't sent morning greeting today
+        // 3. It's morning hours (5 AM - 9 AM)
+        if (pvStarted && !state.MorningGreetingNotifiedToday && isMorningHours)
+        {
+            state.MorningGreetingNotifiedToday = true;
+            SaveDeviceStatesToFile();
+            
+            _logger.LogInformation("PV started for device {DeviceId}: PV1={Pv1Power}W/{Pv1Volt}V, PV2={Pv2Power}W/{Pv2Volt}V at {Time}", 
+                deviceId, pv1Power, pv1Voltage, pv2Power, pv2Voltage, nowVietnam.ToString("HH:mm"));
+            
+            await SendMorningGreetingNotificationAsync(deviceId, data);
+        }
+    }
+    
+    /// <summary>
+    /// Send morning greeting notification with weather forecast
+    /// </summary>
+    private async Task SendMorningGreetingNotificationAsync(string deviceId, SolarInverterMonitor.DeviceData data)
+    {
+        var vietnamTz = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+        var nowVietnam = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, vietnamTz);
+        
+        var pv1Power = data.Pv1Power ?? 0;
+        var pv2Power = data.Pv2Power ?? 0;
+        var pv1Voltage = data.Pv1Voltage ?? 0;
+        var pv2Voltage = data.Pv2Voltage ?? 0;
+        var totalPvPower = data.TotalPvPower ?? 0;
+        var acInputVoltage = data.AcInputVoltage ?? 0;
+        var gridStatus = acInputVoltage >= 100 ? "🟢 Online" : "🔴 Offline";
+        var soc = data.BatteryChargePercentage ?? 0;
+        
+        // Get weather forecast
+        var weatherForecast = await GetWeatherForecastAsync();
+        
+        // Morning greeting message
+        var sb = new StringBuilder();
+        sb.AppendLine("🌅 *CHÀO BUỔI SÁNG!*");
+        sb.AppendLine();
+        sb.AppendLine($"☀️ Hệ thống PV đã bắt đầu sạc!");
+        sb.AppendLine($"🔌 Thiết bị: `{deviceId}`");
+        sb.AppendLine($"⏰ Thời gian: {nowVietnam:HH:mm:ss dd/MM/yyyy}");
+        sb.AppendLine();
+        sb.AppendLine("📊 *Trạng thái hiện tại:*");
+        sb.AppendLine($"• PV1: *{pv1Power}W* ({pv1Voltage}V)");
+        sb.AppendLine($"• PV2: *{pv2Power}W* ({pv2Voltage}V)");
+        sb.AppendLine($"• Tổng PV: *{totalPvPower}W*");
+        sb.AppendLine($"• Battery: *{soc}%*");
+        sb.AppendLine($"• AC Input: {acInputVoltage}V {gridStatus}");
+        sb.AppendLine();
+        
+        // Weather forecast section
+        if (!string.IsNullOrEmpty(weatherForecast))
+        {
+            sb.AppendLine("🌤️ *Dự báo thời tiết hôm nay:*");
+            sb.AppendLine(weatherForecast);
+        }
+        
+        sb.AppendLine();
+        sb.AppendLine("💪 Chúc bạn một ngày năng lượng dồi dào!");
+        
+        await SendNotificationWithPrefsAsync(deviceId, sb.ToString(), NotificationType.MorningGreeting);
+    }
+    
+    /// <summary>
+    /// Get weather forecast from Open-Meteo API (free, no API key required)
+    /// Default location: Ho Chi Minh City
+    /// </summary>
+    private async Task<string> GetWeatherForecastAsync()
+    {
+        try
+        {
+            // Ho Chi Minh City coordinates
+            const double lat = 10.8231;
+            const double lon = 106.6297;
+            
+            var url = $"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}" +
+                      "&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,sunshine_duration,uv_index_max" +
+                      "&current=temperature_2m,relative_humidity_2m,weather_code,cloud_cover" +
+                      "&timezone=Asia/Ho_Chi_Minh&forecast_days=1";
+            
+            var response = await _httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode) return string.Empty;
+            
+            var json = await response.Content.ReadAsStringAsync();
+            var weatherData = JsonSerializer.Deserialize<JsonElement>(json);
+            
+            // Parse current weather
+            var current = weatherData.GetProperty("current");
+            var currentTemp = current.GetProperty("temperature_2m").GetDouble();
+            var humidity = current.GetProperty("relative_humidity_2m").GetInt32();
+            var cloudCover = current.GetProperty("cloud_cover").GetInt32();
+            var weatherCode = current.GetProperty("weather_code").GetInt32();
+            
+            // Parse daily forecast
+            var daily = weatherData.GetProperty("daily");
+            var tempMax = daily.GetProperty("temperature_2m_max")[0].GetDouble();
+            var tempMin = daily.GetProperty("temperature_2m_min")[0].GetDouble();
+            var precipSum = daily.GetProperty("precipitation_sum")[0].GetDouble();
+            var precipProb = daily.GetProperty("precipitation_probability_max")[0].GetInt32();
+            var sunshineSeconds = daily.GetProperty("sunshine_duration")[0].GetDouble();
+            var uvIndex = daily.GetProperty("uv_index_max")[0].GetDouble();
+            
+            // Convert sunshine duration to hours
+            var sunshineHours = sunshineSeconds / 3600.0;
+            
+            // Get weather icon and description
+            var (weatherIcon, weatherDesc) = GetWeatherDescription(weatherCode);
+            
+            // Build forecast string
+            var sb = new StringBuilder();
+            sb.AppendLine($"• {weatherIcon} {weatherDesc}");
+            sb.AppendLine($"• 🌡️ Hiện tại: *{currentTemp:F1}°C* | Độ ẩm: {humidity}%");
+            sb.AppendLine($"• 📈 Cao nhất: *{tempMax:F1}°C* | Thấp nhất: *{tempMin:F1}°C*");
+            sb.AppendLine($"• ☁️ Mây: {cloudCover}%");
+            sb.AppendLine($"• 🌧️ Xác suất mưa: *{precipProb}%*" + (precipSum > 0 ? $" ({precipSum:F1}mm)" : ""));
+            sb.AppendLine($"• ☀️ Giờ nắng dự kiến: *{sunshineHours:F1}h*");
+            sb.AppendLine($"• 🔆 Chỉ số UV: *{uvIndex:F1}* {GetUVLevel(uvIndex)}");
+            
+            return sb.ToString();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to get weather forecast");
+            return string.Empty;
+        }
+    }
+    
+    /// <summary>
+    /// Get weather description from WMO weather code
+    /// </summary>
+    private static (string icon, string desc) GetWeatherDescription(int code)
+    {
+        return code switch
+        {
+            0 => ("☀️", "Trời quang"),
+            1 => ("🌤️", "Ít mây"),
+            2 => ("⛅", "Có mây"),
+            3 => ("☁️", "Nhiều mây"),
+            45 or 48 => ("🌫️", "Sương mù"),
+            51 or 53 or 55 => ("🌦️", "Mưa phùn"),
+            56 or 57 => ("🌧️", "Mưa phùn lạnh"),
+            61 or 63 or 65 => ("🌧️", "Mưa"),
+            66 or 67 => ("🌧️", "Mưa lạnh"),
+            71 or 73 or 75 => ("🌨️", "Tuyết"),
+            77 => ("🌨️", "Mưa tuyết"),
+            80 or 81 or 82 => ("🌧️", "Mưa rào"),
+            85 or 86 => ("🌨️", "Mưa tuyết rào"),
+            95 => ("⛈️", "Dông"),
+            96 or 99 => ("⛈️", "Dông có mưa đá"),
+            _ => ("🌤️", "Trời nắng")
+        };
+    }
+    
+    /// <summary>
+    /// Get UV level description
+    /// </summary>
+    private static string GetUVLevel(double uvIndex)
+    {
+        return uvIndex switch
+        {
+            < 3 => "(Thấp)",
+            < 6 => "(Trung bình)",
+            < 8 => "(Cao)",
+            < 11 => "(Rất cao)",
+            _ => "(Cực cao)"
+        };
+    }
+    
+    /// <summary>
     /// Send PV ended notification to device owner(s)
     /// </summary>
     private async Task SendPVEndedNotificationAsync(string deviceId, SolarInverterMonitor.DeviceData data)
@@ -432,6 +638,7 @@ public class TelegramNotificationService : BackgroundService
     /// </summary>
     private enum NotificationType
     {
+        MorningGreeting,
         PowerOutage,
         PowerRestored,
         LowBattery,
@@ -462,6 +669,7 @@ public class TelegramNotificationService : BackgroundService
             // Check if user has enabled this notification type
             bool shouldSend = notifType switch
             {
+                NotificationType.MorningGreeting => prefs.MorningGreeting,
                 NotificationType.PowerOutage => prefs.PowerOutage,
                 NotificationType.PowerRestored => prefs.PowerRestored,
                 NotificationType.LowBattery => prefs.LowBattery,
@@ -719,6 +927,13 @@ public class PowerOutageState
     
     /// <summary>Whether PV ended notification was sent today</summary>
     public bool PVEndedNotifiedToday { get; set; }
+    
+    // Morning greeting tracking (PV started notification)
+    /// <summary>Whether morning greeting was sent today (resets at midnight)</summary>
+    public bool MorningGreetingNotifiedToday { get; set; }
+    
+    /// <summary>Date of last morning greeting reset (to track daily reset)</summary>
+    public DateTime LastMorningGreetingResetDate { get; set; }
 }
 
 /// <summary>

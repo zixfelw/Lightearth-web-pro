@@ -295,10 +295,11 @@ public class TelegramBotCommandService : BackgroundService
 • `/settings` - Tùy chỉnh thông báo
 
 🔔 *Thông báo tự động:*
+• 🌅 Chào buổi sáng + Dự báo thời tiết (khi PV bắt đầu sạc)
 • ⚡ Mất điện lưới EVN
 • ✅ Có điện lại (kèm thời gian mất)
 • 🔋 Pin yếu (< 20%)
-• 🌅 Hết PV (chuyển sang pin lưu trữ)
+• 🌇 Hết PV (chuyển sang pin lưu trữ)
 
 💡 *Ví dụ:*
 `/add H250619922`
@@ -367,10 +368,11 @@ public class TelegramBotCommandService : BackgroundService
             $"✅ Đã thêm thiết bị `{deviceId}` vào danh sách theo dõi!\n\n" +
             $"{statusIcon} {statusText}\n\n" +
             $"🔔 Bạn sẽ nhận thông báo khi:\n" +
+            $"• 🌅 Chào buổi sáng + Dự báo thời tiết\n" +
             $"• ⚡ Mất điện lưới\n" +
             $"• ✅ Có điện lại\n" +
             $"• 🔋 Pin yếu (< 20%)\n" +
-            $"• 🌅 Hết PV trong ngày (chuyển xài pin)\n\n" +
+            $"• 🌇 Hết PV trong ngày (chuyển xài pin)\n\n" +
             $"💡 Dùng /settings để tùy chỉnh thông báo");
     }
 
@@ -763,6 +765,7 @@ public class TelegramBotCommandService : BackgroundService
                 existsInHA = d.ExistsInHA,
                 notifications = new 
                 {
+                    morningGreeting = (d.Notifications ?? new NotificationPreferences()).MorningGreeting,
                     powerOutage = (d.Notifications ?? new NotificationPreferences()).PowerOutage,
                     powerRestored = (d.Notifications ?? new NotificationPreferences()).PowerRestored,
                     lowBattery = (d.Notifications ?? new NotificationPreferences()).LowBattery,
@@ -843,12 +846,13 @@ public class TelegramBotCommandService : BackgroundService
         string GetIcon(bool enabled) => enabled ? "✅" : "❌";
         
         var message = $"⚙️ *Cài đặt thông báo - {device.DeviceId}*\n\n" +
-                      $"1. {GetIcon(prefs.PowerOutage)} Mất điện lưới EVN\n" +
-                      $"2. {GetIcon(prefs.PowerRestored)} Có điện lại\n" +
-                      $"3. {GetIcon(prefs.LowBattery)} Pin yếu (< 20%)\n" +
-                      $"4. {GetIcon(prefs.PVEnded)} Hết PV (chuyển xài pin)\n\n" +
-                      $"📝 *Cách đổi:* Gõ số (1-4) để bật/tắt\n" +
-                      $"Ví dụ: `1` để bật/tắt thông báo mất điện\n\n" +
+                      $"1. {GetIcon(prefs.MorningGreeting)} 🌅 Chào buổi sáng + Dự báo thời tiết\n" +
+                      $"2. {GetIcon(prefs.PowerOutage)} ⚡ Mất điện lưới EVN\n" +
+                      $"3. {GetIcon(prefs.PowerRestored)} ✅ Có điện lại\n" +
+                      $"4. {GetIcon(prefs.LowBattery)} 🔋 Pin yếu (< 20%)\n" +
+                      $"5. {GetIcon(prefs.PVEnded)} 🌇 Hết PV (chuyển xài pin)\n\n" +
+                      $"📝 *Cách đổi:* Gõ số (1-5) để bật/tắt\n" +
+                      $"Ví dụ: `1` để bật/tắt chào buổi sáng\n\n" +
                       $"Gõ `0` để thoát";
         
         _userStates[chatId] = new UserConversationState 
@@ -882,27 +886,32 @@ public class TelegramBotCommandService : BackgroundService
         switch (settingNumber)
         {
             case 1:
+                prefs.MorningGreeting = !prefs.MorningGreeting;
+                newValue = prefs.MorningGreeting;
+                settingName = "🌅 Chào buổi sáng + Dự báo thời tiết";
+                break;
+            case 2:
                 prefs.PowerOutage = !prefs.PowerOutage;
                 newValue = prefs.PowerOutage;
                 settingName = "⚡ Mất điện lưới EVN";
                 break;
-            case 2:
+            case 3:
                 prefs.PowerRestored = !prefs.PowerRestored;
                 newValue = prefs.PowerRestored;
                 settingName = "✅ Có điện lại";
                 break;
-            case 3:
+            case 4:
                 prefs.LowBattery = !prefs.LowBattery;
                 newValue = prefs.LowBattery;
                 settingName = "🔋 Pin yếu";
                 break;
-            case 4:
+            case 5:
                 prefs.PVEnded = !prefs.PVEnded;
                 newValue = prefs.PVEnded;
-                settingName = "🌅 Hết PV";
+                settingName = "🌇 Hết PV";
                 break;
             default:
-                await SendMessageAsync(chatId, "❌ Số không hợp lệ. Vui lòng chọn từ 1 đến 4.");
+                await SendMessageAsync(chatId, "❌ Số không hợp lệ. Vui lòng chọn từ 1 đến 5.");
                 return;
         }
         
@@ -995,7 +1004,7 @@ public class TelegramBotCommandService : BackgroundService
                 }
                 else
                 {
-                    await SendMessageAsync(chatId, "❌ Vui lòng nhập số từ 1-4 để bật/tắt, hoặc `0` để thoát.");
+                    await SendMessageAsync(chatId, "❌ Vui lòng nhập số từ 1-5 để bật/tắt, hoặc `0` để thoát.");
                     // Keep in settings mode
                     _userStates[chatId] = state;
                 }
@@ -1047,6 +1056,9 @@ public class MonitoredDevice
 /// </summary>
 public class NotificationPreferences
 {
+    /// <summary>🌅 Chào buổi sáng + Dự báo thời tiết khi PV bắt đầu có công suất</summary>
+    public bool MorningGreeting { get; set; } = true;
+    
     /// <summary>⚡ Mất điện lưới EVN</summary>
     public bool PowerOutage { get; set; } = true;
     
@@ -1056,7 +1068,7 @@ public class NotificationPreferences
     /// <summary>🔋 Pin yếu (< 20%)</summary>
     public bool LowBattery { get; set; } = true;
     
-    /// <summary>🌅 Hết PV trong ngày (chuyển sang xài pin)</summary>
+    /// <summary>🌇 Hết PV trong ngày (chuyển sang xài pin)</summary>
     public bool PVEnded { get; set; } = true;
 }
 
