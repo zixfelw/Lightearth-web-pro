@@ -759,10 +759,10 @@
             
             <!-- Đường kẻ + Animation: PV xuống + EVN xuống → Inverter -->
             <div class="relative h-12 sm:h-14" id="flow-lines-top">
-                <div class="absolute left-[16.67%] top-0 h-1/2 w-0.5 border-l-2 border-solid border-slate-400 dark:border-slate-500"></div>
-                <div class="absolute left-[83.33%] top-0 h-1/2 w-0.5 border-l-2 border-solid border-slate-400 dark:border-slate-500"></div>
+                <div class="absolute left-[16.67%] top-0 h-1/2 w-0.5 border-l-2 border-solid border-slate-400 dark:border-slate-500 -translate-x-1/2"></div>
+                <div class="absolute left-[83.33%] top-0 h-1/2 w-0.5 border-l-2 border-solid border-slate-400 dark:border-slate-500 -translate-x-1/2"></div>
                 <div class="absolute left-[16.67%] right-[16.67%] top-1/2 h-0.5 border-t-2 border-solid border-slate-400 dark:border-slate-500"></div>
-                <div class="absolute left-1/2 top-1/2 h-1/2 w-0.5 border-l-2 border-solid border-slate-400 dark:border-slate-500"></div>
+                <div class="absolute left-1/2 top-1/2 h-1/2 w-0.5 border-l-2 border-solid border-slate-400 dark:border-slate-500 -translate-x-1/2"></div>
                 <!-- Animation dots -->
                 <!-- PV: <3000W=3 particles, >=3000W=5 particles -->
                 <div id="pv-flow-dot" class="energy-dot energy-dot-pv" style="display:none;"></div>
@@ -795,11 +795,11 @@
             
             <!-- Đường kẻ + Animation: Inverter → 3 nhánh -->
             <div class="relative h-12 sm:h-14" id="flow-lines-bottom">
-                <div class="absolute left-1/2 top-0 h-1/2 w-0.5 border-l-2 border-solid border-slate-400 dark:border-slate-500"></div>
+                <div class="absolute left-1/2 top-0 h-1/2 w-0.5 border-l-2 border-solid border-slate-400 dark:border-slate-500 -translate-x-1/2"></div>
                 <div class="absolute left-[16.67%] right-[16.67%] top-1/2 h-0.5 border-t-2 border-solid border-slate-400 dark:border-slate-500"></div>
-                <div class="absolute left-[16.67%] top-1/2 h-1/2 w-0.5 border-l-2 border-solid border-slate-400 dark:border-slate-500"></div>
-                <div class="absolute left-1/2 top-1/2 h-1/2 w-0.5 border-l-2 border-solid border-slate-400 dark:border-slate-500"></div>
-                <div class="absolute left-[83.33%] top-1/2 h-1/2 w-0.5 border-l-2 border-solid border-slate-400 dark:border-slate-500"></div>
+                <div class="absolute left-[16.67%] top-1/2 h-1/2 w-0.5 border-l-2 border-solid border-slate-400 dark:border-slate-500 -translate-x-1/2"></div>
+                <div class="absolute left-1/2 top-1/2 h-1/2 w-0.5 border-l-2 border-solid border-slate-400 dark:border-slate-500 -translate-x-1/2"></div>
+                <div class="absolute left-[83.33%] top-1/2 h-1/2 w-0.5 border-l-2 border-solid border-slate-400 dark:border-slate-500 -translate-x-1/2"></div>
                 <!-- Animation dots -->
                 <!-- Battery: 1000W=1, 2000W=2, 3000W=3 particles -->
                 <div id="battery-flow-dot" class="energy-dot energy-dot-battery" style="display:none;"></div>

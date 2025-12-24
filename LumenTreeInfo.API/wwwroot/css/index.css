@@ -1342,12 +1342,13 @@ body:has(#mainHeader.header-hidden) #compactSearch {
     opacity: 0.85;
 }
 
-/* Keyframe Animations */
+/* Keyframe Animations - Desktop (consistent positioning) */
+/* Grid columns: left=16.67%, center-left=33.33%, center=50%, center-right=66.67%, right=83.33% */
 @keyframes pv-flow {
     0% { left: 16.67%; top: 0%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
     5% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
     30% { left: 16.67%; top: 48%; }
-    50% { left: 33%; top: 50%; }
+    50% { left: 33.33%; top: 50%; }
     70% { left: 50%; top: 52%; }
     95% { left: 50%; top: 98%; opacity: 1; }
     100% { left: 50%; top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
@@ -1357,7 +1358,7 @@ body:has(#mainHeader.header-hidden) #compactSearch {
     0% { left: 83.33%; top: 0%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
     5% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
     30% { left: 83.33%; top: 48%; }
-    50% { left: 67%; top: 50%; }
+    50% { left: 66.67%; top: 50%; }
     70% { left: 50%; top: 52%; }
     95% { left: 50%; top: 98%; opacity: 1; }
     100% { left: 50%; top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
@@ -1367,7 +1368,7 @@ body:has(#mainHeader.header-hidden) #compactSearch {
     0% { left: 50%; top: 0%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
     5% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
     30% { left: 50%; top: 48%; }
-    50% { left: 33%; top: 50%; }
+    50% { left: 33.33%; top: 50%; }
     70% { left: 16.67%; top: 52%; }
     95% { left: 16.67%; top: 98%; opacity: 1; }
     100% { left: 16.67%; top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
@@ -1377,7 +1378,7 @@ body:has(#mainHeader.header-hidden) #compactSearch {
     0% { left: 16.67%; top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
     5% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
     30% { left: 16.67%; top: 52%; }
-    50% { left: 33%; top: 50%; }
+    50% { left: 33.33%; top: 50%; }
     70% { left: 50%; top: 48%; }
     95% { left: 50%; top: 2%; opacity: 1; }
     100% { left: 50%; top: 0%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
@@ -1394,7 +1395,7 @@ body:has(#mainHeader.header-hidden) #compactSearch {
     0% { left: 50%; top: 0%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
     5% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
     30% { left: 50%; top: 48%; }
-    50% { left: 67%; top: 50%; }
+    50% { left: 66.67%; top: 50%; }
     70% { left: 83.33%; top: 52%; }
     95% { left: 83.33%; top: 98%; opacity: 1; }
     100% { left: 83.33%; top: 100%; opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
