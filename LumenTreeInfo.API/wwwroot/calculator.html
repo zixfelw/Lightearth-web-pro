@@ -41,9 +41,9 @@
             transition: background 0.3s ease, color 0.3s ease;
         }
 
-        /* Dark mode */
+        /* Dark mode - Matching main page slate colors */
         html.dark body {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
             color: #e2e8f0;
         }
 
@@ -116,9 +116,9 @@
         }
 
         html.dark .container {
-            background: rgba(15, 23, 42, 0.95);
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(51, 65, 85, 0.5);
+            background: rgba(30, 41, 59, 0.95);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(71, 85, 105, 0.4);
         }
 
         .header {
@@ -234,9 +234,9 @@
         }
 
         html.dark .card {
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            box-shadow: 0 4px 15px rgba(74, 222, 128, 0.2);
-            border: none;
+            background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
+            box-shadow: 0 4px 15px rgba(74, 222, 128, 0.15);
+            border: 1px solid rgba(71, 85, 105, 0.3);
         }
 
         /* Animated rotating border - RESTORED */
@@ -285,7 +285,7 @@
         }
 
         html.dark .card::after {
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
         }
 
         /* Hover effect */
@@ -378,8 +378,8 @@
         }
 
         html.dark .input-section {
-            background: rgba(45, 55, 72, 0.6);
-            border: none;
+            background: rgba(51, 65, 85, 0.6);
+            border: 1px solid rgba(71, 85, 105, 0.3);
         }
 
         .input-section h2 {
@@ -482,8 +482,8 @@
         }
 
         html.dark .stat-card {
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            border: 1px solid rgba(74, 222, 128, 0.2);
+            background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
+            border: 1px solid rgba(71, 85, 105, 0.3);
             box-shadow: 0 4px 15px rgba(74, 222, 128, 0.1);
         }
         
@@ -584,11 +584,11 @@
         }
 
         .investment-input-wrapper {
-            background: rgba(45, 55, 72, 0.8);
+            background: rgba(51, 65, 85, 0.7);
             padding: 25px;
             border-radius: 15px;
             border: 2px solid rgba(139, 92, 246, 0.3);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
             position: relative;
             overflow: hidden;
             transition: all 0.3s ease;
@@ -627,11 +627,11 @@
             font-size: 1.4em;
             border: 2px solid rgba(74, 222, 128, 0.3);
             border-radius: 12px;
-            background: rgba(45, 55, 72, 0.8);
+            background: rgba(51, 65, 85, 0.8);
             color: #fff;
             font-weight: 800;
             transition: all 0.3s ease;
-            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
         }
 
         .investment-input-wrapper input[type="text"]:focus {
@@ -690,7 +690,7 @@
             gap: 12px;
             margin-bottom: 20px;
             padding: 12px 16px;
-            background: rgba(30, 41, 59, 0.6);
+            background: rgba(51, 65, 85, 0.5);
             border-radius: 10px;
             border: 1px solid rgba(139, 92, 246, 0.2);
         }
@@ -708,7 +708,7 @@
             padding: 10px 14px;
             border: 2px solid rgba(139, 92, 246, 0.3);
             border-radius: 8px;
-            background: rgba(15, 23, 42, 0.8);
+            background: rgba(30, 41, 59, 0.8);
             color: #fff;
             font-size: 1em;
             font-weight: 600;
@@ -747,7 +747,7 @@
         .roi-progress-section {
             margin-bottom: 20px;
             padding: 16px;
-            background: rgba(30, 41, 59, 0.5);
+            background: rgba(51, 65, 85, 0.4);
             border-radius: 12px;
             border: 1px solid rgba(139, 92, 246, 0.15);
         }
@@ -777,7 +777,7 @@
 
         .roi-progress-bar-bg {
             height: 12px;
-            background: rgba(15, 23, 42, 0.8);
+            background: rgba(30, 41, 59, 0.8);
             border-radius: 6px;
             overflow: hidden;
             border: 1px solid rgba(139, 92, 246, 0.2);
@@ -809,7 +809,7 @@
             align-items: center;
             gap: 12px;
             padding: 14px;
-            background: rgba(30, 41, 59, 0.7);
+            background: rgba(51, 65, 85, 0.6);
             border-radius: 10px;
             border: 1px solid rgba(139, 92, 246, 0.15);
             transition: all 0.2s ease;
@@ -898,7 +898,7 @@
         .roi-progress {
             margin-top: 20px;
             padding: 20px;
-            background: rgba(30, 41, 59, 0.6);
+            background: rgba(51, 65, 85, 0.5);
             border-radius: 15px;
             border: 2px solid rgba(139, 92, 246, 0.2);
         }
@@ -922,11 +922,11 @@
         .roi-progress-bar {
             width: 100%;
             height: 30px;
-            background: rgba(15, 23, 42, 0.8);
+            background: rgba(30, 41, 59, 0.8);
             border-radius: 15px;
             overflow: hidden;
             position: relative;
-            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.2);
         }
 
         .roi-progress-fill {
@@ -966,7 +966,7 @@
             display: none; /* Hidden on desktop */
             align-items: center;
             gap: 10px;
-            background: rgba(45, 55, 72, 0.8);
+            background: rgba(51, 65, 85, 0.7);
             padding: 12px 15px;
             border-radius: 12px;
             border: 2px solid rgba(139, 92, 246, 0.3);
@@ -985,7 +985,7 @@
             font-size: 1.1em;
             border: 2px solid rgba(74, 222, 128, 0.3);
             border-radius: 8px;
-            background: rgba(26, 32, 44, 0.8);
+            background: rgba(30, 41, 59, 0.8);
             color: #fff;
             font-weight: 700;
             min-width: 0;
@@ -998,7 +998,7 @@
         }
         
         .roi-mini-card {
-            background: rgba(30, 41, 59, 0.9);
+            background: rgba(51, 65, 85, 0.8);
             padding: 10px;
             border-radius: 10px;
             border-left: 3px solid #8b5cf6;
@@ -1047,7 +1047,7 @@
         
         .roi-mini-progress {
             display: none; /* Hidden on desktop */
-            background: rgba(30, 41, 59, 0.6);
+            background: rgba(51, 65, 85, 0.5);
             padding: 12px;
             border-radius: 10px;
             margin-top: 10px;
@@ -1075,7 +1075,7 @@
         .roi-mini-bar {
             width: 100%;
             height: 20px;
-            background: rgba(15, 23, 42, 0.8);
+            background: rgba(30, 41, 59, 0.8);
             border-radius: 10px;
             overflow: hidden;
         }
@@ -1152,10 +1152,10 @@
         }
 
         .month-input {
-            background: rgba(26, 32, 44, 0.8);
+            background: rgba(51, 65, 85, 0.6);
             padding: 8px;
             border-radius: 6px;
-            border: 1px solid #4a5568;
+            border: 1px solid rgba(71, 85, 105, 0.5);
         }
 
         .month-header {
@@ -1215,9 +1215,9 @@
             width: 100%;
             padding: 8px 10px;
             margin-bottom: 5px;
-            border: 1px solid rgba(51, 65, 85, 0.8);
+            border: 1px solid rgba(71, 85, 105, 0.6);
             border-radius: 8px;
-            background: rgba(15, 23, 42, 0.8);
+            background: rgba(30, 41, 59, 0.8);
             color: #e2e8f0;
             font-size: 0.85em;
             -webkit-appearance: none;
@@ -1229,7 +1229,7 @@
             outline: none;
             border-color: #14b8a6;
             box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.15);
-            background: rgba(15, 23, 42, 1);
+            background: rgba(30, 41, 59, 1);
         }
 
         /* Remove spinner for number inputs */
@@ -1378,18 +1378,20 @@
         }
 
         .chart-container {
-            background: rgba(45, 55, 72, 0.6);
+            background: rgba(51, 65, 85, 0.5);
             padding: 25px;
             border-radius: 15px;
             margin-bottom: 20px;
             position: relative;
             height: 500px;
+            border: 1px solid rgba(71, 85, 105, 0.3);
         }
 
         .month-details {
-            background: rgba(45, 55, 72, 0.6);
+            background: rgba(51, 65, 85, 0.5);
             padding: 25px;
             border-radius: 15px;
+            border: 1px solid rgba(71, 85, 105, 0.3);
         }
 
         .month-details h2 {
@@ -1446,11 +1448,11 @@
         }
 
         .detail-card {
-            background: rgba(26, 32, 44, 0.9);
+            background: rgba(51, 65, 85, 0.8);
             padding: 8px;
             border-radius: 8px;
             border-left: 3px solid #4ade80;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
             font-size: 0.75em;
             position: relative;
             cursor: pointer;
@@ -1460,7 +1462,7 @@
         /* Hover effect for detail cards */
         .detail-card:hover {
             transform: translateY(-8px) scale(1.03);
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
             z-index: 10;
         }
 
@@ -1492,7 +1494,7 @@
             top: -60px;
             left: 50%;
             transform: translateX(-50%) scale(0);
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
             color: #fff;
             padding: 12px 20px;
             border-radius: 12px;
@@ -1504,7 +1506,7 @@
             opacity: 0;
             transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             border: 2px solid #4ade80;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
         }
 
         /* Arrow down */
@@ -1577,7 +1579,7 @@
         }
 
         .modal-content {
-            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
             margin: 20px;
             padding: 0;
             border-radius: 20px;
@@ -1585,7 +1587,7 @@
             max-width: 900px;
             max-height: 90vh;
             overflow-y: auto;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
             animation: slideDown 0.3s ease;
         }
 
@@ -1666,8 +1668,8 @@
 
         .evn-tier-table td {
             padding: 10px 12px;
-            border-bottom: 1px solid #4a5568;
-            background: rgba(45, 55, 72, 0.5);
+            border-bottom: 1px solid rgba(71, 85, 105, 0.5);
+            background: rgba(51, 65, 85, 0.5);
         }
 
         .evn-tier-table tr:last-child td {
@@ -1687,9 +1689,9 @@
         .evn-input-section {
             margin-bottom: 25px;
             padding: 20px;
-            background: rgba(45, 55, 72, 0.6);
+            background: rgba(51, 65, 85, 0.5);
             border-radius: 15px;
-            border: 2px solid #4a5568;
+            border: 2px solid rgba(71, 85, 105, 0.4);
         }
 
         .evn-input-section h3 {
@@ -1712,10 +1714,10 @@
         .evn-input-group input {
             width: 100%;
             padding: 12px 15px;
-            border: 2px solid #4a5568;
+            border: 2px solid rgba(71, 85, 105, 0.5);
             border-radius: 10px;
             font-size: 1em;
-            background: rgba(26, 32, 44, 0.8);
+            background: rgba(30, 41, 59, 0.8);
             color: #e2e8f0;
             transition: all 0.3s ease;
         }
@@ -4211,7 +4213,7 @@
                             }
                         },
                         tooltip: {
-                            backgroundColor: 'rgba(26, 32, 44, 0.95)',
+                            backgroundColor: 'rgba(51, 65, 85, 0.95)',
                             titleColor: '#4ade80',
                             bodyColor: '#fff',
                             borderColor: '#4ade80',
@@ -4285,7 +4287,7 @@
                             }
                         },
                         tooltip: {
-                            backgroundColor: 'rgba(26, 32, 44, 0.95)',
+                            backgroundColor: 'rgba(51, 65, 85, 0.95)',
                             titleColor: '#22c55e',
                             bodyColor: '#fff',
                             borderColor: '#22c55e',
@@ -4835,7 +4837,7 @@
                 <button class="modal-close" onclick="closeLumentreeModal()" style="width: 36px; height: 36px; border-radius: 10px; background: rgba(255,255,255,0.1); border: none; color: #fff; font-size: 20px; cursor: pointer; transition: all 0.2s;">&times;</button>
             </div>
             
-            <div class="modal-body" style="background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); padding: 24px;">
+            <div class="modal-body" style="background: linear-gradient(180deg, #334155 0%, #1e293b 100%); padding: 24px;">
                 <!-- Premium Tab Switcher - Năm (trái) | Tháng (phải) -->
                 <div style="display: flex; gap: 8px; margin-bottom: 24px; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 14px;">
                     <button id="tabHA" class="evn-btn-calculate" onclick="switchDataSource('ha')" style="flex: 1; padding: 14px 16px; border-radius: 10px; font-size: 0.9em; font-weight: 600; border: none; cursor: pointer; transition: all 0.3s; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #fff; box-shadow: 0 4px 16px rgba(16,185,129,0.3);">
