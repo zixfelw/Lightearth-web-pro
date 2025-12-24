@@ -1828,9 +1828,9 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 /* Solar hour item */
 .solar-hour-item {
     flex-shrink: 0;
-    width: 60px;
-    padding: 10px 6px;
-    border-radius: 12px;
+    width: 56px;
+    padding: 6px 4px;
+    border-radius: 10px;
     text-align: center;
     transition: all 0.2s ease;
     border: 2px solid transparent;
@@ -1838,33 +1838,50 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 
 @media (min-width: 640px) {
     .solar-hour-item {
-        width: 68px;
-        padding: 12px 8px;
+        width: 62px;
+        padding: 8px 6px;
     }
 }
 
 /* Solar hour item time text */
 .solar-hour-item .solar-time {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
+    line-height: 1.2;
 }
 
 @media (min-width: 640px) {
     .solar-hour-item .solar-time {
-        font-size: 13px;
+        font-size: 12px;
+    }
+}
+
+/* Solar next day indicator (+1) */
+.solar-hour-item .solar-next-day {
+    font-size: 9px;
+    font-weight: 700;
+    color: white;
+    opacity: 0.9;
+    margin-right: 2px;
+}
+
+@media (min-width: 640px) {
+    .solar-hour-item .solar-next-day {
+        font-size: 10px;
     }
 }
 
 /* Solar hour item icon */
 .solar-hour-item .solar-icon {
-    font-size: 20px;
-    margin: 4px 0;
+    font-size: 18px;
+    margin: 2px 0;
+    line-height: 1;
 }
 
 @media (min-width: 640px) {
     .solar-hour-item .solar-icon {
-        font-size: 24px;
-        margin: 6px 0;
+        font-size: 20px;
+        margin: 3px 0;
     }
 }
 
@@ -1872,22 +1889,26 @@ body:has(#mainHeader.header-hidden) #compactSearch {
 .solar-hour-item .solar-value {
     font-size: 13px;
     font-weight: 800;
+    line-height: 1.2;
 }
 
 @media (min-width: 640px) {
     .solar-hour-item .solar-value {
-        font-size: 15px;
+        font-size: 14px;
     }
 }
 
 /* Solar hour rain probability */
 .solar-hour-item .solar-rain {
-    font-size: 10px;
+    font-size: 9px;
+    font-weight: 600;
+    margin-top: 2px;
+    line-height: 1;
 }
 
 @media (min-width: 640px) {
     .solar-hour-item .solar-rain {
-        font-size: 11px;
+        font-size: 10px;
     }
 }
 
