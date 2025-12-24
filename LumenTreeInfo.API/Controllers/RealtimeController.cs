@@ -827,9 +827,8 @@ public class RealtimeController : ControllerBase
             mqtt = new
             {
                 broker = mqttConfig["Broker"],
-                port = mqttConfig["Port"],
-                username = mqttConfig["Username"],
-                // Don't expose password
+                port = mqttConfig["Port"]
+                // Don't expose username/password
             },
             cloud = new
             {
@@ -840,7 +839,7 @@ public class RealtimeController : ControllerBase
             {
                 defaultDeviceSn = dsConfig["DefaultDeviceSn"],
                 mqttTimeoutSeconds = dsConfig["MqttTimeoutSeconds"],
-                haPollingIntervalSeconds = dsConfig["HaPollingIntervalSeconds"],
+                pollingIntervalSeconds = dsConfig["HaPollingIntervalSeconds"],
                 enableFallback = dsConfig["EnableFallback"]
             },
             timestamp = DateTime.Now
