@@ -1368,8 +1368,10 @@
 
         .modal.show {
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
+            padding: 20px 0;
+            overflow-y: auto;
         }
 
         .modal-content {
@@ -4606,7 +4608,7 @@
     
     <!-- Sync Data Modal - Premium Design -->
     <div id="lumentreeModal" class="modal">
-        <div class="modal-content" style="max-width: 520px; border-radius: 24px; overflow: hidden; box-shadow: 0 25px 80px rgba(0,0,0,0.6);">
+        <div class="modal-content" style="max-width: 520px; border-radius: 24px; overflow-y: auto; max-height: 90vh; box-shadow: 0 25px 80px rgba(0,0,0,0.6);">
             <!-- Premium Header with Gradient -->
             <div class="modal-header" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 24px 28px; border-bottom: 1px solid rgba(255,255,255,0.1);">
                 <div style="display: flex; align-items: center; gap: 14px;">

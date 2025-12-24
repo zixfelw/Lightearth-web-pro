@@ -191,36 +191,7 @@
             transform: scale(0.95);
         }
         
-        /* Modal styles */
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
-            z-index: 9999;
-            display: none;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .modal-overlay.active {
-            display: flex;
-        }
-        
-        .modal-content {
-            background: white;
-            border-radius: 16px;
-            width: 95%;
-            max-width: 1200px;
-            height: 90vh;
-            max-height: 800px;
-            overflow: hidden;
-            position: relative;
-        }
-        
-        .dark .modal-content {
-            background: #1f2937;
-        }
+        /* Modal styles removed - calculator now uses direct navigation */
         
         /* Header scroll hide/show */
         #mainHeader.header-hidden {
@@ -269,12 +240,12 @@
                         <span b-iwpun16f09 id="connectionText" class="text-[10px] sm:text-xs text-slate-300 font-medium">Đang kết nối...</span>
                     </div>
                     
-                    <!-- Calculator Button in Header -->
-                    <button b-iwpun16f09 onclick="openCalculatorModal()" 
-                            class="hidden sm:flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg transition-all shadow-lg shadow-emerald-900/30">
+                    <!-- Calculator Button in Header - Direct link to /calculator -->
+                    <a b-iwpun16f09 href="/calculator" 
+                            class="hidden sm:flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg transition-all shadow-lg shadow-emerald-900/30 no-underline">
                         <i b-iwpun16f09 data-lucide="calculator" class="w-4 h-4"></i>
                         <span b-iwpun16f09 class="text-sm font-medium">Tính Tiết Kiệm</span>
-                    </button>
+                    </a>
                     
                     <!-- Theme Toggle -->
                     <button b-iwpun16f09 id="themeToggle" class="w-8 h-8 sm:w-9 sm:h-9 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg flex items-center justify-center transition-all">
@@ -1325,23 +1296,14 @@
 
     </main>
     
-    <!-- Floating Action Button - Calculator -->
-    <button b-iwpun16f09 onclick="openCalculatorModal()" 
-            class="fab gradient-brand shadow-brand text-white sm:hidden"
+    <!-- Floating Action Button - Calculator - Direct link to /calculator -->
+    <a b-iwpun16f09 href="/calculator" 
+            class="fab gradient-brand shadow-brand text-white sm:hidden no-underline flex items-center justify-center"
             title="Tính Tiết Kiệm">
         <i b-iwpun16f09 data-lucide="calculator" class="w-6 h-6"></i>
-    </button>
+    </a>
     
-    <!-- Calculator Modal -->
-    <div b-iwpun16f09 id="calculatorModal" class="modal-overlay">
-        <div b-iwpun16f09 class="modal-content">
-            <button b-iwpun16f09 onclick="closeCalculatorModal()" 
-                    class="absolute top-4 right-4 z-10 w-10 h-10 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-full flex items-center justify-center transition-all">
-                <i b-iwpun16f09 data-lucide="x" class="w-5 h-5"></i>
-            </button>
-            <iframe b-iwpun16f09 id="calculatorIframe" src="" class="w-full h-full border-0"></iframe>
-        </div>
-    </div>
+    <!-- Calculator Modal removed - now uses direct link to /calculator -->
     
     <!-- Scripts -->
     <script>
@@ -1366,42 +1328,8 @@
             localStorage.theme = html.classList.contains('dark') ? 'dark' : 'light';
         });
         
-        // Calculator Modal functions
-        function openCalculatorModal() {
-            const modal = document.getElementById('calculatorModal');
-            const iframe = document.getElementById('calculatorIframe');
-            
-            // Pass deviceId if available
-            const urlParams = new URLSearchParams(window.location.search);
-            const deviceId = urlParams.get('deviceId') || '';
-            
-            iframe.src = '/calculator.html' + (deviceId ? '?deviceId=' + deviceId : '');
-            modal.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
-        
-        function closeCalculatorModal() {
-            const modal = document.getElementById('calculatorModal');
-            const iframe = document.getElementById('calculatorIframe');
-            
-            modal.classList.remove('active');
-            iframe.src = '';
-            document.body.style.overflow = '';
-        }
-        
-        // Close modal on escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                closeCalculatorModal();
-            }
-        });
-        
-        // Close modal on overlay click
-        document.getElementById('calculatorModal').addEventListener('click', (e) => {
-            if (e.target.id === 'calculatorModal') {
-                closeCalculatorModal();
-            }
-        });
+        // Calculator Modal removed - now using direct links to /calculator
+        // DeviceId is passed via URL when navigating to calculator page
         
         // ========================================
         // HEADER SCROLL HIDE - Always hide when scrolled
