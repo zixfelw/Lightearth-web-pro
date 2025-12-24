@@ -21,8 +21,13 @@ public class HAStatisticsController : ControllerBase
     public HAStatisticsController()
     {
         // Initialize HA client from environment variables
-        var haUrl = Environment.GetEnvironmentVariable("HA_URL") ?? "http://localhost:8123";
-        var haToken = Environment.GetEnvironmentVariable("HA_TOKEN") ?? "";
+        // Support both formats: HA_URL/HA_TOKEN and HomeAssistant__Url/HomeAssistant__Token
+        var haUrl = Environment.GetEnvironmentVariable("HomeAssistant__Url") 
+                    ?? Environment.GetEnvironmentVariable("HA_URL") 
+                    ?? "http://localhost:8123";
+        var haToken = Environment.GetEnvironmentVariable("HomeAssistant__Token") 
+                      ?? Environment.GetEnvironmentVariable("HA_TOKEN") 
+                      ?? "";
         
         if (!string.IsNullOrEmpty(haToken))
         {
@@ -460,8 +465,11 @@ public class HAStatisticsController : ControllerBase
             homeAssistant = new {
                 isConfigured = haConfigured,
                 isAvailable = haAvailable,
-                haUrl = Environment.GetEnvironmentVariable("HA_URL") ?? "NOT SET",
-                hasToken = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("HA_TOKEN")),
+                haUrl = Environment.GetEnvironmentVariable("HomeAssistant__Url") 
+                        ?? Environment.GetEnvironmentVariable("HA_URL") ?? "NOT SET",
+                hasToken = !string.IsNullOrEmpty(
+                    Environment.GetEnvironmentVariable("HomeAssistant__Token") 
+                    ?? Environment.GetEnvironmentVariable("HA_TOKEN")),
                 knownDevices = haDevices?.ToList(),
                 deviceCount = haDevices?.Count ?? 0
             },
