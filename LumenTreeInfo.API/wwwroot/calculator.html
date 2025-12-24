@@ -5019,12 +5019,13 @@
             }
             
             // Convert to format expected by calculator
+            // backup = essential load from HA (tải backup khi mất điện)
             const monthData = haYearlyData.months.map(m => ({
                 month: m.month,
                 load: m.load,
                 grid: m.grid,
                 pv: m.pv,
-                backup: 0
+                backup: m.backup || 0  // Use backup from HA (essential load)
             }));
             
             // Use the existing import function
