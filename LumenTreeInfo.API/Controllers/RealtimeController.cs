@@ -813,33 +813,24 @@ public class RealtimeController : ControllerBase
     }
 
     /// <summary>
-    /// Get configuration info (for debugging)
+    /// Get configuration info (for debugging) - Protected by API Key
     /// </summary>
     [HttpGet("config")]
     public IActionResult GetConfig()
     {
-        var mqttConfig = _configuration.GetSection("Mqtt");
-        var haConfig = _configuration.GetSection("HomeAssistant"); // Keep internal config name
+        var haConfig = _configuration.GetSection("HomeAssistant");
         var dsConfig = _configuration.GetSection("DataSource");
 
+        // Only expose minimal, non-sensitive info
         return Ok(new
         {
-            mqtt = new
-            {
-                broker = mqttConfig["Broker"],
-                port = mqttConfig["Port"]
-                // Don't expose username/password
-            },
             cloud = new
             {
-                enabled = haConfig["Enabled"],
                 configured = !string.IsNullOrEmpty(haConfig["Token"]) && haConfig["Token"] != "YOUR_LONG_LIVED_ACCESS_TOKEN_HERE"
             },
             dataSource = new
             {
                 defaultDeviceSn = dsConfig["DefaultDeviceSn"],
-                mqttTimeoutSeconds = dsConfig["MqttTimeoutSeconds"],
-                pollingIntervalSeconds = dsConfig["HaPollingIntervalSeconds"],
                 enableFallback = dsConfig["EnableFallback"]
             },
             timestamp = DateTime.Now
