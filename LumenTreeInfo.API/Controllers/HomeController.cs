@@ -60,6 +60,17 @@ public class HomeController : Controller
     }
 
     /// <summary>
+    /// Returns the Võ Anh Phong control panel with 8 specific devices
+    /// Devices: P250617024, H250619922, H250422132, H250619857, P240514221, P240418148, P240521201, H250514035
+    /// </summary>
+    [Route("/control-voanhphong")]
+    public IActionResult ControlVoanhphong()
+    {
+        Log.Information("Rendering Võ Anh Phong control panel");
+        return View("ControlVoanhphong");
+    }
+
+    /// <summary>
     /// Gets and returns device information and energy data
     /// </summary>
     /// <param name="deviceId">The device ID to get information for</param>
