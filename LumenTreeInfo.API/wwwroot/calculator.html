@@ -4696,9 +4696,8 @@
     <script>
         // ==================== LIGHTEARTH & HA SYNC ====================
         const LIGHTEARTH_API_BASE = 'https://lightearth.applike098.workers.dev';
-        // Home Assistant Cloudflare Tunnel URL - direct connection
-        const HA_CLOUDFLARE_URL = 'https://circle-ambassador-financial-chris.trycloudflare.com';
-        const HA_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiI4ZDI0YmNkNDdmNzc0ODUwOGI5NjBkYzUwYmQwNDkxYiIsImlhdCI6MTc2NjQ2MzkyMiwiZXhwIjoyMDgxODIzOTIyfQ.5qPnbyK-bVIlyh6DZuwGMaU-dbWu8NHkyK2U7ugw3U4';
+        // HA data is fetched via Railway API proxy (avoids CORS issues)
+        // Railway connects to HA via Cloudflare Tunnel (HomeAssistant__Url env var)
         let lightearthData = null;
         let haYearlyData = null;
         let currentDataSource = 'lightearth';  // 'lightearth' or 'ha'
@@ -4761,7 +4760,8 @@
             document.body.style.overflow = 'auto';
         }
         
-        // Fetch yearly data from Home Assistant via Cloudflare Tunnel (DIRECT)
+        // Fetch yearly data from Home Assistant via Railway API proxy
+        // Railway connects to HA via Cloudflare Tunnel (avoids CORS issues)
         async function fetchHAYearlyData() {
             const deviceId = document.getElementById('haDeviceId').value.trim().toUpperCase();
             const year = document.getElementById('haYear').value;
@@ -4778,116 +4778,68 @@
                 showNotification('🔄 Dang lay du lieu nam tu Home Assistant...', 'info');
                 const startTime = Date.now();
                 
-                // Fetch DIRECTLY from Home Assistant via Cloudflare Tunnel
-                // Get pv_year sensor which contains all monthly data in attributes
-                const sensorId = `sensor.device_${deviceId.toLowerCase()}_pv_year`;
-                const response = await fetch(`${HA_CLOUDFLARE_URL}/api/states/${sensorId}`, {
-                    headers: {
-                        'Authorization': `Bearer ${HA_TOKEN}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
+                // Call Railway API proxy endpoint (connects to HA via Cloudflare Tunnel)
+                const response = await fetch(`/api/ha/statistics/${deviceId}/year?year=${year}`);
                 
                 if (!response.ok) {
-                    throw new Error(`HA Server tra ve loi: ${response.status}`);
+                    const errorText = await response.text();
+                    throw new Error(`Server tra ve loi: ${response.status} - ${errorText}`);
                 }
                 
-                const sensorData = await response.json();
+                const result = await response.json();
                 const elapsed = Date.now() - startTime;
                 
-                if (!sensorData || !sensorData.attributes) {
-                    throw new Error('Khong co du lieu tu Home Assistant');
-                }
-                
-                const attrs = sensorData.attributes;
-                const sensorYear = attrs.year || parseInt(year);
-                
-                // Extract monthly arrays from attributes
-                const monthlyPv = attrs.monthly_pv || [];
-                const monthlyLoad = attrs.monthly_load || [];
-                const monthlyTotalLoad = attrs.monthly_total_load || [];
-                const monthlyGrid = attrs.monthly_grid || [];
-                const monthlyCharge = attrs.monthly_charge || [];
-                const monthlyDischarge = attrs.monthly_discharge || [];
-                
-                // Build months array (only months with data)
-                const months = [];
-                let totalPv = 0, totalLoad = 0, totalGrid = 0, totalBattery = 0;
-                
-                for (let m = 0; m < 12; m++) {
-                    const pv = monthlyPv[m] || 0;
-                    const load = (monthlyLoad[m] || 0) || (monthlyTotalLoad[m] || 0);
-                    const grid = monthlyGrid[m] || 0;
-                    const charge = monthlyCharge[m] || 0;
-                    const discharge = monthlyDischarge[m] || 0;
-                    const battery = charge - discharge;
-                    
-                    if (pv > 0 || load > 0) {
-                        months.push({
-                            month: `${sensorYear}-${String(m + 1).padStart(2, '0')}`,
-                            monthNumber: m + 1,
-                            pv: Math.round(pv * 10) / 10,
-                            load: Math.round(load * 10) / 10,
-                            grid: Math.round(grid * 10) / 10,
-                            battery: Math.round(battery * 10) / 10,
-                            charge: Math.round(charge * 10) / 10,
-                            discharge: Math.round(discharge * 10) / 10
-                        });
-                        totalPv += pv;
-                        totalLoad += load;
-                        totalGrid += grid;
-                        totalBattery += battery;
-                    }
-                }
-                
-                if (months.length === 0) {
-                    throw new Error(`Khong co du lieu nam ${year} trong Home Assistant`);
+                if (!result.success) {
+                    throw new Error(result.message || 'Khong co du lieu');
                 }
                 
                 // Store for import
                 haYearlyData = {
                     deviceId: deviceId,
-                    year: sensorYear,
-                    source: 'ha_sensors_direct',
-                    months: months,
-                    totals: {
-                        pv: Math.round(totalPv * 10) / 10,
-                        load: Math.round(totalLoad * 10) / 10,
-                        grid: Math.round(totalGrid * 10) / 10,
-                        battery: Math.round(totalBattery * 10) / 10
-                    }
+                    year: result.year,
+                    source: result.source,
+                    months: result.months.map(m => ({
+                        month: m.month,
+                        monthNumber: m.monthNumber,
+                        load: m.load,
+                        grid: m.grid,
+                        pv: m.pv,
+                        battery: m.battery || 0,
+                        backup: 0
+                    })),
+                    totals: result.totals
                 };
                 
                 // Display preview
                 let previewHtml = `
                     <div style="background: rgba(16, 185, 129, 0.1); padding: 20px; border-radius: 12px; border: 2px solid rgba(16, 185, 129, 0.3);">
                         <div style="font-size: 1.2em; font-weight: bold; color: #10b981; margin-bottom: 15px; text-align: center;">
-                            🏠 Device: ${deviceId} - Nam ${sensorYear}
+                            🏠 Device: ${deviceId} - Nam ${result.year}
                         </div>
                         <div style="font-size: 0.85em; color: #9ca3af; text-align: center; margin-bottom: 15px;">
-                            📊 Nguon: Home Assistant (Cloudflare Tunnel)<br>
-                            📅 ${months.length} thang du lieu
+                            📊 Nguon: ${result.source === 'ha_sensors' ? 'Home Assistant Sensors' : result.source}<br>
+                            📅 ${result.totalMonths} thang du lieu
                         </div>
                         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; color: #cbd5e0;">
                             <div style="background: rgba(245, 158, 11, 0.15); padding: 12px; border-radius: 8px; text-align: center;">
                                 <div style="font-size: 0.85em; color: #9ca3af;">☀️ PV (Nam)</div>
-                                <div style="font-size: 1.4em; font-weight: bold; color: #f59e0b;">${haYearlyData.totals.pv} kWh</div>
+                                <div style="font-size: 1.4em; font-weight: bold; color: #f59e0b;">${result.totals.pv} kWh</div>
                             </div>
                             <div style="background: rgba(74, 222, 128, 0.15); padding: 12px; border-radius: 8px; text-align: center;">
                                 <div style="font-size: 0.85em; color: #9ca3af;">🏠 Load (Nam)</div>
-                                <div style="font-size: 1.4em; font-weight: bold; color: #4ade80;">${haYearlyData.totals.load} kWh</div>
+                                <div style="font-size: 1.4em; font-weight: bold; color: #4ade80;">${result.totals.load} kWh</div>
                             </div>
                             <div style="background: rgba(96, 165, 250, 0.15); padding: 12px; border-radius: 8px; text-align: center;">
                                 <div style="font-size: 0.85em; color: #9ca3af;">🔌 Grid (Nam)</div>
-                                <div style="font-size: 1.4em; font-weight: bold; color: #60a5fa;">${haYearlyData.totals.grid} kWh</div>
+                                <div style="font-size: 1.4em; font-weight: bold; color: #60a5fa;">${result.totals.grid} kWh</div>
                             </div>
                             <div style="background: rgba(168, 85, 247, 0.15); padding: 12px; border-radius: 8px; text-align: center;">
                                 <div style="font-size: 0.85em; color: #9ca3af;">🔋 Battery (Nam)</div>
-                                <div style="font-size: 1.4em; font-weight: bold; color: #a855f7;">${haYearlyData.totals.battery} kWh</div>
+                                <div style="font-size: 1.4em; font-weight: bold; color: #a855f7;">${result.totals.battery} kWh</div>
                             </div>
                         </div>
                         <div style="margin-top: 15px; color: #9ca3af; font-size: 0.85em; text-align: center;">
-                            ✅ ${months.length} thang | ⏱️ ${elapsed}ms
+                            ✅ ${result.months.length} thang | ⏱️ ${elapsed}ms
                         </div>
                     </div>
                 `;
@@ -4895,7 +4847,7 @@
                 document.getElementById('lumentreePreview').innerHTML = previewHtml;
                 document.getElementById('lumentreeResultSection').classList.add('show');
                 
-                showNotification(`✅ Da lay du lieu nam ${sensorYear} (${elapsed}ms)!`, 'success');
+                showNotification(`✅ Da lay du lieu nam ${result.year} (${elapsed}ms)!`, 'success');
                 
             } catch (error) {
                 console.error('HA fetch error:', error);
