@@ -346,7 +346,7 @@ public class TelegramBotCommandService : BackgroundService
             await SendMessageAsync(chatId, 
                 $"❌ Thiết bị `{deviceId}` chưa có trong hệ thống!\n\n" +
                 $"📱 *Tham gia nhóm Zalo* để gửi ID thiết bị và được cập nhật *(Miễn phí)*:\n" +
-                $"👉 https://zalo.me/g/xxxxxxx\n\n" +
+                $"👉 https://zalo.me/g/kmzrgh433\n\n" +
                 $"💡 Sau khi được cập nhật, quay lại đây và thêm thiết bị nhé!");
             return;
         }
