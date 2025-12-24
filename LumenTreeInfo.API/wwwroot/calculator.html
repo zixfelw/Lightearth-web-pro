@@ -4604,88 +4604,110 @@
     </script>
     -->
     
-    <!-- Lightearth Sync Modal - Enhanced with Year Support -->
+    <!-- Sync Data Modal - Premium Design -->
     <div id="lumentreeModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-                <h2>☀️ Dong Bo Lightearth / HA</h2>
-                <button class="modal-close" onclick="closeLumentreeModal()">&times;</button>
+        <div class="modal-content" style="max-width: 520px; border-radius: 24px; overflow: hidden; box-shadow: 0 25px 80px rgba(0,0,0,0.6);">
+            <!-- Premium Header with Gradient -->
+            <div class="modal-header" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 24px 28px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                <div style="display: flex; align-items: center; gap: 14px;">
+                    <div style="width: 48px; height: 48px; background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); border-radius: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(245,158,11,0.35);">
+                        <span style="font-size: 24px;">☀️</span>
+                    </div>
+                    <div>
+                        <h2 style="margin: 0; font-size: 1.3em; font-weight: 700; color: #fff;">Đồng Bộ Dữ Liệu Hệ Thống</h2>
+                        <p style="margin: 4px 0 0 0; font-size: 0.8em; color: rgba(255,255,255,0.6);">Lấy dữ liệu từ thiết bị của bạn</p>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeLumentreeModal()" style="width: 36px; height: 36px; border-radius: 10px; background: rgba(255,255,255,0.1); border: none; color: #fff; font-size: 20px; cursor: pointer; transition: all 0.2s;">&times;</button>
             </div>
-            <div class="modal-body">
-                <p style="text-align: center; color: #cbd5e0; margin-bottom: 20px; font-size: 0.95em;">
-                    Lay du lieu thang/nam tu Lightearth hoac Home Assistant
-                </p>
-                
-                <!-- Data Source Tabs -->
-                <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-                    <button id="tabLightearth" class="evn-btn-calculate" onclick="switchDataSource('lightearth')" style="flex: 1; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-                        ☀️ Lightearth (Thang)
+            
+            <div class="modal-body" style="background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%); padding: 24px;">
+                <!-- Premium Tab Switcher -->
+                <div style="display: flex; gap: 8px; margin-bottom: 24px; background: rgba(0,0,0,0.3); padding: 6px; border-radius: 14px;">
+                    <button id="tabLightearth" class="evn-btn-calculate" onclick="switchDataSource('lightearth')" style="flex: 1; padding: 14px 16px; border-radius: 10px; font-size: 0.9em; font-weight: 600; border: none; cursor: pointer; transition: all 0.3s; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: #000; box-shadow: 0 4px 16px rgba(245,158,11,0.3);">
+                        ☀️ Dữ Liệu Tháng
                     </button>
-                    <button id="tabHA" class="evn-btn-calculate" onclick="switchDataSource('ha')" style="flex: 1; background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);">
-                        🏠 Home Assistant (Nam)
+                    <button id="tabHA" class="evn-btn-calculate" onclick="switchDataSource('ha')" style="flex: 1; padding: 14px 16px; border-radius: 10px; font-size: 0.9em; font-weight: 600; border: none; cursor: pointer; transition: all 0.3s; background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7);">
+                        📊 Dữ Liệu Năm
                     </button>
                 </div>
                 
                 <!-- Lightearth Section -->
                 <div id="lightearthSection">
-                    <div class="evn-warning" style="border-color: #f59e0b; background: rgba(245, 158, 11, 0.15); color: #fbbf24;">
-                        <strong>⚡ Lightearth API:</strong> Lay du lieu thang hien tai.<br>
-                        Chi ho tro cac device da dang ky trong he thong.
+                    <!-- Info Banner -->
+                    <div style="background: linear-gradient(135deg, rgba(245,158,11,0.15) 0%, rgba(217,119,6,0.1) 100%); border: 1px solid rgba(245,158,11,0.3); border-radius: 14px; padding: 16px; margin-bottom: 20px;">
+                        <div style="display: flex; align-items: flex-start; gap: 12px;">
+                            <span style="font-size: 20px;">⚡</span>
+                            <div>
+                                <p style="margin: 0; color: #fbbf24; font-weight: 600; font-size: 0.9em;">Dữ liệu tháng hiện tại</p>
+                                <p style="margin: 6px 0 0 0; color: rgba(255,255,255,0.6); font-size: 0.8em; line-height: 1.5;">Lấy dữ liệu 31 ngày gần nhất từ hệ thống cloud</p>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="evn-input-section" style="border-color: #f59e0b;">
-                        <h3 style="color: #f59e0b;">🔗 Ket Noi Lightearth</h3>
-                        <div class="evn-input-group">
-                            <label for="lightearthDeviceId">Device ID:</label>
-                            <input type="text" id="lightearthDeviceId" placeholder="Vi du: P250801055" style="text-transform: uppercase;">
+                    <!-- Input Card -->
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px;">
+                        <h3 style="color: #f59e0b; font-size: 0.95em; font-weight: 600; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+                            <span style="width: 8px; height: 8px; background: #f59e0b; border-radius: 50%; box-shadow: 0 0 12px #f59e0b;"></span>
+                            Kết Nối Thiết Bị
+                        </h3>
+                        <div class="evn-input-group" style="margin-bottom: 16px;">
+                            <label for="lightearthDeviceId" style="color: rgba(255,255,255,0.7); font-size: 0.85em; margin-bottom: 8px; display: block;">Device ID</label>
+                            <input type="text" id="lightearthDeviceId" placeholder="VD: P250801055" style="text-transform: uppercase; width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.4); border: 2px solid rgba(245,158,11,0.2); border-radius: 12px; color: #fff; font-size: 1em; font-weight: 600; transition: all 0.3s;">
                         </div>
-                        <button class="evn-btn-calculate" onclick="fetchLightearthData()" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
-                            ⚡ Lay Du Lieu Thang
+                        <button class="evn-btn-calculate" onclick="fetchLightearthData()" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border: none; border-radius: 12px; color: #000; font-size: 1em; font-weight: 700; cursor: pointer; transition: all 0.3s; box-shadow: 0 8px 24px rgba(245,158,11,0.3);">
+                            ⚡ Lấy Dữ Liệu Tháng
                         </button>
-                        <div style="margin: 12px 0 0 0; font-size: 0.75em; color: #9ca3af; text-align: left; line-height: 1.6;">
-                            <p style="margin: 0;">📊 <em>Lay du lieu 31 ngay trong thang hien tai</em></p>
-                            <p style="margin: 6px 0 0 0;">🔄 <em>Du lieu tu: lightearth.applike098.workers.dev</em></p>
-                        </div>
                     </div>
                 </div>
                 
-                <!-- Home Assistant Section -->
+                <!-- System Data Section (Year) -->
                 <div id="haSection" style="display: none;">
-                    <div class="evn-warning" style="border-color: #10b981; background: rgba(16, 185, 129, 0.15); color: #34d399;">
-                        <strong>🏠 Home Assistant:</strong> Lay du lieu CA NAM tu long-term statistics.<br>
-                        Du lieu luu tru vinh vien, co the lay ca nam truoc.
+                    <!-- Info Banner -->
+                    <div style="background: linear-gradient(135deg, rgba(16,185,129,0.15) 0%, rgba(5,150,105,0.1) 100%); border: 1px solid rgba(16,185,129,0.3); border-radius: 14px; padding: 16px; margin-bottom: 20px;">
+                        <div style="display: flex; align-items: flex-start; gap: 12px;">
+                            <span style="font-size: 20px;">📊</span>
+                            <div>
+                                <p style="margin: 0; color: #34d399; font-weight: 600; font-size: 0.9em;">Dữ liệu cả năm</p>
+                                <p style="margin: 6px 0 0 0; color: rgba(255,255,255,0.6); font-size: 0.8em; line-height: 1.5;">Lấy dữ liệu 12 tháng từ hệ thống lưu trữ dài hạn</p>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="evn-input-section" style="border-color: #10b981;">
-                        <h3 style="color: #10b981;">🔗 Ket Noi Home Assistant</h3>
-                        <div class="evn-input-group">
-                            <label for="haDeviceId">Device ID:</label>
-                            <input type="text" id="haDeviceId" placeholder="Vi du: P250801055" style="text-transform: uppercase;">
+                    <!-- Input Card -->
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px;">
+                        <h3 style="color: #10b981; font-size: 0.95em; font-weight: 600; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+                            <span style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 12px #10b981;"></span>
+                            Kết Nối Hệ Thống
+                        </h3>
+                        <div class="evn-input-group" style="margin-bottom: 12px;">
+                            <label for="haDeviceId" style="color: rgba(255,255,255,0.7); font-size: 0.85em; margin-bottom: 8px; display: block;">Device ID</label>
+                            <input type="text" id="haDeviceId" placeholder="VD: P250801055" style="text-transform: uppercase; width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.4); border: 2px solid rgba(16,185,129,0.2); border-radius: 12px; color: #fff; font-size: 1em; font-weight: 600; transition: all 0.3s;">
                         </div>
-                        <div class="evn-input-group">
-                            <label for="haYear">Nam:</label>
-                            <select id="haYear" style="width: 100%; padding: 10px; background: #1e293b; color: white; border: 1px solid #334155; border-radius: 6px;">
+                        <div class="evn-input-group" style="margin-bottom: 16px;">
+                            <label for="haYear" style="color: rgba(255,255,255,0.7); font-size: 0.85em; margin-bottom: 8px; display: block;">Năm</label>
+                            <select id="haYear" style="width: 100%; padding: 14px 16px; background: rgba(0,0,0,0.4); border: 2px solid rgba(16,185,129,0.2); border-radius: 12px; color: #fff; font-size: 1em; font-weight: 600; cursor: pointer;">
                             </select>
                         </div>
-                        <button class="evn-btn-calculate" onclick="fetchHAYearlyData()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                            🏠 Lay Du Lieu Nam
+                        <button class="evn-btn-calculate" onclick="fetchHAYearlyData()" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; border-radius: 12px; color: #fff; font-size: 1em; font-weight: 700; cursor: pointer; transition: all 0.3s; box-shadow: 0 8px 24px rgba(16,185,129,0.3);">
+                            📊 Lấy Dữ Liệu Năm
                         </button>
-                        <div style="margin: 12px 0 0 0; font-size: 0.75em; color: #9ca3af; text-align: left; line-height: 1.6;">
-                            <p style="margin: 0;">📅 <em>Lay du lieu 12 thang trong nam</em></p>
-                            <p style="margin: 6px 0 0 0;">🔄 <em>Du lieu tu: Home Assistant WebSocket API</em></p>
-                        </div>
                     </div>
                 </div>
                 
-                <div class="evn-result-section" id="lumentreeResultSection">
-                    <h3 style="margin-bottom: 15px; color: #f59e0b; font-size: 1.1em;">📋 Du Lieu</h3>
+                <!-- Result Section -->
+                <div class="evn-result-section" id="lumentreeResultSection" style="margin-top: 20px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px;">
+                    <h3 style="margin: 0 0 16px 0; color: #4ade80; font-size: 1em; font-weight: 600; display: flex; align-items: center; gap: 10px;">
+                        <span style="width: 32px; height: 32px; background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px;">📋</span>
+                        Dữ Liệu Đã Lấy
+                    </h3>
                     <div id="lumentreePreview"></div>
-                    <div style="display: flex; gap: 10px; margin-top: 20px;">
-                        <button class="evn-btn-calculate" onclick="importSyncedData()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); flex: 1;">
-                            ✅ Nhap Vao Ung Dung
+                    <div style="display: flex; gap: 12px; margin-top: 20px;">
+                        <button class="evn-btn-calculate" onclick="importSyncedData()" style="flex: 1; padding: 16px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none; border-radius: 12px; color: #fff; font-size: 0.95em; font-weight: 700; cursor: pointer; transition: all 0.3s; box-shadow: 0 6px 20px rgba(16,185,129,0.3);">
+                            ✅ Nhập Vào Ứng Dụng
                         </button>
-                        <button class="evn-btn-calculate" onclick="closeLumentreeModal()" style="background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%); flex: 1;">
-                            ❌ Huy
+                        <button class="evn-btn-calculate" onclick="closeLumentreeModal()" style="flex: 0.6; padding: 16px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; color: rgba(255,255,255,0.8); font-size: 0.95em; font-weight: 600; cursor: pointer; transition: all 0.3s;">
+                            ❌ Hủy
                         </button>
                     </div>
                 </div>
@@ -4712,13 +4734,25 @@
             if (source === 'lightearth') {
                 lightearthSection.style.display = 'block';
                 haSection.style.display = 'none';
+                // Active state for Month tab
                 tabLightearth.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
-                tabHA.style.background = 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)';
+                tabLightearth.style.color = '#000';
+                tabLightearth.style.boxShadow = '0 4px 16px rgba(245,158,11,0.3)';
+                // Inactive state for Year tab
+                tabHA.style.background = 'rgba(255,255,255,0.08)';
+                tabHA.style.color = 'rgba(255,255,255,0.7)';
+                tabHA.style.boxShadow = 'none';
             } else {
                 lightearthSection.style.display = 'none';
                 haSection.style.display = 'block';
-                tabLightearth.style.background = 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)';
+                // Inactive state for Month tab
+                tabLightearth.style.background = 'rgba(255,255,255,0.08)';
+                tabLightearth.style.color = 'rgba(255,255,255,0.7)';
+                tabLightearth.style.boxShadow = 'none';
+                // Active state for Year tab
                 tabHA.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                tabHA.style.color = '#fff';
+                tabHA.style.boxShadow = '0 4px 16px rgba(16,185,129,0.3)';
             }
         }
         
@@ -4775,7 +4809,7 @@
             localStorage.setItem('lumentreeDeviceId', deviceId);
             
             try {
-                showNotification('🔄 Dang lay du lieu nam tu Home Assistant...', 'info');
+                showNotification('🔄 Đang lấy dữ liệu năm từ hệ thống...', 'info');
                 const startTime = Date.now();
                 
                 // Call Railway API proxy endpoint (connects to HA via Cloudflare Tunnel)
@@ -4783,14 +4817,14 @@
                 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    throw new Error(`Server tra ve loi: ${response.status} - ${errorText}`);
+                    throw new Error(`Server trả về lỗi: ${response.status} - ${errorText}`);
                 }
                 
                 const result = await response.json();
                 const elapsed = Date.now() - startTime;
                 
                 if (!result.success) {
-                    throw new Error(result.message || 'Khong co du lieu');
+                    throw new Error(result.message || 'Không có dữ liệu');
                 }
                 
                 // Store for import
@@ -4810,36 +4844,49 @@
                     totals: result.totals
                 };
                 
-                // Display preview
+                // Display preview - Premium design
                 let previewHtml = `
-                    <div style="background: rgba(16, 185, 129, 0.1); padding: 20px; border-radius: 12px; border: 2px solid rgba(16, 185, 129, 0.3);">
-                        <div style="font-size: 1.2em; font-weight: bold; color: #10b981; margin-bottom: 15px; text-align: center;">
-                            🏠 Device: ${deviceId} - Nam ${result.year}
-                        </div>
-                        <div style="font-size: 0.85em; color: #9ca3af; text-align: center; margin-bottom: 15px;">
-                            📊 Nguon: ${result.source === 'ha_sensors' ? 'Home Assistant Sensors' : result.source}<br>
-                            📅 ${result.totalMonths} thang du lieu
-                        </div>
-                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; color: #cbd5e0;">
-                            <div style="background: rgba(245, 158, 11, 0.15); padding: 12px; border-radius: 8px; text-align: center;">
-                                <div style="font-size: 0.85em; color: #9ca3af;">☀️ PV (Nam)</div>
-                                <div style="font-size: 1.4em; font-weight: bold; color: #f59e0b;">${result.totals.pv} kWh</div>
-                            </div>
-                            <div style="background: rgba(74, 222, 128, 0.15); padding: 12px; border-radius: 8px; text-align: center;">
-                                <div style="font-size: 0.85em; color: #9ca3af;">🏠 Load (Nam)</div>
-                                <div style="font-size: 1.4em; font-weight: bold; color: #4ade80;">${result.totals.load} kWh</div>
-                            </div>
-                            <div style="background: rgba(96, 165, 250, 0.15); padding: 12px; border-radius: 8px; text-align: center;">
-                                <div style="font-size: 0.85em; color: #9ca3af;">🔌 Grid (Nam)</div>
-                                <div style="font-size: 1.4em; font-weight: bold; color: #60a5fa;">${result.totals.grid} kWh</div>
-                            </div>
-                            <div style="background: rgba(168, 85, 247, 0.15); padding: 12px; border-radius: 8px; text-align: center;">
-                                <div style="font-size: 0.85em; color: #9ca3af;">⚡ Backup (Nam)</div>
-                                <div style="font-size: 1.4em; font-weight: bold; color: #a855f7;">${result.totals.essential || 0} kWh</div>
+                    <div style="background: linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(5,150,105,0.05) 100%); border-radius: 16px; overflow: hidden;">
+                        <!-- Header -->
+                        <div style="background: linear-gradient(135deg, rgba(16,185,129,0.2) 0%, rgba(5,150,105,0.15) 100%); padding: 16px 20px; border-bottom: 1px solid rgba(16,185,129,0.2);">
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                <span style="font-size: 24px;">⚡</span>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 1.1em; font-weight: 700; color: #10b981;">Device: ${deviceId}</div>
+                                    <div style="font-size: 0.85em; color: rgba(255,255,255,0.6); margin-top: 2px;">Năm ${result.year} • ${result.totalMonths} tháng dữ liệu</div>
+                                </div>
                             </div>
                         </div>
-                        <div style="margin-top: 15px; color: #9ca3af; font-size: 0.85em; text-align: center;">
-                            ✅ ${result.months.length} thang | ⏱️ ${elapsed}ms
+                        <!-- Stats Grid -->
+                        <div style="padding: 16px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                            <div style="background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); padding: 14px; border-radius: 12px; text-align: center;">
+                                <div style="font-size: 0.75em; color: rgba(255,255,255,0.6); margin-bottom: 6px;">☀️ PV Generation</div>
+                                <div style="font-size: 1.5em; font-weight: 800; color: #f59e0b;">${result.totals.pv}</div>
+                                <div style="font-size: 0.7em; color: rgba(255,255,255,0.5);">kWh</div>
+                            </div>
+                            <div style="background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.2); padding: 14px; border-radius: 12px; text-align: center;">
+                                <div style="font-size: 0.75em; color: rgba(255,255,255,0.6); margin-bottom: 6px;">🏠 Load</div>
+                                <div style="font-size: 1.5em; font-weight: 800; color: #4ade80;">${result.totals.load}</div>
+                                <div style="font-size: 0.7em; color: rgba(255,255,255,0.5);">kWh</div>
+                            </div>
+                            <div style="background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.2); padding: 14px; border-radius: 12px; text-align: center;">
+                                <div style="font-size: 0.75em; color: rgba(255,255,255,0.6); margin-bottom: 6px;">🔌 Grid</div>
+                                <div style="font-size: 1.5em; font-weight: 800; color: #60a5fa;">${result.totals.grid}</div>
+                                <div style="font-size: 0.7em; color: rgba(255,255,255,0.5);">kWh</div>
+                            </div>
+                            <div style="background: rgba(168,85,247,0.1); border: 1px solid rgba(168,85,247,0.2); padding: 14px; border-radius: 12px; text-align: center;">
+                                <div style="font-size: 0.75em; color: rgba(255,255,255,0.6); margin-bottom: 6px;">⚡ Backup</div>
+                                <div style="font-size: 1.5em; font-weight: 800; color: #a855f7;">${result.totals.essential || 0}</div>
+                                <div style="font-size: 0.7em; color: rgba(255,255,255,0.5);">kWh</div>
+                            </div>
+                        </div>
+                        <!-- Footer -->
+                        <div style="padding: 12px 16px; background: rgba(0,0,0,0.2); border-top: 1px solid rgba(255,255,255,0.05);">
+                            <div style="display: flex; justify-content: center; align-items: center; gap: 16px; font-size: 0.75em; color: rgba(255,255,255,0.5);">
+                                <span>✅ ${result.months.length} tháng</span>
+                                <span>•</span>
+                                <span>⏱️ ${elapsed}ms</span>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -4847,11 +4894,11 @@
                 document.getElementById('lumentreePreview').innerHTML = previewHtml;
                 document.getElementById('lumentreeResultSection').classList.add('show');
                 
-                showNotification(`✅ Da lay du lieu nam ${result.year} (${elapsed}ms)!`, 'success');
+                showNotification(`✅ Đã lấy dữ liệu năm ${result.year} (${elapsed}ms)!`, 'success');
                 
             } catch (error) {
-                console.error('HA fetch error:', error);
-                showNotification(`❌ Loi: ${error.message}`, 'error');
+                console.error('System data fetch error:', error);
+                showNotification(`❌ Lỗi: ${error.message}`, 'error');
             }
         }
         
