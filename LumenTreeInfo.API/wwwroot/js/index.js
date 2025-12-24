@@ -135,11 +135,11 @@ document.addEventListener('DOMContentLoaded', function () {
         year: (deviceId) => `${getCurrentProxy()}/api/year/${deviceId}`,
         historyYear: (deviceId) => `${getCurrentProxy()}/api/history-year/${deviceId}`,
         // LightEarth Cloud endpoints for chart data
-        haPowerHistory: (deviceId, date) => `${getCurrentProxy()}/api/ha/power-history/${deviceId}/${date}`,
-        haSocHistory: (deviceId, date) => `${getCurrentProxy()}/api/ha/soc-history/${deviceId}/${date}`,
-        haStates: (deviceId) => `${getCurrentProxy()}/api/ha/states/${deviceId}`,
-        haDeviceInfo: (deviceId) => `${getCurrentProxy()}/api/ha/device-info/${deviceId}`,
-        haTemperature: (deviceId, date) => `${getCurrentProxy()}/api/ha/temperature/${deviceId}/${date}`
+        cloudPowerHistory: (deviceId, date) => `${getCurrentProxy()}/api/cloud/power-history/${deviceId}/${date}`,
+        cloudSocHistory: (deviceId, date) => `${getCurrentProxy()}/api/cloud/soc-history/${deviceId}/${date}`,
+        cloudStates: (deviceId) => `${getCurrentProxy()}/api/cloud/states/${deviceId}`,
+        cloudDeviceInfo: (deviceId) => `${getCurrentProxy()}/api/cloud/device-info/${deviceId}`,
+        cloudTemperature: (deviceId, date) => `${getCurrentProxy()}/api/cloud/temperature/${deviceId}/${date}`
     };
     
     // Fetch with automatic proxy fallback
@@ -1017,18 +1017,18 @@ document.addEventListener('DOMContentLoaded', function () {
             
             // Use fetchWithProxyFallback to automatically try fallback proxy if primary fails
             const haResponse = await fetchWithProxyFallback(
-                () => LIGHTEARTH_API.haPowerHistory(deviceId, queryDate)
+                () => LIGHTEARTH_API.cloudPowerHistory(deviceId, queryDate)
             );
             
-            const haChartData = await haResponse.json();
-            console.log("📊 HA Power History response:", haChartData);
+            const cloudChartData = await haResponse.json();
+            console.log("📊 HA Power History response:", cloudChartData);
             
-            if (haChartData.success && haChartData.timeline && haChartData.timeline.length > 0) {
-                console.log(`✅ [Priority 2] HA Power History SUCCESS: ${haChartData.timeline.length} data points (proxy: ${getCurrentProxy()})`);
+            if (cloudChartData.success && cloudChartData.timeline && cloudChartData.timeline.length > 0) {
+                console.log(`✅ [Priority 2] HA Power History SUCCESS: ${cloudChartData.timeline.length} data points (proxy: ${getCurrentProxy()})`);
                 
                 // Cache the HA data
                 lightearthCache = {
-                    data: { ...haChartData, dataSource: 'LightEarthCloud' },
+                    data: { ...cloudChartData, dataSource: 'LightEarthCloud' },
                     deviceId: deviceId,
                     date: queryDate,
                     timestamp: now
@@ -1037,7 +1037,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 saveCacheToLocalStorage(); // Persist to localStorage
                 
                 // Update chart with HA data
-                updateChartFromHAData(haChartData);
+                updateChartFromHAData(cloudChartData);
                 chartDataLoaded = true;
                 return; // Success - no need to try Lightearth API
             } else {
@@ -1498,7 +1498,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         try {
             const response = await fetchWithProxyFallback(
-                () => LIGHTEARTH_API.haTemperature(deviceId, queryDate)
+                () => LIGHTEARTH_API.cloudTemperature(deviceId, queryDate)
             );
             const data = await response.json();
             console.log("🌡️ Temperature min/max data received:", data);
@@ -1564,7 +1564,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         console.log(`📦 Fetching device info (proxy: ${getCurrentProxy()})...`);
         
-        fetchWithProxyFallback(() => LIGHTEARTH_API.haDeviceInfo(deviceId))
+        fetchWithProxyFallback(() => LIGHTEARTH_API.cloudDeviceInfo(deviceId))
             .then(response => response.json())
             .then(data => {
                 console.log("📦 Device info received:", data);

@@ -337,7 +337,7 @@
             icon.classList.add('animate-spin');
             
             try {
-                const resp = await fetch('/api/ha/devices');
+                const resp = await fetch('/api/cloud/devices');
                 const data = await resp.json();
                 
                 document.getElementById('loadingState').classList.add('hidden');
