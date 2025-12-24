@@ -265,7 +265,7 @@
         </div>
         
         <!-- Devices Grid: 1 col mobile, 2 cols tablet, 4 cols PC -->
-        <div id="devicesGrid" class="hidden grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4"></div>
+        <div id="devicesGrid" class="hidden grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3 lg:gap-4"></div>
         
         <!-- Last Update -->
         <div id="lastUpdateSection" class="hidden mt-6 text-center">
@@ -420,21 +420,21 @@
             
             return `
                 <a href="/?deviceId=${d.deviceId}" target="_blank"
-                   class="device-card block bg-slate-800/90 rounded-2xl overflow-hidden border ${on ? 'border-slate-600/50 hover:border-brand-500/50' : 'border-red-900/30'} ${cardGlow}">
+                   class="device-card block bg-slate-800/90 rounded-xl sm:rounded-2xl overflow-hidden border ${on ? 'border-slate-600/50 hover:border-brand-500/50' : 'border-red-900/30'} ${cardGlow}">
                     
                     <!-- Header -->
-                    <div class="px-4 py-3 bg-gradient-to-r ${on ? 'from-slate-700/50 to-slate-800/50' : 'from-red-900/20 to-slate-800/50'} border-b border-slate-700/30">
+                    <div class="px-2 sm:px-4 py-2 sm:py-3 bg-gradient-to-r ${on ? 'from-slate-700/50 to-slate-800/50' : 'from-red-900/20 to-slate-800/50'} border-b border-slate-700/30">
                         <div class="flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <div class="status-dot ${on ? 'online' : ''} w-3 h-3 rounded-full ${on ? 'bg-emerald-500' : 'bg-red-500'}"></div>
-                                <span class="text-sm font-bold text-white font-mono">${d.deviceId}</span>
+                            <div class="flex items-center gap-1.5 sm:gap-2">
+                                <div class="status-dot ${on ? 'online' : ''} w-2 sm:w-3 h-2 sm:h-3 rounded-full ${on ? 'bg-emerald-500' : 'bg-red-500'}"></div>
+                                <span class="text-[10px] sm:text-sm font-bold text-white font-mono">${d.deviceId}</span>
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-1 sm:gap-2">
                                 ${on ? `
-                                    <span class="text-xs px-2 py-0.5 rounded-full ${socBg}/20 ${socColor} font-semibold">${soc}%</span>
-                                    <span class="text-[10px] text-slate-400">${temp}°C</span>
+                                    <span class="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full ${socBg}/20 ${socColor} font-semibold">${soc}%</span>
+                                    <span class="text-[9px] sm:text-[10px] text-slate-400 hidden sm:inline">${temp}°C</span>
                                 ` : `
-                                    <span class="text-xs text-red-400">Offline</span>
+                                    <span class="text-[10px] sm:text-xs text-red-400">Offline</span>
                                 `}
                             </div>
                         </div>
@@ -442,96 +442,96 @@
                     
                     ${on ? `
                         <!-- SOC Bar -->
-                        <div class="px-4 pt-3">
-                            <div class="flex items-center gap-2 mb-1">
-                                <i data-lucide="${batIcon}" class="w-4 h-4 ${batColor}"></i>
-                                <span class="text-xs text-slate-400">Pin</span>
-                                <span class="ml-auto text-sm font-bold ${socColor}">${soc}%</span>
+                        <div class="px-2 sm:px-4 pt-2 sm:pt-3">
+                            <div class="flex items-center gap-1 sm:gap-2 mb-1">
+                                <i data-lucide="${batIcon}" class="w-3 sm:w-4 h-3 sm:h-4 ${batColor}"></i>
+                                <span class="text-[10px] sm:text-xs text-slate-400">Pin</span>
+                                <span class="ml-auto text-xs sm:text-sm font-bold ${socColor}">${soc}%</span>
                             </div>
-                            <div class="h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                            <div class="h-1.5 sm:h-2 bg-slate-700/50 rounded-full overflow-hidden">
                                 <div class="${socBg} h-full rounded-full transition-all duration-500" style="width:${soc}%"></div>
                             </div>
                         </div>
                         
                         <!-- Real-time Power -->
-                        <div class="px-4 py-3">
-                            <div class="grid grid-cols-2 gap-2 mb-3">
+                        <div class="px-2 sm:px-4 py-2 sm:py-3">
+                            <div class="grid grid-cols-2 gap-1 sm:gap-2 mb-2 sm:mb-3">
                                 <!-- PV Power -->
-                                <div class="bg-amber-500/10 rounded-lg p-2.5 border border-amber-500/20">
-                                    <div class="flex items-center gap-1.5 mb-1">
-                                        <i data-lucide="sun" class="w-3.5 h-3.5 text-amber-500"></i>
-                                        <span class="text-[10px] text-amber-500/80 font-medium">SOLAR</span>
+                                <div class="bg-amber-500/10 rounded-lg p-1.5 sm:p-2.5 border border-amber-500/20">
+                                    <div class="flex items-center gap-1 mb-0.5 sm:mb-1">
+                                        <i data-lucide="sun" class="w-3 sm:w-3.5 h-3 sm:h-3.5 text-amber-500"></i>
+                                        <span class="text-[8px] sm:text-[10px] text-amber-500/80 font-medium">PV</span>
                                     </div>
-                                    <div class="text-base font-bold text-amber-400">${formatPw(pv)}</div>
+                                    <div class="text-[11px] sm:text-base font-bold text-amber-400">${formatPw(pv)}</div>
                                 </div>
                                 
                                 <!-- Load Power -->
-                                <div class="bg-sky-500/10 rounded-lg p-2.5 border border-sky-500/20">
-                                    <div class="flex items-center gap-1.5 mb-1">
-                                        <i data-lucide="home" class="w-3.5 h-3.5 text-sky-500"></i>
-                                        <span class="text-[10px] text-sky-500/80 font-medium">TẢI</span>
+                                <div class="bg-sky-500/10 rounded-lg p-1.5 sm:p-2.5 border border-sky-500/20">
+                                    <div class="flex items-center gap-1 mb-0.5 sm:mb-1">
+                                        <i data-lucide="home" class="w-3 sm:w-3.5 h-3 sm:h-3.5 text-sky-500"></i>
+                                        <span class="text-[8px] sm:text-[10px] text-sky-500/80 font-medium">Tải</span>
                                     </div>
-                                    <div class="text-base font-bold text-sky-400">${formatPw(load)}</div>
+                                    <div class="text-[11px] sm:text-base font-bold text-sky-400">${formatPw(load)}</div>
                                 </div>
                                 
                                 <!-- Battery Power -->
-                                <div class="bg-${isCharging ? 'emerald' : 'rose'}-500/10 rounded-lg p-2.5 border border-${isCharging ? 'emerald' : 'rose'}-500/20">
-                                    <div class="flex items-center gap-1.5 mb-1">
-                                        <i data-lucide="${batIcon}" class="w-3.5 h-3.5 text-${isCharging ? 'emerald' : 'rose'}-500"></i>
-                                        <span class="text-[10px] text-${isCharging ? 'emerald' : 'rose'}-500/80 font-medium">${isCharging ? 'SẠC' : 'XẢ'}</span>
+                                <div class="bg-${isCharging ? 'emerald' : 'rose'}-500/10 rounded-lg p-1.5 sm:p-2.5 border border-${isCharging ? 'emerald' : 'rose'}-500/20">
+                                    <div class="flex items-center gap-1 mb-0.5 sm:mb-1">
+                                        <i data-lucide="${batIcon}" class="w-3 sm:w-3.5 h-3 sm:h-3.5 text-${isCharging ? 'emerald' : 'rose'}-500"></i>
+                                        <span class="text-[8px] sm:text-[10px] text-${isCharging ? 'emerald' : 'rose'}-500/80 font-medium">${isCharging ? 'Sạc' : 'Xả'}</span>
                                     </div>
-                                    <div class="text-base font-bold text-${isCharging ? 'emerald' : 'rose'}-400">${formatPw(Math.abs(bat))}</div>
+                                    <div class="text-[11px] sm:text-base font-bold text-${isCharging ? 'emerald' : 'rose'}-400">${formatPw(Math.abs(bat))}</div>
                                 </div>
                                 
                                 <!-- Grid Power -->
-                                <div class="bg-violet-500/10 rounded-lg p-2.5 border border-violet-500/20">
-                                    <div class="flex items-center gap-1.5 mb-1">
-                                        <i data-lucide="zap" class="w-3.5 h-3.5 text-violet-500"></i>
-                                        <span class="text-[10px] text-violet-500/80 font-medium">EVN</span>
+                                <div class="bg-violet-500/10 rounded-lg p-1.5 sm:p-2.5 border border-violet-500/20">
+                                    <div class="flex items-center gap-1 mb-0.5 sm:mb-1">
+                                        <i data-lucide="zap" class="w-3 sm:w-3.5 h-3 sm:h-3.5 text-violet-500"></i>
+                                        <span class="text-[8px] sm:text-[10px] text-violet-500/80 font-medium">EVN</span>
                                     </div>
-                                    <div class="text-base font-bold text-violet-400">${formatPw(Math.abs(grid))}</div>
+                                    <div class="text-[11px] sm:text-base font-bold text-violet-400">${formatPw(Math.abs(grid))}</div>
                                 </div>
                             </div>
                         </div>
                         
                         <!-- Daily Stats -->
-                        <div class="px-4 pb-3 border-t border-slate-700/30 pt-3">
-                            <div class="text-[10px] text-slate-500 uppercase tracking-wider mb-2 font-medium">📊 Thống kê hôm nay</div>
-                            <div class="space-y-1.5">
+                        <div class="px-2 sm:px-4 pb-2 sm:pb-3 border-t border-slate-700/30 pt-2 sm:pt-3">
+                            <div class="text-[8px] sm:text-[10px] text-slate-500 uppercase tracking-wider mb-1 sm:mb-2 font-medium">📊 Hôm nay</div>
+                            <div class="space-y-0.5 sm:space-y-1.5">
                                 <div class="flex justify-between items-center data-row rounded px-1 py-0.5">
-                                    <span class="text-xs text-slate-400">☀️ Phát điện</span>
-                                    <span class="text-xs font-semibold text-amber-400">${pvDay.toFixed(1)} kWh</span>
+                                    <span class="text-[10px] sm:text-xs text-slate-400">☀️ PV</span>
+                                    <span class="text-[10px] sm:text-xs font-semibold text-amber-400">${pvDay.toFixed(1)}</span>
                                 </div>
                                 <div class="flex justify-between items-center data-row rounded px-1 py-0.5">
-                                    <span class="text-xs text-slate-400">🏠 Tiêu thụ</span>
-                                    <span class="text-xs font-semibold text-sky-400">${loadDay.toFixed(1)} kWh</span>
+                                    <span class="text-[10px] sm:text-xs text-slate-400">🏠 Tải</span>
+                                    <span class="text-[10px] sm:text-xs font-semibold text-sky-400">${loadDay.toFixed(1)}</span>
                                 </div>
                                 <div class="flex justify-between items-center data-row rounded px-1 py-0.5">
-                                    <span class="text-xs text-slate-400">🔌 Mua EVN</span>
-                                    <span class="text-xs font-semibold text-violet-400">${gridDay.toFixed(1)} kWh</span>
+                                    <span class="text-[10px] sm:text-xs text-slate-400">🔌 EVN</span>
+                                    <span class="text-[10px] sm:text-xs font-semibold text-violet-400">${gridDay.toFixed(1)}</span>
                                 </div>
-                                <div class="flex justify-between items-center data-row rounded px-1 py-0.5">
+                                <div class="hidden sm:flex justify-between items-center data-row rounded px-1 py-0.5">
                                     <span class="text-xs text-slate-400">🔋 Sạc/Xả</span>
                                     <span class="text-xs font-semibold text-emerald-400">${chargeDay.toFixed(1)}/${dischargeDay.toFixed(1)}</span>
                                 </div>
                             </div>
                             
                             <!-- Estimated Savings -->
-                            <div class="mt-3 pt-2 border-t border-slate-700/30">
+                            <div class="mt-2 sm:mt-3 pt-2 border-t border-slate-700/30">
                                 <div class="flex justify-between items-center">
-                                    <span class="text-xs text-slate-400">💰 Tiết kiệm (ước tính)</span>
-                                    <span class="text-sm font-bold text-green-400">${formatMoney(savedMoney)}</span>
+                                    <span class="text-[10px] sm:text-xs text-slate-400">💰 Tiết kiệm</span>
+                                    <span class="text-xs sm:text-sm font-bold text-green-400">${formatMoney(savedMoney)}</span>
                                 </div>
                             </div>
                         </div>
                     ` : `
                         <!-- Offline State -->
-                        <div class="p-6 text-center">
-                            <div class="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-3">
-                                <i data-lucide="wifi-off" class="w-7 h-7 text-red-400"></i>
+                        <div class="p-4 sm:p-6 text-center">
+                            <div class="w-10 sm:w-14 h-10 sm:h-14 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-2 sm:mb-3">
+                                <i data-lucide="wifi-off" class="w-5 sm:w-7 h-5 sm:h-7 text-red-400"></i>
                             </div>
-                            <div class="text-sm text-red-400 font-medium mb-1">Mất kết nối</div>
-                            <div class="text-[11px] text-slate-500">Thiết bị không phản hồi</div>
+                            <div class="text-xs sm:text-sm text-red-400 font-medium mb-1">Offline</div>
+                            <div class="text-[10px] sm:text-[11px] text-slate-500">Không phản hồi</div>
                         </div>
                     `}
                 </a>
@@ -540,9 +540,9 @@
         
         function formatPw(v) {
             if (v == null) return '--';
-            if (v >= 10000) return (v/1000).toFixed(1) + ' kW';
-            if (v >= 1000) return (v/1000).toFixed(2) + ' kW';
-            return v + ' W';
+            if (v >= 10000) return (v/1000).toFixed(0) + 'kW';
+            if (v >= 1000) return (v/1000).toFixed(1) + 'kW';
+            return v + 'W';
         }
         
         function formatMoney(v) {
