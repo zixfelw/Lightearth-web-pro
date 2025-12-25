@@ -638,18 +638,25 @@
 
 
 
+        /* Light mode - ROI section */
         .roi-section {
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
-            border: 2px solid rgba(124, 58, 237, 0.3);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%);
+            border: 2px solid rgba(124, 58, 237, 0.2);
             padding: 20px;
             border-radius: 16px;
             margin-bottom: 25px;
-            box-shadow: 0 10px 40px rgba(99, 102, 241, 0.15);
+            box-shadow: 0 10px 40px rgba(99, 102, 241, 0.1);
             backdrop-filter: blur(10px);
+        }
+        
+        html.dark .roi-section {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(168, 85, 247, 0.1) 100%);
+            border: 2px solid rgba(124, 58, 237, 0.3);
+            box-shadow: 0 10px 40px rgba(99, 102, 241, 0.15);
         }
 
         .roi-section h2 {
-            color: #e0e7ff;
+            color: #6366f1;
             margin-bottom: 20px;
             font-size: 1.4em;
             text-align: center;
@@ -659,6 +666,10 @@
             justify-content: center;
             gap: 12px;
         }
+        
+        html.dark .roi-section h2 {
+            color: #e0e7ff;
+        }
 
         /* ROI Input Row */
         .roi-input-row {
@@ -667,28 +678,43 @@
             gap: 12px;
             margin-bottom: 20px;
             padding: 12px 16px;
-            background: rgba(51, 65, 85, 0.5);
+            background: rgba(241, 245, 249, 0.8);
             border-radius: 10px;
+            border: 1px solid rgba(139, 92, 246, 0.15);
+        }
+        
+        html.dark .roi-input-row {
+            background: rgba(51, 65, 85, 0.5);
             border: 1px solid rgba(139, 92, 246, 0.2);
         }
 
         .roi-input-row label {
-            color: #a78bfa;
+            color: #7c3aed;
             font-weight: 600;
             font-size: 0.9em;
             white-space: nowrap;
             margin: 0;
         }
+        
+        html.dark .roi-input-row label {
+            color: #a78bfa;
+        }
 
         .roi-input-row input {
             flex: 1;
             padding: 10px 14px;
-            border: 2px solid rgba(139, 92, 246, 0.3);
+            border: 2px solid rgba(139, 92, 246, 0.2);
             border-radius: 8px;
-            background: rgba(30, 41, 59, 0.8);
-            color: #fff;
+            background: #fff;
+            color: #1e293b;
             font-size: 1em;
             font-weight: 600;
+        }
+        
+        html.dark .roi-input-row input {
+            background: rgba(30, 41, 59, 0.8);
+            color: #fff;
+            border: 2px solid rgba(139, 92, 246, 0.3);
         }
 
         .roi-input-row input:focus {
@@ -724,8 +750,13 @@
         .roi-progress-section {
             margin-bottom: 20px;
             padding: 16px;
-            background: rgba(51, 65, 85, 0.4);
+            background: rgba(241, 245, 249, 0.8);
             border-radius: 12px;
+            border: 1px solid rgba(139, 92, 246, 0.1);
+        }
+        
+        html.dark .roi-progress-section {
+            background: rgba(51, 65, 85, 0.4);
             border: 1px solid rgba(139, 92, 246, 0.15);
         }
 
@@ -737,9 +768,13 @@
         }
 
         .roi-progress-title {
-            color: #c4b5fd;
+            color: #6366f1;
             font-weight: 600;
             font-size: 0.95em;
+        }
+        
+        html.dark .roi-progress-title {
+            color: #c4b5fd;
         }
 
         .roi-progress-percent {
@@ -754,9 +789,14 @@
 
         .roi-progress-bar-bg {
             height: 12px;
-            background: rgba(30, 41, 59, 0.8);
+            background: #e2e8f0;
             border-radius: 6px;
             overflow: hidden;
+            border: 1px solid rgba(139, 92, 246, 0.15);
+        }
+        
+        html.dark .roi-progress-bar-bg {
+            background: rgba(30, 41, 59, 0.8);
             border: 1px solid rgba(139, 92, 246, 0.2);
         }
 
@@ -786,10 +826,15 @@
             align-items: center;
             gap: 12px;
             padding: 14px;
-            background: rgba(51, 65, 85, 0.6);
+            background: rgba(241, 245, 249, 0.9);
             border-radius: 10px;
-            border: 1px solid rgba(139, 92, 246, 0.15);
+            border: 1px solid rgba(139, 92, 246, 0.1);
             transition: all 0.2s ease;
+        }
+        
+        html.dark .roi-stat-item {
+            background: rgba(51, 65, 85, 0.6);
+            border: 1px solid rgba(139, 92, 246, 0.15);
         }
 
         .roi-stat-item:hover {
@@ -824,17 +869,25 @@
 
         .roi-stat-label {
             font-size: 0.75em;
-            color: #9ca3af;
+            color: #64748b;
             margin-bottom: 2px;
+        }
+        
+        html.dark .roi-stat-label {
+            color: #9ca3af;
         }
 
         .roi-stat-value {
             font-size: 1.1em;
             font-weight: 700;
-            color: #e0e7ff;
+            color: #6366f1;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+        
+        html.dark .roi-stat-value {
+            color: #e0e7ff;
         }
 
         .roi-stat-value.profit {
@@ -1129,9 +1182,14 @@
         }
 
         .month-input {
-            background: rgba(51, 65, 85, 0.6);
+            background: rgba(255, 255, 255, 0.9);
             padding: 8px;
             border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        html.dark .month-input {
+            background: rgba(51, 65, 85, 0.6);
             border: 1px solid rgba(71, 85, 105, 0.5);
         }
 
@@ -1144,9 +1202,13 @@
 
         .month-input h4 {
             margin: 0;
-            color: #4ade80;
+            color: #059669;
             font-size: 0.8em;
             font-weight: 600;
+        }
+        
+        html.dark .month-input h4 {
+            color: #4ade80;
         }
 
         .month-delete-btn {
@@ -1184,28 +1246,42 @@
             display: block;
             margin-bottom: 2px;
             font-size: 0.65em;
-            color: #cbd5e0;
+            color: #64748b;
             font-weight: 500;
+        }
+        
+        html.dark label {
+            color: #cbd5e0;
         }
 
         input[type="number"] {
             width: 100%;
             padding: 8px 10px;
             margin-bottom: 5px;
-            border: 1px solid rgba(71, 85, 105, 0.6);
+            border: 1px solid #e2e8f0;
             border-radius: 8px;
-            background: rgba(30, 41, 59, 0.8);
-            color: #e2e8f0;
+            background: #fff;
+            color: #1e293b;
             font-size: 0.85em;
             -webkit-appearance: none;
             -moz-appearance: textfield;
             transition: all 0.3s ease;
+        }
+        
+        html.dark input[type="number"] {
+            border: 1px solid rgba(71, 85, 105, 0.6);
+            background: rgba(30, 41, 59, 0.8);
+            color: #e2e8f0;
         }
 
         input[type="number"]:focus {
             outline: none;
             border-color: #14b8a6;
             box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.15);
+            background: #fff;
+        }
+        
+        html.dark input[type="number"]:focus {
             background: rgba(30, 41, 59, 1);
         }
 
@@ -1222,6 +1298,38 @@
             justify-content: center;
             flex-wrap: wrap;
             margin: 16px 0;
+        }
+        
+        /* Nút Tính nổi bật - container riêng */
+        .calculate-btn-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+        
+        .btn-calculate-main {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            font-size: 1.3em;
+            font-weight: 700;
+            padding: 16px 50px;
+            border-radius: 14px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 6px 25px rgba(16, 185, 129, 0.4);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .btn-calculate-main:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 10px 35px rgba(16, 185, 129, 0.5);
+        }
+        
+        .btn-calculate-main:active {
+            transform: translateY(0);
         }
 
         button {
@@ -1315,11 +1423,16 @@
         .month-count-info {
             text-align: center;
             padding: 10px;
-            background: rgba(99, 102, 241, 0.2);
+            background: rgba(99, 102, 241, 0.1);
             border-radius: 8px;
             margin-bottom: 15px;
-            color: #c4b5fd;
+            color: #6366f1;
             font-weight: bold;
+        }
+        
+        html.dark .month-count-info {
+            background: rgba(99, 102, 241, 0.2);
+            color: #c4b5fd;
         }
 
         .btn-export {
@@ -1354,29 +1467,49 @@
             box-shadow: 0 5px 20px rgba(6, 182, 212, 0.4);
         }
 
+        /* Light mode - chart container */
         .chart-container {
-            background: rgba(51, 65, 85, 0.5);
+            background: rgba(255, 255, 255, 0.95);
             padding: 25px;
             border-radius: 15px;
             margin-bottom: 20px;
             position: relative;
             height: 500px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        html.dark .chart-container {
+            background: rgba(51, 65, 85, 0.5);
             border: 1px solid rgba(71, 85, 105, 0.3);
+            box-shadow: none;
         }
 
+        /* Light mode - month details */
         .month-details {
-            background: rgba(51, 65, 85, 0.5);
+            background: rgba(255, 255, 255, 0.95);
             padding: 25px;
             border-radius: 15px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        html.dark .month-details {
+            background: rgba(51, 65, 85, 0.5);
             border: 1px solid rgba(71, 85, 105, 0.3);
+            box-shadow: none;
         }
 
         .month-details h2 {
-            color: #4ade80;
+            color: #059669;
             margin-bottom: 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
+        }
+        
+        html.dark .month-details h2 {
+            color: #4ade80;
         }
 
         .details-grid {
@@ -1414,42 +1547,71 @@
         }
 
         .detail-card {
-            background: rgba(51, 65, 85, 0.8);
+            background: rgba(255, 255, 255, 0.95);
             padding: 8px;
             border-radius: 8px;
             border-left: 3px solid #4ade80;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
             font-size: 0.75em;
             position: relative;
             cursor: pointer;
             transition: all 0.3s ease;
         }
+        
+        html.dark .detail-card {
+            background: rgba(51, 65, 85, 0.8);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
 
         /* Hover effect for detail cards */
         .detail-card:hover {
             transform: translateY(-8px) scale(1.03);
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
             z-index: 10;
+        }
+        
+        html.dark .detail-card:hover {
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
         }
 
         /* Xanh lá - Hàng chẵn (2, 4, 6, 8, 10, 12) */
         .detail-card:nth-child(2n) {
+            background: rgba(34, 197, 94, 0.08);
+            border-left: 3px solid #22c55e;
+        }
+        
+        html.dark .detail-card:nth-child(2n) {
             background: rgba(34, 197, 94, 0.15);
             border-left: 3px solid #4ade80;
         }
 
         .detail-card:nth-child(2n):hover {
+            background: rgba(34, 197, 94, 0.15);
+            box-shadow: 0 12px 30px rgba(74, 222, 128, 0.2);
+        }
+        
+        html.dark .detail-card:nth-child(2n):hover {
             background: rgba(34, 197, 94, 0.25);
             box-shadow: 0 12px 30px rgba(74, 222, 128, 0.4);
         }
 
         /* Xanh dương - Hàng lẻ (1, 3, 5, 7, 9, 11) */
         .detail-card:nth-child(2n+1) {
+            background: rgba(59, 130, 246, 0.08);
+            border-left: 3px solid #3b82f6;
+        }
+        
+        html.dark .detail-card:nth-child(2n+1) {
             background: rgba(59, 130, 246, 0.15);
             border-left: 3px solid #60a5fa;
         }
 
         .detail-card:nth-child(2n+1):hover {
+            background: rgba(59, 130, 246, 0.15);
+            box-shadow: 0 12px 30px rgba(96, 165, 250, 0.2);
+        }
+        
+        html.dark .detail-card:nth-child(2n+1):hover {
             background: rgba(59, 130, 246, 0.25);
             box-shadow: 0 12px 30px rgba(96, 165, 250, 0.4);
         }
@@ -1802,8 +1964,12 @@
             display: flex;
             justify-content: space-between;
             padding: 3px 0;
-            border-bottom: 1px solid rgba(74, 85, 104, 0.5);
+            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
             font-size: 0.95em;
+        }
+        
+        html.dark .detail-row-item {
+            border-bottom: 1px solid rgba(74, 85, 104, 0.5);
         }
 
         .detail-row-item:last-child {
@@ -1837,13 +2003,21 @@
         }
 
         .detail-row-item .label {
-            color: #cbd5e0;
+            color: #64748b;
             font-size: 0.9em;
+        }
+        
+        html.dark .detail-row-item .label {
+            color: #cbd5e0;
         }
 
         .detail-row-item .value {
-            color: #fff;
+            color: #1e293b;
             font-weight: 500;
+        }
+        
+        html.dark .detail-row-item .value {
+            color: #fff;
         }
 
         .tooltip {
@@ -2691,8 +2865,13 @@
                     <button onclick="nextPage()">Sau ▶️</button>
                 </div>
             </div>
+            <!-- Nút Tính nổi bật - nằm riêng trên cùng -->
+            <div class="calculate-btn-container">
+                <button class="btn-calculate-main" onclick="calculateSavings()">🔍 TÍNH TOÁN</button>
+            </div>
+            
+            <!-- Các nút khác -->
             <div class="button-group">
-                <button class="btn-calculate" onclick="calculateSavings()">🔍 Tính</button>
                 <button class="btn-add-month" onclick="addMonth()" title="Thêm tháng mới (tự động điền demo data, có thể chỉnh sửa)">➕ Thêm</button>
                 <button class="btn-remove-month" onclick="removeMonth()">➖ Xóa</button>
                 <button class="btn-demo" onclick="loadDemoData()" title="Tải demo data cho TẤT CẢ tháng hiện tại (tự động tăng 3%/năm)">🎯 Demo</button>
