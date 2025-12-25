@@ -367,8 +367,9 @@ public class TelegramNotificationService : BackgroundService
     
     /// <summary>
     /// Check and send hourly status notification (every hour on the hour)
-    /// Time periods: Sáng (5-11), Trưa (11-13), Chiều (13-18), Tối (18-22)
-    /// Sends from 5AM to 9PM (21:59), total 17 notifications per day if enabled
+    /// Time periods: Sáng (6-11), Trưa (11-13), Chiều (13-18), Tối (18-24)
+    /// Sends from 6AM to 12AM (midnight), total 18 notifications per day if enabled
+    /// Quiet hours: 12AM - 5:59AM (no notifications)
     /// </summary>
     private async Task CheckHourlyStatusAsync(string deviceId, SolarInverterMonitor.DeviceData data)
     {
@@ -381,9 +382,10 @@ public class TelegramNotificationService : BackgroundService
         var hour = nowVietnam.Hour;
         var minute = nowVietnam.Minute;
         
-        // Only send between 5 AM - 9 PM (21:59) Vietnam time
-        // That's 17 hours: 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21
-        if (hour < 5 || hour >= 22)
+        // Only send between 6 AM - 11:59 PM (23:59) Vietnam time
+        // Quiet hours: 12 AM (0:00) - 5:59 AM - NO notifications
+        // Active hours: 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23
+        if (hour < 6)
         {
             return;
         }
@@ -419,10 +421,10 @@ public class TelegramNotificationService : BackgroundService
     {
         return hour switch
         {
-            >= 5 and < 11 => ("🌅", "CHÀO BUỔI SÁNG", "Sáng"),
+            >= 6 and < 11 => ("🌅", "CHÀO BUỔI SÁNG", "Sáng"),
             >= 11 and < 13 => ("☀️", "CHÀO BUỔI TRƯA", "Trưa"),
             >= 13 and < 18 => ("🌤️", "CHÀO BUỔI CHIỀU", "Chiều"),
-            >= 18 and < 22 => ("🌙", "CHÀO BUỔI TỐI", "Tối"),
+            >= 18 and < 24 => ("🌙", "CHÀO BUỔI TỐI", "Tối"),
             _ => ("⏰", "CẬP NHẬT TRẠNG THÁI", "")
         };
     }
