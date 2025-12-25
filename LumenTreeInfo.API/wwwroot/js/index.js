@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13137 - Improved data source handling, Min/Max labels for temperature badge
+ * Version: 13152 - Fixed mobile 3D Home button (moved switchEnergyFlowView outside DOMContentLoaded)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -15,6 +15,83 @@
 // Global constants - defined outside DOMContentLoaded to avoid TDZ issues
 // SOC History API (Railway - LightEarth Cloud data)
 const SOC_API_PRIMARY = window.location.origin + '/api/realtime/soc-history';
+
+// ========================================
+// GLOBAL FUNCTIONS - Available immediately for onclick handlers
+// Must be outside DOMContentLoaded for mobile compatibility
+// ========================================
+
+// Switch between Pro, Basic, and 3D Home Energy Flow views
+window.switchEnergyFlowView = function(view) {
+    console.log('[switchEnergyFlowView] Called with view:', view);
+    
+    const proView = document.getElementById('energyFlowPro');
+    const basicView = document.getElementById('energyFlowBasic');
+    const home3DView = document.getElementById('energyFlow3DHome');
+    const proBtn = document.getElementById('proViewBtn');
+    const basicBtn = document.getElementById('basicViewBtn');
+    const home3DBtn = document.getElementById('home3DViewBtn');
+    
+    if (!proView || !basicView) {
+        console.warn('Energy flow views not found, retrying in 100ms...');
+        setTimeout(() => window.switchEnergyFlowView(view), 100);
+        return;
+    }
+    
+    // Helper function to reset all buttons to inactive state
+    const resetAllButtons = () => {
+        const inactiveClasses = ['text-slate-600', 'dark:text-slate-300', 'hover:text-slate-800', 'dark:hover:text-slate-100'];
+        const activeClasses = ['bg-teal-500', 'text-white', 'shadow-sm'];
+        
+        [proBtn, basicBtn, home3DBtn].forEach(btn => {
+            if (btn) {
+                btn.classList.remove(...activeClasses);
+                btn.classList.add(...inactiveClasses);
+            }
+        });
+    };
+    
+    // Helper function to set button as active
+    const setActiveButton = (btn) => {
+        if (btn) {
+            btn.classList.remove('text-slate-600', 'dark:text-slate-300', 'hover:text-slate-800', 'dark:hover:text-slate-100');
+            btn.classList.add('bg-teal-500', 'text-white', 'shadow-sm');
+        }
+    };
+    
+    // Hide all views first
+    proView.classList.add('hidden');
+    basicView.classList.add('hidden');
+    if (home3DView) home3DView.classList.add('hidden');
+    
+    // Reset all buttons
+    resetAllButtons();
+    
+    if (view === 'basic') {
+        basicView.classList.remove('hidden');
+        setActiveButton(basicBtn);
+        if (typeof window.autoSyncBasicView === 'function') {
+            window.autoSyncBasicView();
+        }
+    } else if (view === '3dhome') {
+        if (home3DView) {
+            home3DView.classList.remove('hidden');
+            setActiveButton(home3DBtn);
+            if (typeof window.autoSync3DHomeView === 'function') {
+                window.autoSync3DHomeView();
+            }
+        } else {
+            proView.classList.remove('hidden');
+            setActiveButton(proBtn);
+        }
+    } else {
+        proView.classList.remove('hidden');
+        setActiveButton(proBtn);
+    }
+    
+    localStorage.setItem('energyFlowView', view);
+    console.log('Energy flow view switched to:', view);
+};
 
 document.addEventListener('DOMContentLoaded', function () {
     // ========================================
@@ -2994,82 +3071,9 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     // ========================================
-    // PRO/BASIC VIEW SWITCH - Version 13110
+    // PRO/BASIC/3D VIEW - Helper functions
+    // Main switchEnergyFlowView is defined OUTSIDE DOMContentLoaded for mobile compatibility
     // ========================================
-    
-    // Switch between Pro, Basic, and 3D Home Energy Flow views - exposed globally
-    window.switchEnergyFlowView = function(view) {
-        const proView = document.getElementById('energyFlowPro');
-        const basicView = document.getElementById('energyFlowBasic');
-        const home3DView = document.getElementById('energyFlow3DHome');
-        const proBtn = document.getElementById('proViewBtn');
-        const basicBtn = document.getElementById('basicViewBtn');
-        const home3DBtn = document.getElementById('home3DViewBtn');
-        
-        if (!proView || !basicView) {
-            console.warn('Energy flow views not found');
-            return;
-        }
-        
-        // Helper function to reset all buttons to inactive state
-        const resetAllButtons = () => {
-            const inactiveClasses = ['text-slate-600', 'dark:text-slate-300', 'hover:text-slate-800', 'dark:hover:text-slate-100'];
-            const activeClasses = ['bg-teal-500', 'text-white', 'shadow-sm'];
-            
-            [proBtn, basicBtn, home3DBtn].forEach(btn => {
-                if (btn) {
-                    btn.classList.remove(...activeClasses);
-                    btn.classList.add(...inactiveClasses);
-                }
-            });
-        };
-        
-        // Helper function to set button as active
-        const setActiveButton = (btn) => {
-            if (btn) {
-                btn.classList.remove('text-slate-600', 'dark:text-slate-300', 'hover:text-slate-800', 'dark:hover:text-slate-100');
-                btn.classList.add('bg-teal-500', 'text-white', 'shadow-sm');
-            }
-        };
-        
-        // Hide all views first
-        proView.classList.add('hidden');
-        basicView.classList.add('hidden');
-        if (home3DView) home3DView.classList.add('hidden');
-        
-        // Reset all buttons
-        resetAllButtons();
-        
-        if (view === 'basic') {
-            // Show Basic view (simple 3x2 grid)
-            basicView.classList.remove('hidden');
-            setActiveButton(basicBtn);
-            
-            // Sync current data to Basic view
-            autoSyncBasicView();
-        } else if (view === '3dhome') {
-            // Show 3D Home view (FusionSolar-style)
-            if (home3DView) {
-                home3DView.classList.remove('hidden');
-                setActiveButton(home3DBtn);
-                
-                // Sync current data to 3D Home view
-                autoSync3DHomeView();
-            } else {
-                // Fallback to Pro view if 3D Home not available
-                proView.classList.remove('hidden');
-                setActiveButton(proBtn);
-            }
-        } else {
-            // Show Pro view (animated flow diagram) - default
-            proView.classList.remove('hidden');
-            setActiveButton(proBtn);
-        }
-        
-        // Save preference to localStorage
-        localStorage.setItem('energyFlowView', view);
-        console.log('Energy flow view switched to:', view);
-    };
     
     // Auto-sync data to 3D Home view elements
     // Auto-sync data to 3D Home view - Cyberpunk Glassmorphism V3.1
