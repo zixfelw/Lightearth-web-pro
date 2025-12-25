@@ -80,68 +80,29 @@ function saveRegisteredDevices() {
     fs.writeFileSync(DEVICES_FILE, JSON.stringify(registeredDevices, null, 2));
 }
 
-// Fetch data from Home Assistant Cloud
+// Fetch data from Railway Server (primary) or Home Assistant Cloud (fallback)
 async function fetchCloudData(deviceId) {
     try {
-        const baseUrl = 'https://lumentree.io';
-        const now = new Date();
-        const data = { months: [] };
+        // Primary: Get data from Railway server (already has synced data)
+        const railwayUrl = `https://lightearth1.up.railway.app/api/solar/dashboard/${deviceId}`;
         
-        // Fetch last 12 months
-        for (let i = 0; i < 12; i++) {
-            const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const monthKey = `${year}-${month}`;
-            
-            try {
-                // Get consumption data
-                const consUrl = `${baseUrl}/api/cloud/cons/${deviceId}/${year}/${month}`;
-                const pvUrl = `${baseUrl}/api/cloud/pv/${deviceId}/${year}/${month}`;
-                
-                const [consRes, pvRes] = await Promise.all([
-                    axios.get(consUrl, { timeout: 10000 }).catch(() => ({ data: null })),
-                    axios.get(pvUrl, { timeout: 10000 }).catch(() => ({ data: null }))
-                ]);
-                
-                const cons = consRes.data;
-                const pv = pvRes.data;
-                
-                if (cons || pv) {
-                    const monthData = {
-                        month: monthKey,
-                        consumption: cons?.totalConsumption || 0,
-                        solarProduction: pv?.totalProduction || 0,
-                        gridUsage: Math.max(0, (cons?.totalConsumption || 0) - (pv?.totalProduction || 0)),
-                        days: cons?.days || pv?.days || []
-                    };
-                    
-                    // Calculate costs
-                    monthData.costWithoutSolar = calculateTieredPrice(monthData.consumption);
-                    monthData.actualCost = calculateTieredPrice(monthData.gridUsage);
-                    monthData.savings = monthData.costWithoutSolar - monthData.actualCost;
-                    
-                    data.months.push(monthData);
-                }
-            } catch (error) {
-                console.log(`Month ${monthKey} fetch error:`, error.message);
-            }
+        console.log(`[${new Date().toISOString()}] Fetching from Railway: ${deviceId}`);
+        
+        const response = await axios.get(railwayUrl, { timeout: 15000 });
+        
+        if (response.data && response.data.totalSavings !== undefined) {
+            const data = {
+                ...response.data,
+                lastSync: new Date().toISOString(),
+                dataSource: 'Railway-HomeAssistant'
+            };
+            console.log(`[${new Date().toISOString()}] Got data for ${deviceId}: ${data.totalSavings?.toLocaleString()}đ`);
+            return data;
         }
         
-        // Calculate totals
-        data.totalConsumption = data.months.reduce((sum, m) => sum + m.consumption, 0);
-        data.totalSolarProduction = data.months.reduce((sum, m) => sum + m.solarProduction, 0);
-        data.totalGridUsage = data.months.reduce((sum, m) => sum + m.gridUsage, 0);
-        data.totalCostWithoutSolar = data.months.reduce((sum, m) => sum + m.costWithoutSolar, 0);
-        data.totalActualCost = data.months.reduce((sum, m) => sum + m.actualCost, 0);
-        data.totalSavings = data.months.reduce((sum, m) => sum + m.savings, 0);
-        data.avgMonthlySavings = data.months.length > 0 ? Math.round(data.totalSavings / data.months.length) : 0;
-        data.lastSync = new Date().toISOString();
-        data.dataSource = 'HomeAssistant';
-        
-        return data;
+        return null;
     } catch (error) {
-        console.error(`Error fetching cloud data for ${deviceId}:`, error.message);
+        console.error(`[${new Date().toISOString()}] Error fetching ${deviceId}:`, error.message);
         return null;
     }
 }
@@ -152,13 +113,14 @@ async function syncDeviceData(deviceId) {
     
     const data = await fetchCloudData(deviceId);
     
-    if (data && data.months.length > 0) {
+    if (data && (data.totalSavings !== undefined || (data.months && data.months.length > 0))) {
         const filePath = path.join(DATA_DIR, `solar_${deviceId}.json`);
         fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-        console.log(`[${new Date().toISOString()}] Synced ${deviceId}: ${data.totalSavings.toLocaleString()}đ savings`);
+        console.log(`[${new Date().toISOString()}] ✅ Synced ${deviceId}: ${(data.totalSavings || 0).toLocaleString()}đ savings`);
         return data;
     }
     
+    console.log(`[${new Date().toISOString()}] ❌ No data for ${deviceId}`);
     return null;
 }
 
