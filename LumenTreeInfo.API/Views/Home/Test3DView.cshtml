@@ -38,17 +38,6 @@
         }
     </script>
     
-    <!-- Early function definitions for mobile compatibility -->
-    <script>
-        // Define switchEnergyFlowView early so onclick works on mobile
-        // This will be overwritten by the full implementation in index.js
-        window.switchEnergyFlowView = window.switchEnergyFlowView || function(view) {
-            console.log('Early switch called:', view);
-            // Queue the switch for when full JS is loaded
-            window._pendingViewSwitch = view;
-        };
-    </script>
-    
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
@@ -137,46 +126,6 @@
             50% {
                 filter: drop-shadow(0 0 15px rgba(34, 197, 94, 0.8));
             }
-        }
-        
-        /* Sun Animation for 3D Home */
-        .sun-3d-animate {
-            animation: sun-float 3s ease-in-out infinite, sun-glow 2s ease-in-out infinite;
-        }
-        
-        @@keyframes sun-float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
-        }
-        
-        @@keyframes sun-glow {
-            0%, 100% { filter: drop-shadow(0 0 10px rgba(250, 204, 21, 0.6)); }
-            50% { filter: drop-shadow(0 0 20px rgba(250, 204, 21, 1)); }
-        }
-        
-        .sun-rays-3d {
-            animation: sun-rotate 10s linear infinite;
-            transform-origin: 12px 12px;
-        }
-        
-        @@keyframes sun-rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        
-        /* Moon Animation for 3D Home */
-        .moon-3d-animate {
-            animation: moon-float 4s ease-in-out infinite, moon-glow 3s ease-in-out infinite;
-        }
-        
-        @@keyframes moon-float {
-            0%, 100% { transform: translateY(0) rotate(-5deg); }
-            50% { transform: translateY(-3px) rotate(5deg); }
-        }
-        
-        @@keyframes moon-glow {
-            0%, 100% { filter: drop-shadow(0 0 8px rgba(203, 213, 225, 0.4)); }
-            50% { filter: drop-shadow(0 0 15px rgba(203, 213, 225, 0.8)); }
         }
         
         /* Legacy styles for compatibility */
@@ -494,7 +443,14 @@
     <div class="hero-float-element hero-float-3"></div>
     
     <!-- Main Content -->
-    <div class="relative z-10 text-center px-4 max-w-2xl mx-auto" style="transform: translateX(-20px) translateY(-15px);">
+    <div class="relative z-10 text-center px-4 max-w-2xl mx-auto">
+        <!-- Logo Animation -->
+        <div class="hero-logo-container mb-6">
+            <div class="hero-logo-ring"></div>
+            <div class="hero-logo-ring hero-logo-ring-2"></div>
+            <img src="/logo.png" alt="LightEarth" class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl shadow-2xl relative z-10 hero-logo-pulse">
+        </div>
+        
         <!-- Title -->
         <h1 class="text-3xl sm:text-4xl md:text-5xl font-black mb-3 hero-title">
             <span class="bg-gradient-to-r from-teal-400 via-emerald-400 to-indigo-400 bg-clip-text text-transparent">LightEarth</span>
@@ -661,15 +617,15 @@
 <!-- Real-Time Energy Flow -->
 <div id="realTimeFlow" class="hidden mb-4">
     <div class="bg-white dark:bg-slate-800 rounded-xl shadow-md p-3 sm:p-4 border border-slate-200 dark:border-slate-700">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+        <div class="flex items-center justify-between mb-3">
             <h2 class="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
                 <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                 Sơ Đồ Năng Lượng
             </h2>
             
-            <div class="flex flex-wrap items-center gap-2">
-                <!-- Pro/Basic/3D Interface Toggle - z-[100] to ensure clickable on mobile -->
-                <div class="flex items-center bg-slate-200 dark:bg-slate-700 rounded-lg p-0.5 relative z-[100]" style="position: relative; z-index: 100;">
+            <div class="flex items-center gap-2">
+                <!-- Pro/Basic/3D Interface Toggle -->
+                <div class="flex items-center bg-slate-200 dark:bg-slate-700 rounded-lg p-0.5">
                     <button id="basicViewBtn" onclick="switchEnergyFlowView('basic')" 
                         class="px-2.5 py-1.5 text-xs font-medium rounded-md transition-all duration-200
                                text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100"
@@ -682,9 +638,7 @@
                         title="Giao diện Pro - Đầy đủ animation">
                         Pro
                     </button>
-                    <button id="home3DViewBtn" 
-                        type="button"
-                        onclick="switchEnergyFlowView('3dhome')"
+                    <button id="home3DViewBtn" onclick="switchEnergyFlowView('3dhome')" 
                         class="px-2.5 py-1.5 text-xs font-medium rounded-md transition-all duration-200
                                text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100
                                flex items-center gap-1"
@@ -1130,65 +1084,35 @@
         
         <!-- 3D Home View - Cyberpunk Glassmorphism Style (hidden by default) -->
         <div id="energyFlow3DHome" class="hidden">
-            <div class="home3d-container relative mx-auto" style="max-width: 450px;">
+            <div class="home3d-container relative mx-auto" style="max-width: 420px;">
                 <!-- 3D House Image - No background, transparent -->
                 <div class="relative">
                     <!-- Main 3D House Image -->
                     <img src="/images/3dhome/house-3d-dark.png" alt="3D Solar Home" 
                          class="w-full h-auto object-contain" style="min-height: 320px;">
                     
-                    <!-- Sun/Moon Animation (Above solar panels - right side) - BIGGER -->
-                    <div class="absolute top-[8%] left-[52%] z-10">
-                        <!-- Sun - visible when PV > 0 -->
-                        <div id="sun-3d-icon" class="sun-3d-animate hidden">
-                            <svg class="w-14 h-14 sm:w-16 sm:h-16 text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.9)]" viewBox="0 0 24 24" fill="currentColor">
-                                <circle cx="12" cy="12" r="5" class="animate-pulse"/>
-                                <g class="sun-rays-3d">
-                                    <line x1="12" y1="1" x2="12" y2="4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                    <line x1="12" y1="20" x2="12" y2="23" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                    <line x1="4.22" y1="4.22" x2="6.34" y2="6.34" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                    <line x1="17.66" y1="17.66" x2="19.78" y2="19.78" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                    <line x1="1" y1="12" x2="4" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                    <line x1="20" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                    <line x1="4.22" y1="19.78" x2="6.34" y2="17.66" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                    <line x1="17.66" y1="6.34" x2="19.78" y2="4.22" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                </g>
+                    <!-- PV Power Circle (Top Center) -->
+                    <div class="absolute top-0 left-1/2 -translate-x-1/2 z-20">
+                        <div class="pv-circle-3d relative">
+                            <svg class="w-20 h-20 sm:w-24 sm:h-24" viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(34,197,94,0.2)" stroke-width="6"/>
+                                <circle id="pv-progress-3d" cx="50" cy="50" r="45" fill="none" 
+                                        stroke="url(#pvGradient3d)" stroke-width="6" 
+                                        stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="70"
+                                        transform="rotate(-90 50 50)" class="pv-circle-animate"/>
+                                <defs>
+                                    <linearGradient id="pvGradient3d" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" style="stop-color:#22c55e"/>
+                                        <stop offset="100%" style="stop-color:#06b6d4"/>
+                                    </linearGradient>
+                                </defs>
                             </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <span id="pv-power-3d" class="text-lg sm:text-xl font-black text-white">--W</span>
+                            </div>
                         </div>
-                        <!-- Moon - visible when PV = 0 - BIGGER -->
-                        <div id="moon-3d-icon" class="moon-3d-animate">
-                            <svg class="w-12 h-12 sm:w-14 sm:h-14 text-slate-300 drop-shadow-[0_0_15px_rgba(203,213,225,0.7)]" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                            </svg>
-                        </div>
-                    </div>
-                    
-                    <!-- Stars for night mode (separate, visible with moon) -->
-                    <div id="stars-3d" class="absolute top-[5%] left-[65%] z-10">
-                        <svg class="w-10 h-10" viewBox="0 0 24 24">
-                            <circle cx="5" cy="5" r="1.5" class="animate-pulse" fill="white" opacity="0.9"/>
-                            <circle cx="18" cy="8" r="1.2" class="animate-pulse" fill="white" opacity="0.7" style="animation-delay: 0.3s"/>
-                            <circle cx="12" cy="3" r="1" class="animate-pulse" fill="white" opacity="0.8" style="animation-delay: 0.6s"/>
-                        </svg>
-                    </div>
-                    
-                    <!-- PV Power Box (Top LEFT - aligned with solar panel edge) -->
-                    <div class="absolute top-[5%] left-[5%] z-20">
-                        <div class="glassmorphism-card-3d rounded-xl px-3 py-2 min-w-[120px]">
-                            <!-- Label on TOP -->
-                            <div class="text-center mb-1">
-                                <span class="text-[10px] text-emerald-400 font-bold">Nguồn PV ></span>
-                            </div>
-                            <!-- PV Total Power -->
-                            <div class="text-center">
-                                <span id="pv-power-3d" class="text-lg sm:text-xl font-black text-emerald-400">--W</span>
-                            </div>
-                            <!-- PV1 / PV2 Details -->
-                            <div id="pv-details-3d" class="text-[9px] text-slate-300 mt-1 text-center">
-                                <span id="pv1-detail-3d">--W --V</span>
-                                <span class="opacity-50 mx-1">|</span>
-                                <span id="pv2-detail-3d">--W --V</span>
-                            </div>
+                        <div class="text-center mt-1">
+                            <span class="text-xs text-emerald-400 font-bold">Nguồn PV ></span>
                         </div>
                     </div>
                     
@@ -1210,57 +1134,41 @@
                             <span id="battery-soc-3d" class="text-lg sm:text-xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">--%</span>
                         </div>
                     </div>
-                    
-                    <!-- Load Power Display (Right of inverter, before door) - NO BOX, just number -->
-                    <div class="absolute right-[28%] top-[58%] z-20">
-                        <span id="load-power-overlay-3d" class="text-base sm:text-lg font-black text-cyan-400 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">--W</span>
-                    </div>
                 </div>
                 
-                <!-- Bottom Stats Cards - 4 Equal Cards -->
-                <div class="mt-3 grid grid-cols-4 gap-1.5">
+                <!-- Bottom Stats Cards - 3 Equal Cards -->
+                <div class="mt-3 grid grid-cols-3 gap-2">
                     <!-- Battery Card -->
-                    <div class="glassmorphism-stat-card rounded-xl p-2 text-center">
-                        <div class="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/50">
-                            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="glassmorphism-stat-card rounded-xl p-3 text-center">
+                        <div class="w-10 h-10 mx-auto mb-2 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/50">
+                            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3h6v2H9zM4 5h16a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z"/>
                             </svg>
                         </div>
-                        <div id="battery-power-3d" class="text-sm sm:text-base font-black text-emerald-400">--W</div>
-                        <div class="text-[9px] text-slate-400 mt-0.5">Pin sạc/xả ></div>
+                        <div id="battery-power-3d" class="text-lg sm:text-xl font-black text-emerald-400">--W</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Pin sạc/xả ></div>
                     </div>
                     
                     <!-- Grid EVN Card -->
-                    <div class="glassmorphism-stat-card rounded-xl p-2 text-center">
-                        <div class="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/50">
-                            <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="glassmorphism-stat-card rounded-xl p-3 text-center">
+                        <div class="w-10 h-10 mx-auto mb-2 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/50">
+                            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                             </svg>
                         </div>
-                        <div id="grid-power-3d" class="text-sm sm:text-base font-black text-purple-400">--W</div>
-                        <div class="text-[9px] text-slate-400 mt-0.5">Lưới EVN ></div>
+                        <div id="grid-power-3d" class="text-lg sm:text-xl font-black text-purple-400">--W</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Lưới điện EVN ></div>
                     </div>
                     
-                    <!-- Load (Tải hòa lưới) Card -->
-                    <div class="glassmorphism-stat-card rounded-xl p-2 text-center">
-                        <div class="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50">
-                            <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <!-- Consumption Card -->
+                    <div class="glassmorphism-stat-card rounded-xl p-3 text-center">
+                        <div class="w-10 h-10 mx-auto mb-2 rounded-lg bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50">
+                            <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
                             </svg>
                         </div>
-                        <div id="load-power-3d" class="text-sm sm:text-base font-black text-cyan-400">--W</div>
-                        <div class="text-[9px] text-slate-400 mt-0.5">Tải hòa lưới ></div>
-                    </div>
-                    
-                    <!-- Essential Load (Tải cổng Load) Card -->
-                    <div class="glassmorphism-stat-card rounded-xl p-2 text-center">
-                        <div class="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-amber-500/20 flex items-center justify-center border border-amber-500/50">
-                            <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
-                            </svg>
-                        </div>
-                        <div id="essential-power-3d" class="text-sm sm:text-base font-black text-amber-400">--W</div>
-                        <div class="text-[9px] text-slate-400 mt-0.5">Tải cổng Load ></div>
+                        <div id="load-power-3d" class="text-lg sm:text-xl font-black text-cyan-400">--W</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Tải tiêu thụ ></div>
                     </div>
                 </div>
             </div>
@@ -2008,7 +1916,7 @@
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13151" defer></script>
+    <script src="/js/index.js?v=13149" defer></script>
 
 </body>
 </html>

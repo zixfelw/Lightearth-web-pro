@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13151 - Fixed 3D Home button on mobile, improved fetch data reliability
+ * Version: 13137 - Improved data source handling, Min/Max labels for temperature badge
  * 
  * Features:
  * - Real-time data via SignalR
@@ -10,10 +10,7 @@
  * - Energy flow visualization
  * - Chart.js visualizations
  * - Mobile optimized interface
- * - Fixed: API requests now use cache: 'no-store' to prevent stale data on mobile
- * - Fixed: 3D Home button now works on mobile (added onclick attribute)
  */
-console.log('📱 Solar Monitor JS v13151 loaded at', new Date().toISOString());
 
 // Global constants - defined outside DOMContentLoaded to avoid TDZ issues
 // SOC History API (Railway - LightEarth Cloud data)
@@ -152,16 +149,7 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log(`📡 [Proxy ${currentProxyIndex + 1}/${LIGHTEARTH_PROXIES.length}] Fetching: ${url}`);
             
             try {
-                // Force no-cache for API requests to fix mobile/incognito issues
-                const fetchOptions = { 
-                    ...options, 
-                    cache: 'no-store',
-                    headers: { 
-                        ...(options.headers || {}),
-                        'Cache-Control': 'no-cache'
-                    }
-                };
-                const response = await fetch(url, fetchOptions);
+                const response = await fetch(url, options);
                 
                 // Check for rate limit or server error
                 if (response.status === 429 || response.status >= 500) {
@@ -643,8 +631,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Use configured API source
             const apiUrl = getRealtimeApiUrl(deviceId);
             console.log(`📡 Fetching from ${API_SOURCES[currentApiSource].name}:`, apiUrl);
-            // Force no-cache for realtime data to fix mobile/incognito issues
-            const response = await fetch(apiUrl, { cache: 'no-store' });
+            const response = await fetch(apiUrl);
             if (!response.ok) return;
             
             const data = await response.json();
@@ -913,8 +900,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const haEnergyUrl = `${currentOrigin}/api/realtime/daily-energy/${deviceId}`;
             console.log('⚡ Fetching summary from:', haEnergyUrl);
             
-            // Force no-cache for summary data to fix mobile/incognito issues
-            const response = await fetch(haEnergyUrl, { cache: 'no-store' });
+            const response = await fetch(haEnergyUrl);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             
             const data = await response.json();
@@ -975,8 +961,7 @@ document.addEventListener('DOMContentLoaded', function () {
             try {
                 console.log("📡 [Priority 1] Trying Railway API (LightEarth Cloud)...");
                 const haEnergyUrl = `${currentOrigin}/api/realtime/daily-energy/${deviceId}`;
-                // Force no-cache to fix mobile/incognito issues
-                const haResponse = await fetch(haEnergyUrl, { cache: 'no-store' });
+                const haResponse = await fetch(haEnergyUrl);
                 
                 if (haResponse.ok) {
                     const haData = await haResponse.json();
@@ -1689,8 +1674,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         try {
             console.log(`📡 [SOC] Fetching from Railway API: ${railwayUrl}`);
-            // Force no-cache for SOC data to fix mobile/incognito issues
-            const response = await fetch(railwayUrl, { cache: 'no-store' });
+            const response = await fetch(railwayUrl);
             if (response.ok) {
                 data = await response.json();
                 if (data.success && data.timeline && data.timeline.length > 0) {
@@ -3010,12 +2994,11 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     // ========================================
-    // PRO/BASIC VIEW SWITCH - Version 13111 (Mobile Fix)
+    // PRO/BASIC VIEW SWITCH - Version 13110
     // ========================================
     
     // Switch between Pro, Basic, and 3D Home Energy Flow views - exposed globally
     window.switchEnergyFlowView = function(view) {
-        console.log('[switchEnergyFlowView] Called with view:', view);
         const proView = document.getElementById('energyFlowPro');
         const basicView = document.getElementById('energyFlowBasic');
         const home3DView = document.getElementById('energyFlow3DHome');
@@ -3097,9 +3080,6 @@ document.addEventListener('DOMContentLoaded', function () {
         const batteryPercent = document.getElementById('battery-percent-icon')?.textContent || '--%';
         const batteryPower = document.getElementById('battery-power')?.textContent || '--W';
         const loadPower = document.getElementById('load-power')?.textContent || '--W';
-        const essentialPower = document.getElementById('essential-power')?.textContent || '--W';
-        const pvDesc = document.getElementById('pv-desc')?.innerHTML || '';
-        const gridVoltage = document.getElementById('grid-voltage')?.textContent || '--V';
         
         // Update 3D Home view elements with blink effect (same as Pro)
         const update3DValue = (id, value) => {
@@ -3120,50 +3100,8 @@ document.addEventListener('DOMContentLoaded', function () {
         update3DValue('pv-power-3d', pvPower);
         update3DValue('grid-power-3d', gridPower);
         update3DValue('load-power-3d', loadPower);
-        update3DValue('load-power-overlay-3d', loadPower); // Overlay on house image
         update3DValue('battery-power-3d', batteryPower);
         update3DValue('battery-soc-3d', batteryPercent);
-        update3DValue('essential-power-3d', essentialPower);
-        
-        // Update PV1/PV2 details from pv-desc HTML
-        // Format: "1234W 234V | 5678W 235V"
-        if (pvDesc && pvDesc.includes('|')) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = pvDesc;
-            const text = tempDiv.textContent || '';
-            const parts = text.split('|');
-            if (parts.length >= 2) {
-                update3DValue('pv1-detail-3d', parts[0].trim());
-                update3DValue('pv2-detail-3d', parts[1].trim());
-            }
-        } else if (pvDesc) {
-            // Single PV - just show voltage
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = pvDesc;
-            update3DValue('pv1-detail-3d', tempDiv.textContent || '--V');
-            const pv2El = document.getElementById('pv2-detail-3d');
-            if (pv2El) pv2El.parentElement.style.display = 'none';
-        }
-        
-        // Update Sun/Moon based on PV power
-        const pvValue = parseInt(pvPower.replace(/[^\d-]/g, '')) || 0;
-        const sunIcon = document.getElementById('sun-3d-icon');
-        const moonIcon = document.getElementById('moon-3d-icon');
-        const starsIcon = document.getElementById('stars-3d');
-        
-        if (sunIcon && moonIcon) {
-            if (pvValue > 0) {
-                // Daytime - show sun, hide moon and stars
-                sunIcon.classList.remove('hidden');
-                moonIcon.classList.add('hidden');
-                if (starsIcon) starsIcon.classList.add('hidden');
-            } else {
-                // Nighttime - show moon and stars, hide sun
-                sunIcon.classList.add('hidden');
-                moonIcon.classList.remove('hidden');
-                if (starsIcon) starsIcon.classList.remove('hidden');
-            }
-        }
         
         // Update battery charge/discharge animation
         const batteryVal = parseInt(batteryPower.replace(/[^\d-]/g, '')) || 0;
@@ -3188,9 +3126,17 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
         
-        // Update PV progress bar (removed circle, but keep logic for future)
+        // Update battery fill bar (width instead of height for horizontal bar)
+        const batteryFill3D = document.getElementById('battery-fill-3d');
+        if (batteryFill3D) {
+            const percent = parseInt(batteryPercent) || 0;
+            batteryFill3D.style.width = percent + '%';
+        }
+        
+        // Update PV circle progress (stroke-dashoffset)
         const pvProgress = document.getElementById('pv-progress-3d');
         if (pvProgress) {
+            const pvValue = parseInt(pvPower.replace(/[^\d-]/g, '')) || 0;
             // Max expected PV is around 10000W, calculate percentage
             const pvPercent = Math.min(100, (pvValue / 10000) * 100);
             // stroke-dasharray is 283, so offset = 283 - (283 * percent / 100)
@@ -3334,74 +3280,36 @@ document.addEventListener('DOMContentLoaded', function () {
     window.autoSync3DHomeView = autoSync3DHomeView;
     
     // Load saved view preference on page load - Default to Pro
-    // Check for pending switch from early onclick (mobile)
-    const pendingView = window._pendingViewSwitch;
-    const savedView = pendingView || localStorage.getItem('energyFlowView') || 'pro';
-    console.log('[Init] Using view:', savedView, 'pending:', pendingView);
-    
+    const savedView = localStorage.getItem('energyFlowView') || 'pro';
     setTimeout(() => {
         window.switchEnergyFlowView(savedView);
-        // Clear pending
-        window._pendingViewSwitch = null;
     }, 100);
     
-    // Mobile-friendly button initialization with touch support - COMBINED FIX
+    // Add click event listeners to ensure buttons work (fix for cached pages)
     setTimeout(() => {
-        const home3DBtn = document.getElementById('home3DViewBtn');
         const proBtn = document.getElementById('proViewBtn');
         const basicBtn = document.getElementById('basicViewBtn');
+        const home3DBtn = document.getElementById('home3DViewBtn');
         
-        console.log('Initializing buttons:', { home3DBtn, proBtn, basicBtn });
-        
-        // Make buttons work reliably on mobile
-        const setupMobileButton = (btn, viewType) => {
-            if (!btn) return;
-            
-            // Ensure button is clickable
-            btn.style.pointerEvents = 'auto';
-            btn.style.position = 'relative';
-            btn.style.zIndex = '100';
-            
-            // Track if touch was handled
-            let touchHandled = false;
-            
-            // Add touchstart for visual feedback
-            btn.addEventListener('touchstart', function(e) {
-                console.log('Touch start on:', viewType);
-                touchHandled = false;
-            }, { passive: true });
-            
-            // Add touchend event for mobile (fires after touch, before click)
-            btn.addEventListener('touchend', function(e) {
-                e.preventDefault(); // Prevent double-firing with click
-                touchHandled = true;
-                console.log('Touch ended on:', viewType);
-                window.switchEnergyFlowView(viewType);
-            }, { passive: false });
-            
-            // Keep click for desktop (and as fallback)
-            btn.addEventListener('click', function(e) {
-                // Skip if touch already handled
-                if (touchHandled) {
-                    touchHandled = false;
-                    return;
-                }
+        if (proBtn) {
+            proBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                e.stopPropagation();
-                console.log('Click on:', viewType);
-                window.switchEnergyFlowView(viewType);
-            }, { passive: false });
-            
-            // Remove existing inline handlers to prevent double-firing
-            btn.removeAttribute('onclick');
-            btn.removeAttribute('ontouchend');
-        };
-        
-        setupMobileButton(home3DBtn, '3dhome');
-        setupMobileButton(proBtn, 'pro');
-        setupMobileButton(basicBtn, 'basic');
-        
-        console.log('Energy flow view buttons initialized for mobile - COMBINED FIX v3');
+                window.switchEnergyFlowView('pro');
+            });
+        }
+        if (basicBtn) {
+            basicBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.switchEnergyFlowView('basic');
+            });
+        }
+        if (home3DBtn) {
+            home3DBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.switchEnergyFlowView('3dhome');
+            });
+        }
+        console.log('Energy flow view buttons initialized');
     }, 200);
 
     // Legacy function - kept for backward compatibility but not used
