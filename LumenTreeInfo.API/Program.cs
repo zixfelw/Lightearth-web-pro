@@ -155,6 +155,10 @@ public class Program
         // Add TelegramBotCommandService for handling bot commands
         builder.Services.AddSingleton<TelegramBotCommandService>();
         builder.Services.AddHostedService(provider => provider.GetRequiredService<TelegramBotCommandService>());
+        
+        // Add SolarDataSyncService for daily auto-sync of solar project data
+        builder.Services.AddSingleton<SolarDataSyncService>();
+        builder.Services.AddHostedService(provider => provider.GetRequiredService<SolarDataSyncService>());
 
         var app = builder.Build();
 

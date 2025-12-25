@@ -1436,20 +1436,74 @@
         })();
         
         // ========================================
-        // SOLAR PROJECT SUMMARY - Load from localStorage
+        // SOLAR PROJECT SUMMARY - Load from API (auto-synced data)
+        // Fallback to localStorage if API fails
         // ========================================
-        (function loadSolarProjectSummary() {
+        (async function loadSolarProjectSummary() {
             try {
                 // Get deviceId from URL
                 const urlParams = new URLSearchParams(window.location.search);
                 const deviceId = (urlParams.get('deviceId') || '').toUpperCase();
                 
-                // Get storage key based on deviceId (same as Calculator)
-                const storageKey = deviceId ? `solarSettings_${deviceId}` : 'solarSettings';
+                if (!deviceId) {
+                    console.log('No deviceId provided, skipping solar summary');
+                    return;
+                }
                 
+                // Format functions
+                function formatVND(value) {
+                    return new Intl.NumberFormat('vi-VN', {
+                        style: 'decimal',
+                        maximumFractionDigits: 0
+                    }).format(value) + ' ₫';
+                }
+                
+                function formatKWh(value) {
+                    return new Intl.NumberFormat('vi-VN', {
+                        style: 'decimal',
+                        maximumFractionDigits: 1
+                    }).format(value) + ' kWh';
+                }
+                
+                // Function to update UI with data
+                function updateSummaryUI(data) {
+                    document.getElementById('summaryTotalSavings').textContent = formatVND(data.totalSavings);
+                    document.getElementById('summaryTotalLoad').textContent = formatKWh(data.totalLoad);
+                    document.getElementById('summaryTotalSolar').textContent = formatKWh(data.totalSolarProduced);
+                    document.getElementById('summaryTotalGrid').textContent = formatKWh(data.totalGrid);
+                    document.getElementById('summaryCostWithoutSolar').textContent = formatVND(data.costWithoutSolar);
+                    document.getElementById('summaryAvgSavings').textContent = formatVND(data.avgSavings);
+                    
+                    // Show section
+                    document.getElementById('solarProjectSummary').classList.remove('hidden');
+                }
+                
+                // Try API first (server-synced data - works across devices)
+                try {
+                    const response = await fetch(`/api/solar/dashboard/${deviceId}`);
+                    const result = await response.json();
+                    
+                    if (result.success && result.hasData) {
+                        console.log(`Loaded solar summary from API (${result.source}) for ${deviceId}`);
+                        updateSummaryUI({
+                            totalSavings: result.raw.totalSavings,
+                            totalLoad: result.raw.totalLoad,
+                            totalSolarProduced: result.raw.totalSolarProduced,
+                            totalGrid: result.raw.totalGrid,
+                            costWithoutSolar: result.raw.costWithoutSolar,
+                            avgSavings: result.raw.avgSavings
+                        });
+                        return;
+                    }
+                } catch (apiError) {
+                    console.log('API not available, falling back to localStorage:', apiError.message);
+                }
+                
+                // Fallback to localStorage (for backward compatibility)
+                const storageKey = `solarSettings_${deviceId}`;
                 const savedSettings = localStorage.getItem(storageKey);
+                
                 if (!savedSettings) {
-                    // No data saved for this device - hide section
                     return;
                 }
                 
@@ -1458,7 +1512,7 @@
                     return;
                 }
                 
-                // Tính giá điện theo bậc thang EVN (GIỐNG CALCULATOR)
+                // Calculate from localStorage (same logic as before)
                 function calculateTieredPrice(kWh, vatRate) {
                     if (kWh <= 0) return 0;
                     
@@ -1505,11 +1559,9 @@
                         totalCost += remaining * 3460;
                     }
                     
-                    // Áp dụng VAT
                     return totalCost * (1 + vatRate);
                 }
                 
-                // Calculate totals (GIỐNG CALCULATOR - line 3835-3946)
                 let totalSavings = 0;
                 let totalLoad = 0;
                 let totalSolarProduced = 0;
@@ -1524,30 +1576,16 @@
                     const grid = parseFloat(month.grid) || 0;
                     const backup = parseFloat(month.backup) || 0;
                     
-                    // Đếm tháng có dữ liệu
                     if (load > 0 || grid > 0 || backup > 0) {
                         monthsWithData++;
                     }
                     
-                    // Tổng tiêu thụ = Load + Backup
                     const totalConsumption = load + backup;
-                    
-                    // Điện mặt trời sản xuất = Tổng tiêu thụ - Grid EVN
                     const solarProduced = totalConsumption - grid;
-                    
-                    // Chi phí lưới điện EVN (Grid) - DÙNG BẬC THANG
                     const gridCost = calculateTieredPrice(grid, vatRate);
-                    
-                    // Chi phí nếu KHÔNG CÓ SOLAR = Tính bậc thang cho TOÀN BỘ tiêu thụ
                     const costWithoutSolar = calculateTieredPrice(totalConsumption, vatRate);
-                    
-                    // Chi phí điện mặt trời (hiện tại = 0 vì tự sản xuất)
                     const solarCost = solarProduced * solarPrice;
-                    
-                    // Chi phí thực tế = Chi phí lưới điện + Chi phí mặt trời
                     const actualCost = gridCost + solarCost;
-                    
-                    // Tiết kiệm = Chi phí nếu không có Solar - Chi phí thực tế
                     const savings = costWithoutSolar - actualCost;
                     
                     totalSavings += savings;
@@ -1559,32 +1597,16 @@
                 
                 const avgSavings = monthsWithData > 0 ? totalSavings / monthsWithData : 0;
                 
-                // Format functions
-                function formatVND(value) {
-                    return new Intl.NumberFormat('vi-VN', {
-                        style: 'decimal',
-                        maximumFractionDigits: 0
-                    }).format(value) + ' ₫';
-                }
-                
-                function formatKWh(value) {
-                    return new Intl.NumberFormat('vi-VN', {
-                        style: 'decimal',
-                        maximumFractionDigits: 1
-                    }).format(value) + ' kWh';
-                }
-                
-                // Update UI
-                document.getElementById('summaryTotalSavings').textContent = formatVND(totalSavings);
-                document.getElementById('summaryTotalLoad').textContent = formatKWh(totalLoad);
-                document.getElementById('summaryTotalSolar').textContent = formatKWh(totalSolarProduced);
-                document.getElementById('summaryTotalGrid').textContent = formatKWh(totalGrid);
-                document.getElementById('summaryCostWithoutSolar').textContent = formatVND(totalCostWithoutSolar);
-                document.getElementById('summaryAvgSavings').textContent = formatVND(avgSavings);
-                
-                // Show section if has data
                 if (monthsWithData > 0) {
-                    document.getElementById('solarProjectSummary').classList.remove('hidden');
+                    console.log(`Loaded solar summary from localStorage for ${deviceId}`);
+                    updateSummaryUI({
+                        totalSavings,
+                        totalLoad,
+                        totalSolarProduced,
+                        totalGrid,
+                        costWithoutSolar: totalCostWithoutSolar,
+                        avgSavings
+                    });
                 }
                 
             } catch (e) {
