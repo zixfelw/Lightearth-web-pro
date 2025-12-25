@@ -3329,11 +3329,13 @@ document.addEventListener('DOMContentLoaded', function () {
         window._pendingViewSwitch = null;
     }, 100);
     
-    // Mobile-friendly button initialization - using ontouchend for better mobile support
+    // Mobile-friendly button initialization with touch support - COMBINED FIX
     setTimeout(() => {
         const home3DBtn = document.getElementById('home3DViewBtn');
         const proBtn = document.getElementById('proViewBtn');
         const basicBtn = document.getElementById('basicViewBtn');
+        
+        console.log('Initializing buttons:', { home3DBtn, proBtn, basicBtn });
         
         // Make buttons work reliably on mobile
         const setupMobileButton = (btn, viewType) => {
@@ -3342,29 +3344,48 @@ document.addEventListener('DOMContentLoaded', function () {
             // Ensure button is clickable
             btn.style.pointerEvents = 'auto';
             btn.style.position = 'relative';
-            btn.style.zIndex = '20';
+            btn.style.zIndex = '100';
+            
+            // Track if touch was handled
+            let touchHandled = false;
+            
+            // Add touchstart for visual feedback
+            btn.addEventListener('touchstart', function(e) {
+                console.log('Touch start on:', viewType);
+                touchHandled = false;
+            }, { passive: true });
             
             // Add touchend event for mobile (fires after touch, before click)
             btn.addEventListener('touchend', function(e) {
                 e.preventDefault(); // Prevent double-firing with click
+                touchHandled = true;
                 console.log('Touch ended on:', viewType);
                 window.switchEnergyFlowView(viewType);
             }, { passive: false });
             
-            // Keep click for desktop
+            // Keep click for desktop (and as fallback)
             btn.addEventListener('click', function(e) {
-                // Only fire if not from touch (mobile fires both touch and click)
-                if (e.pointerType === 'touch') return;
+                // Skip if touch already handled
+                if (touchHandled) {
+                    touchHandled = false;
+                    return;
+                }
+                e.preventDefault();
+                e.stopPropagation();
                 console.log('Click on:', viewType);
                 window.switchEnergyFlowView(viewType);
-            }, { passive: true });
+            }, { passive: false });
+            
+            // Remove existing inline handlers to prevent double-firing
+            btn.removeAttribute('onclick');
+            btn.removeAttribute('ontouchend');
         };
         
         setupMobileButton(home3DBtn, '3dhome');
         setupMobileButton(proBtn, 'pro');
         setupMobileButton(basicBtn, 'basic');
         
-        console.log('Energy flow view buttons initialized for mobile v2');
+        console.log('Energy flow view buttons initialized for mobile - COMBINED FIX v3');
     }, 200);
 
     // Legacy function - kept for backward compatibility but not used
