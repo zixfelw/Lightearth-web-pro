@@ -3082,6 +3082,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const batteryPower = document.getElementById('battery-power')?.textContent || '--W';
         const loadPower = document.getElementById('load-power')?.textContent || '--W';
         
+        console.log('[3D Home Sync] PV:', pvPower, 'Grid:', gridPower, 'Battery:', batteryPercent, batteryPower, 'Load:', loadPower);
+        
         // Update 3D Home view elements with blink effect (same as Pro)
         const update3DValue = (id, value) => {
             const el = document.getElementById(id);
