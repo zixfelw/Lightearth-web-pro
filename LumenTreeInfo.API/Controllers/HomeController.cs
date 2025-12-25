@@ -36,6 +36,17 @@ public class HomeController : Controller
     }
 
     /// <summary>
+    /// Returns the 3D View test page (clone of Index for design/testing)
+    /// Accessible via URL: /?testid=xxx
+    /// </summary>
+    [Route("/test3d")]
+    public IActionResult Test3DView()
+    {
+        Log.Information("Rendering 3D View test page");
+        return View("Test3DView");
+    }
+
+    /// <summary>
     /// Returns the calculator page
     /// </summary>
     [Route("/calculator")]
