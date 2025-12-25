@@ -38,6 +38,17 @@
         }
     </script>
     
+    <!-- Early function definitions for mobile compatibility -->
+    <script>
+        // Define switchEnergyFlowView early so onclick works on mobile
+        // This will be overwritten by the full implementation in index.js
+        window.switchEnergyFlowView = window.switchEnergyFlowView || function(view) {
+            console.log('Early switch called:', view);
+            // Queue the switch for when full JS is loaded
+            window._pendingViewSwitch = view;
+        };
+    </script>
+    
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
@@ -683,11 +694,11 @@
                                text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100
                                flex items-center gap-1 cursor-pointer select-none active:scale-95"
                         title="Giao diện 3D Home - Giống FusionSolar"
-                        style="-webkit-tap-highlight-color: rgba(0,0,0,0.1); touch-action: manipulation;">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        style="-webkit-tap-highlight-color: rgba(0,0,0,0.1); touch-action: manipulation; -webkit-user-select: none; user-select: none;">
+                        <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                         </svg>
-                        3D Home
+                        <span class="pointer-events-none">3D Home</span>
                     </button>
                 </div>
                 

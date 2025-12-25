@@ -2994,11 +2994,12 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     // ========================================
-    // PRO/BASIC VIEW SWITCH - Version 13110
+    // PRO/BASIC VIEW SWITCH - Version 13111 (Mobile Fix)
     // ========================================
     
     // Switch between Pro, Basic, and 3D Home Energy Flow views - exposed globally
     window.switchEnergyFlowView = function(view) {
+        console.log('[switchEnergyFlowView] Called with view:', view);
         const proView = document.getElementById('energyFlowPro');
         const basicView = document.getElementById('energyFlowBasic');
         const home3DView = document.getElementById('energyFlow3DHome');
@@ -3317,35 +3318,53 @@ document.addEventListener('DOMContentLoaded', function () {
     window.autoSync3DHomeView = autoSync3DHomeView;
     
     // Load saved view preference on page load - Default to Pro
-    const savedView = localStorage.getItem('energyFlowView') || 'pro';
+    // Check for pending switch from early onclick (mobile)
+    const pendingView = window._pendingViewSwitch;
+    const savedView = pendingView || localStorage.getItem('energyFlowView') || 'pro';
+    console.log('[Init] Using view:', savedView, 'pending:', pendingView);
+    
     setTimeout(() => {
         window.switchEnergyFlowView(savedView);
+        // Clear pending
+        window._pendingViewSwitch = null;
     }, 100);
     
-    // Mobile-friendly button initialization with touch support
+    // Mobile-friendly button initialization - using ontouchend for better mobile support
     setTimeout(() => {
         const home3DBtn = document.getElementById('home3DViewBtn');
         const proBtn = document.getElementById('proViewBtn');
         const basicBtn = document.getElementById('basicViewBtn');
         
-        // Ensure buttons are clickable on mobile
-        [home3DBtn, proBtn, basicBtn].forEach(btn => {
-            if (btn) {
-                // Remove any pointer-events blocking
-                btn.style.pointerEvents = 'auto';
-                btn.style.zIndex = '10';
-                
-                // Add direct onclick handler as backup
-                const viewType = btn.id === 'home3DViewBtn' ? '3dhome' : 
-                                (btn.id === 'proViewBtn' ? 'pro' : 'basic');
-                btn.addEventListener('click', function(e) {
-                    console.log('Button clicked:', viewType);
-                    window.switchEnergyFlowView(viewType);
-                }, { passive: true });
-            }
-        });
+        // Make buttons work reliably on mobile
+        const setupMobileButton = (btn, viewType) => {
+            if (!btn) return;
+            
+            // Ensure button is clickable
+            btn.style.pointerEvents = 'auto';
+            btn.style.position = 'relative';
+            btn.style.zIndex = '20';
+            
+            // Add touchend event for mobile (fires after touch, before click)
+            btn.addEventListener('touchend', function(e) {
+                e.preventDefault(); // Prevent double-firing with click
+                console.log('Touch ended on:', viewType);
+                window.switchEnergyFlowView(viewType);
+            }, { passive: false });
+            
+            // Keep click for desktop
+            btn.addEventListener('click', function(e) {
+                // Only fire if not from touch (mobile fires both touch and click)
+                if (e.pointerType === 'touch') return;
+                console.log('Click on:', viewType);
+                window.switchEnergyFlowView(viewType);
+            }, { passive: true });
+        };
         
-        console.log('Energy flow view buttons initialized for mobile');
+        setupMobileButton(home3DBtn, '3dhome');
+        setupMobileButton(proBtn, 'pro');
+        setupMobileButton(basicBtn, 'basic');
+        
+        console.log('Energy flow view buttons initialized for mobile v2');
     }, 200);
 
     // Legacy function - kept for backward compatibility but not used
