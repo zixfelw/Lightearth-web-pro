@@ -80,6 +80,9 @@ function saveRegisteredDevices() {
     fs.writeFileSync(DEVICES_FILE, JSON.stringify(registeredDevices, null, 2));
 }
 
+// API Key for Railway Server
+const API_SECRET_KEY = 'LONG_tothemoonfuckingo_2025';
+
 // Fetch data from Railway Server (primary) or Home Assistant Cloud (fallback)
 async function fetchCloudData(deviceId) {
     try {
@@ -88,7 +91,12 @@ async function fetchCloudData(deviceId) {
         
         console.log(`[${new Date().toISOString()}] Fetching from Railway: ${deviceId}`);
         
-        const response = await axios.get(railwayUrl, { timeout: 15000 });
+        const response = await axios.get(railwayUrl, { 
+            timeout: 15000,
+            headers: {
+                'X-API-Key': API_SECRET_KEY
+            }
+        });
         
         if (response.data && response.data.totalSavings !== undefined) {
             const data = {
@@ -96,13 +104,13 @@ async function fetchCloudData(deviceId) {
                 lastSync: new Date().toISOString(),
                 dataSource: 'Railway-HomeAssistant'
             };
-            console.log(`[${new Date().toISOString()}] Got data for ${deviceId}: ${data.totalSavings?.toLocaleString()}đ`);
+            console.log(`[${new Date().toISOString()}] ✅ Got data for ${deviceId}: ${data.totalSavings?.toLocaleString()}đ`);
             return data;
         }
         
         return null;
     } catch (error) {
-        console.error(`[${new Date().toISOString()}] Error fetching ${deviceId}:`, error.message);
+        console.error(`[${new Date().toISOString()}] ❌ Error fetching ${deviceId}:`, error.message);
         return null;
     }
 }
