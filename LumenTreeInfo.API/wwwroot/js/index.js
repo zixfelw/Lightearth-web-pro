@@ -3322,9 +3322,30 @@ document.addEventListener('DOMContentLoaded', function () {
         window.switchEnergyFlowView(savedView);
     }, 100);
     
-    // Simple click event listeners - onclick in HTML should work, this is backup
+    // Mobile-friendly button initialization with touch support
     setTimeout(() => {
-        console.log('Energy flow view buttons ready');
+        const home3DBtn = document.getElementById('home3DViewBtn');
+        const proBtn = document.getElementById('proViewBtn');
+        const basicBtn = document.getElementById('basicViewBtn');
+        
+        // Ensure buttons are clickable on mobile
+        [home3DBtn, proBtn, basicBtn].forEach(btn => {
+            if (btn) {
+                // Remove any pointer-events blocking
+                btn.style.pointerEvents = 'auto';
+                btn.style.zIndex = '10';
+                
+                // Add direct onclick handler as backup
+                const viewType = btn.id === 'home3DViewBtn' ? '3dhome' : 
+                                (btn.id === 'proViewBtn' ? 'pro' : 'basic');
+                btn.addEventListener('click', function(e) {
+                    console.log('Button clicked:', viewType);
+                    window.switchEnergyFlowView(viewType);
+                }, { passive: true });
+            }
+        });
+        
+        console.log('Energy flow view buttons initialized for mobile');
     }, 200);
 
     // Legacy function - kept for backward compatibility but not used
