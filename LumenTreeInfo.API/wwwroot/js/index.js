@@ -3322,46 +3322,10 @@ document.addEventListener('DOMContentLoaded', function () {
         window.switchEnergyFlowView(savedView);
     }, 100);
     
-    // Add click AND touch event listeners to ensure buttons work (fix for cached pages and mobile)
+    // Simple click event listeners - onclick in HTML should work, this is backup
     setTimeout(() => {
-        const proBtn = document.getElementById('proViewBtn');
-        const basicBtn = document.getElementById('basicViewBtn');
-        const home3DBtn = document.getElementById('home3DViewBtn');
-        
-        // Helper function to add both click and touch events
-        const addButtonEvents = (btn, viewName) => {
-            if (!btn) return;
-            
-            const handler = (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                window.switchEnergyFlowView(viewName);
-            };
-            
-            btn.addEventListener('click', handler);
-            btn.addEventListener('touchend', handler, { passive: false });
-        };
-        
-        addButtonEvents(proBtn, 'pro');
-        addButtonEvents(basicBtn, 'basic');
-        addButtonEvents(home3DBtn, '3dhome');
-        
-        console.log('Energy flow view buttons initialized (click + touch)');
+        console.log('Energy flow view buttons ready');
     }, 200);
-    
-    // Additional fix: Re-initialize buttons after DOM is fully ready
-    document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(() => {
-            const home3DBtn = document.getElementById('home3DViewBtn');
-            if (home3DBtn && !home3DBtn._initialized) {
-                home3DBtn._initialized = true;
-                home3DBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    window.switchEnergyFlowView('3dhome');
-                }, { passive: false });
-            }
-        }, 500);
-    });
 
     // Legacy function - kept for backward compatibility but not used
     function createChart(chartObj, canvasId, label, labels, data, borderColor, backgroundColor, options) {
