@@ -37,9 +37,10 @@ public class HomeController : Controller
 
     /// <summary>
     /// Returns the 3D View test page (clone of Index for design/testing)
-    /// Accessible via URL: /?testid=xxx
+    /// Accessible via URL: /test3d or /test
     /// </summary>
     [Route("/test3d")]
+    [Route("/test")]
     public IActionResult Test3DView()
     {
         Log.Information("Rendering 3D View test page");

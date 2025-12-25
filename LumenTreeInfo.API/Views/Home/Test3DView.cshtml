@@ -494,14 +494,7 @@
     <div class="hero-float-element hero-float-3"></div>
     
     <!-- Main Content -->
-    <div class="relative z-10 text-center px-4 max-w-2xl mx-auto">
-        <!-- Logo Animation -->
-        <div class="hero-logo-container mb-6">
-            <div class="hero-logo-ring"></div>
-            <div class="hero-logo-ring hero-logo-ring-2"></div>
-            <img src="/logo.png" alt="LightEarth" class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl shadow-2xl relative z-10 hero-logo-pulse">
-        </div>
-        
+    <div class="relative z-10 text-center px-4 max-w-2xl mx-auto" style="transform: translateX(-20px) translateY(-15px);">
         <!-- Title -->
         <h1 class="text-3xl sm:text-4xl md:text-5xl font-black mb-3 hero-title">
             <span class="bg-gradient-to-r from-teal-400 via-emerald-400 to-indigo-400 bg-clip-text text-transparent">LightEarth</span>
@@ -691,16 +684,15 @@
                     </button>
                     <button id="home3DViewBtn" 
                         type="button"
-                        class="px-3 py-2 text-xs font-medium rounded-md transition-all duration-200
+                        onclick="switchEnergyFlowView('3dhome')"
+                        class="px-2.5 py-1.5 text-xs font-medium rounded-md transition-all duration-200
                                text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100
-                               flex items-center gap-1 cursor-pointer select-none
-                               active:bg-teal-500 active:text-white focus:outline-none focus:ring-2 focus:ring-teal-400"
-                        title="Giao diện 3D Home - Giống FusionSolar"
-                        style="-webkit-tap-highlight-color: rgba(0,128,128,0.3); touch-action: manipulation; -webkit-user-select: none; user-select: none; position: relative; z-index: 100;">
-                        <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                               flex items-center gap-1"
+                        title="Giao diện 3D Home - Giống FusionSolar">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
                         </svg>
-                        <span class="pointer-events-none">3D Home</span>
+                        3D Home
                     </button>
                 </div>
                 
@@ -2016,7 +2008,7 @@
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13149" defer></script>
+    <script src="/js/index.js?v=13151" defer></script>
 
 </body>
 </html>

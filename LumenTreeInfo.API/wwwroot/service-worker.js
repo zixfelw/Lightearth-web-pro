@@ -1,8 +1,8 @@
 // Service Worker for Solar Calculator PWA
-// Version 1.0.0
+// Version 1.1.0 - Fixed API caching issue
 
-const CACHE_NAME = 'solar-calculator-v1.0.0';
-const RUNTIME_CACHE = 'solar-calculator-runtime';
+const CACHE_NAME = 'solar-calculator-v1.1.0';
+const RUNTIME_CACHE = 'solar-calculator-runtime-v1.1.0';
 
 // Files to cache immediately on install
 const PRECACHE_URLS = [
@@ -43,10 +43,32 @@ self.addEventListener('activate', event => {
 });
 
 // Fetch event - serve from cache, fallback to network
+// IMPORTANT: API requests should NEVER be cached to ensure fresh data
 self.addEventListener('fetch', event => {
-  // Skip cross-origin requests
+  const url = new URL(event.request.url);
+  
+  // SKIP caching for API requests - always fetch fresh data
+  // This fixes the mobile incognito issue where stale data was being served
+  if (url.pathname.startsWith('/api/') || 
+      url.hostname.includes('workers.dev') || 
+      url.hostname.includes('open-meteo.com') ||
+      url.hostname.includes('applike098')) {
+    console.log('[ServiceWorker] Bypassing cache for API:', event.request.url);
+    event.respondWith(
+      fetch(event.request).catch(error => {
+        console.error('[ServiceWorker] API fetch failed:', error);
+        return new Response(JSON.stringify({ error: 'Network error', offline: true }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      })
+    );
+    return;
+  }
+  
+  // Skip cross-origin requests (except CDN resources)
   if (!event.request.url.startsWith(self.location.origin)) {
-    // But cache CDN resources (Chart.js, etc.)
+    // Cache CDN resources (Chart.js, fonts, etc.) but not API endpoints
     event.respondWith(
       caches.open(RUNTIME_CACHE).then(cache => {
         return cache.match(event.request).then(response => {
@@ -69,7 +91,7 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // For same-origin requests
+  // For same-origin non-API requests (static files only)
   event.respondWith(
     caches.match(event.request)
       .then(response => {

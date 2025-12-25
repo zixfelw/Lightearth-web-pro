@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13137 - Improved data source handling, Min/Max labels for temperature badge
+ * Version: 13151 - Fixed 3D Home button on mobile, improved fetch data reliability
  * 
  * Features:
  * - Real-time data via SignalR
@@ -10,7 +10,10 @@
  * - Energy flow visualization
  * - Chart.js visualizations
  * - Mobile optimized interface
+ * - Fixed: API requests now use cache: 'no-store' to prevent stale data on mobile
+ * - Fixed: 3D Home button now works on mobile (added onclick attribute)
  */
+console.log('📱 Solar Monitor JS v13151 loaded at', new Date().toISOString());
 
 // Global constants - defined outside DOMContentLoaded to avoid TDZ issues
 // SOC History API (Railway - LightEarth Cloud data)
@@ -149,7 +152,16 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log(`📡 [Proxy ${currentProxyIndex + 1}/${LIGHTEARTH_PROXIES.length}] Fetching: ${url}`);
             
             try {
-                const response = await fetch(url, options);
+                // Force no-cache for API requests to fix mobile/incognito issues
+                const fetchOptions = { 
+                    ...options, 
+                    cache: 'no-store',
+                    headers: { 
+                        ...(options.headers || {}),
+                        'Cache-Control': 'no-cache'
+                    }
+                };
+                const response = await fetch(url, fetchOptions);
                 
                 // Check for rate limit or server error
                 if (response.status === 429 || response.status >= 500) {
@@ -631,7 +643,8 @@ document.addEventListener('DOMContentLoaded', function () {
             // Use configured API source
             const apiUrl = getRealtimeApiUrl(deviceId);
             console.log(`📡 Fetching from ${API_SOURCES[currentApiSource].name}:`, apiUrl);
-            const response = await fetch(apiUrl);
+            // Force no-cache for realtime data to fix mobile/incognito issues
+            const response = await fetch(apiUrl, { cache: 'no-store' });
             if (!response.ok) return;
             
             const data = await response.json();
@@ -900,7 +913,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const haEnergyUrl = `${currentOrigin}/api/realtime/daily-energy/${deviceId}`;
             console.log('⚡ Fetching summary from:', haEnergyUrl);
             
-            const response = await fetch(haEnergyUrl);
+            // Force no-cache for summary data to fix mobile/incognito issues
+            const response = await fetch(haEnergyUrl, { cache: 'no-store' });
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             
             const data = await response.json();
@@ -961,7 +975,8 @@ document.addEventListener('DOMContentLoaded', function () {
             try {
                 console.log("📡 [Priority 1] Trying Railway API (LightEarth Cloud)...");
                 const haEnergyUrl = `${currentOrigin}/api/realtime/daily-energy/${deviceId}`;
-                const haResponse = await fetch(haEnergyUrl);
+                // Force no-cache to fix mobile/incognito issues
+                const haResponse = await fetch(haEnergyUrl, { cache: 'no-store' });
                 
                 if (haResponse.ok) {
                     const haData = await haResponse.json();
@@ -1674,7 +1689,8 @@ document.addEventListener('DOMContentLoaded', function () {
         
         try {
             console.log(`📡 [SOC] Fetching from Railway API: ${railwayUrl}`);
-            const response = await fetch(railwayUrl);
+            // Force no-cache for SOC data to fix mobile/incognito issues
+            const response = await fetch(railwayUrl, { cache: 'no-store' });
             if (response.ok) {
                 data = await response.json();
                 if (data.success && data.timeline && data.timeline.length > 0) {
