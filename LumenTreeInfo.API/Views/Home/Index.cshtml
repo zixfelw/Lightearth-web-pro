@@ -1277,94 +1277,97 @@
     </div>
 </div>
 
-<!-- Solar Project Summary Section -->
+<!-- Solar Project Summary Section - With Card Container -->
 <div id="solarProjectSummary" class="mb-4 hidden">
-    <div class="flex items-center justify-between mb-3">
-        <div class="flex items-center gap-2">
-            <span class="text-xl sm:text-2xl">📊</span>
-            <span class="text-sm sm:text-base font-bold text-emerald-700 dark:text-emerald-300">Tổng Quát Dự Án Solar</span>
-        </div>
-        <a href="/calculator" id="viewCalculatorLink" class="text-xs sm:text-sm text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1">
-            <span>Xem chi tiết</span>
-            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-            </svg>
-        </a>
-    </div>
-    
-    <!-- 3 rows x 2 cols grid -->
-    <div class="grid grid-cols-1 gap-3">
-        <!-- Row 1: Tổng tiết kiệm + Tổng điện tiêu thụ -->
-        <div class="grid grid-cols-2 gap-3">
-            <!-- Tổng Tiết Kiệm -->
-            <div class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl p-3 sm:p-4 border border-emerald-200 dark:border-emerald-700">
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="text-lg sm:text-xl">💰</span>
-                    <span class="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">Tổng Tiết Kiệm</span>
-                </div>
-                <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryTotalSavings">0 ₫</div>
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-4 sm:p-5 border-l-4 border-emerald-500">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+                <span class="text-xl sm:text-2xl">📊</span>
+                <span class="text-base sm:text-lg font-bold text-emerald-700 dark:text-emerald-300">Tổng Quát Dự Án Solar</span>
             </div>
-            <!-- Tổng Điện Tiêu Thụ -->
-            <div class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl p-3 sm:p-4 border border-emerald-200 dark:border-emerald-700">
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="text-lg sm:text-xl">⚡</span>
-                    <span class="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">Tổng Điện Tiêu Thụ</span>
+            <a href="/calculator" id="viewCalculatorLink" class="text-xs sm:text-sm text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1">
+                <span>Xem chi tiết</span>
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </a>
+        </div>
+        
+        <!-- 3 rows x 2 cols grid -->
+        <div class="grid grid-cols-1 gap-3">
+            <!-- Row 1: Tổng tiết kiệm + Tổng điện tiêu thụ -->
+            <div class="grid grid-cols-2 gap-3">
+                <!-- Tổng Tiết Kiệm -->
+                <div class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/30 dark:to-green-900/30 rounded-xl p-3 sm:p-4 border border-emerald-200 dark:border-emerald-700">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-lg sm:text-xl">💰</span>
+                        <span class="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">Tổng Tiết Kiệm</span>
+                    </div>
+                    <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryTotalSavings">0 ₫</div>
                 </div>
-                <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryTotalLoad">0 kWh</div>
+                <!-- Tổng Điện Tiêu Thụ -->
+                <div class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/30 dark:to-green-900/30 rounded-xl p-3 sm:p-4 border border-emerald-200 dark:border-emerald-700">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-lg sm:text-xl">⚡</span>
+                        <span class="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">Tổng Điện Tiêu Thụ</span>
+                    </div>
+                    <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryTotalLoad">0 kWh</div>
+                </div>
+            </div>
+            
+            <!-- Row 2: Tổng điện Solar sản xuất + Tổng điện lưới EVN -->
+            <div class="grid grid-cols-2 gap-3">
+                <!-- Tổng Điện Solar Sản Xuất -->
+                <div class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/30 dark:to-green-900/30 rounded-xl p-3 sm:p-4 border border-emerald-200 dark:border-emerald-700">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-lg sm:text-xl">☀️</span>
+                        <span class="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">Tổng Điện Solar</span>
+                    </div>
+                    <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryTotalSolar">0 kWh</div>
+                </div>
+                <!-- Tổng Điện Lưới EVN -->
+                <div class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/30 dark:to-green-900/30 rounded-xl p-3 sm:p-4 border border-emerald-200 dark:border-emerald-700">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-lg sm:text-xl">🔌</span>
+                        <span class="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">Tổng Điện Lưới EVN</span>
+                    </div>
+                    <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryTotalGrid">0 kWh</div>
+                </div>
+            </div>
+            
+            <!-- Row 3: Chi phí nếu không có Solar + Trung bình tiết kiệm/tháng -->
+            <div class="grid grid-cols-2 gap-3">
+                <!-- Chi Phí Nếu Không Có Solar -->
+                <div class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/30 dark:to-green-900/30 rounded-xl p-3 sm:p-4 border border-emerald-200 dark:border-emerald-700">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-lg sm:text-xl">📉</span>
+                        <span class="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">Không Có Solar</span>
+                    </div>
+                    <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryCostWithoutSolar">0 ₫</div>
+                </div>
+                <!-- Trung Bình Tiết Kiệm/Tháng -->
+                <div class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/30 dark:to-green-900/30 rounded-xl p-3 sm:p-4 border border-emerald-200 dark:border-emerald-700">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-lg sm:text-xl">📈</span>
+                        <span class="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">TB Tiết Kiệm/Tháng</span>
+                    </div>
+                    <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryAvgSavings">0 ₫</div>
+                </div>
             </div>
         </div>
         
-        <!-- Row 2: Tổng điện Solar sản xuất + Tổng điện lưới EVN -->
-        <div class="grid grid-cols-2 gap-3">
-            <!-- Tổng Điện Solar Sản Xuất -->
-            <div class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl p-3 sm:p-4 border border-emerald-200 dark:border-emerald-700">
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="text-lg sm:text-xl">☀️</span>
-                    <span class="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">Tổng Điện Solar</span>
-                </div>
-                <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryTotalSolar">0 kWh</div>
-            </div>
-            <!-- Tổng Điện Lưới EVN -->
-            <div class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl p-3 sm:p-4 border border-emerald-200 dark:border-emerald-700">
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="text-lg sm:text-xl">🔌</span>
-                    <span class="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">Tổng Điện Lưới EVN</span>
-                </div>
-                <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryTotalGrid">0 kWh</div>
-            </div>
+        <!-- Link to Calculator -->
+        <div class="mt-4 text-center">
+            <a href="/calculator" id="goToCalculatorBtn" 
+               class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 
+                      text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                </svg>
+                <span>Mở Calculator Chi Tiết</span>
+            </a>
         </div>
-        
-        <!-- Row 3: Chi phí nếu không có Solar + Trung bình tiết kiệm/tháng -->
-        <div class="grid grid-cols-2 gap-3">
-            <!-- Chi Phí Nếu Không Có Solar -->
-            <div class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl p-3 sm:p-4 border border-emerald-200 dark:border-emerald-700">
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="text-lg sm:text-xl">📉</span>
-                    <span class="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">Không Có Solar</span>
-                </div>
-                <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryCostWithoutSolar">0 ₫</div>
-            </div>
-            <!-- Trung Bình Tiết Kiệm/Tháng -->
-            <div class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl p-3 sm:p-4 border border-emerald-200 dark:border-emerald-700">
-                <div class="flex items-center gap-2 mb-2">
-                    <span class="text-lg sm:text-xl">📈</span>
-                    <span class="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">TB Tiết Kiệm/Tháng</span>
-                </div>
-                <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryAvgSavings">0 ₫</div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Link to Calculator -->
-    <div class="mt-3 text-center">
-        <a href="/calculator" id="goToCalculatorBtn" 
-           class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600 
-                  text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-            </svg>
-            <span>Mở Calculator Chi Tiết</span>
-        </a>
     </div>
 </div>
 
