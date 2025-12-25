@@ -1277,6 +1277,97 @@
     </div>
 </div>
 
+<!-- Solar Project Summary Section -->
+<div id="solarProjectSummary" class="mb-4 hidden">
+    <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+            <span class="text-xl sm:text-2xl">📊</span>
+            <span class="text-sm sm:text-base font-bold text-slate-700 dark:text-slate-300">Tổng Quát Dự Án Solar</span>
+        </div>
+        <a href="/calculator" id="viewCalculatorLink" class="text-xs sm:text-sm text-teal-600 dark:text-teal-400 hover:underline flex items-center gap-1">
+            <span>Xem chi tiết</span>
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+        </a>
+    </div>
+    
+    <!-- 3 rows x 2 cols grid -->
+    <div class="grid grid-cols-1 gap-3">
+        <!-- Row 1: Tổng tiết kiệm + Tổng điện tiêu thụ -->
+        <div class="grid grid-cols-2 gap-3">
+            <!-- Tổng Tiết Kiệm -->
+            <div class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 rounded-xl p-3 sm:p-4 border border-emerald-200 dark:border-emerald-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-lg sm:text-xl">💰</span>
+                    <span class="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium">Tổng Tiết Kiệm</span>
+                </div>
+                <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryTotalSavings">0 ₫</div>
+            </div>
+            <!-- Tổng Điện Tiêu Thụ -->
+            <div class="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 rounded-xl p-3 sm:p-4 border border-blue-200 dark:border-blue-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-lg sm:text-xl">⚡</span>
+                    <span class="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium">Tổng Điện Tiêu Thụ</span>
+                </div>
+                <div class="text-base sm:text-xl font-black text-blue-600 dark:text-blue-400" id="summaryTotalLoad">0 kWh</div>
+            </div>
+        </div>
+        
+        <!-- Row 2: Tổng điện Solar sản xuất + Tổng điện lưới EVN -->
+        <div class="grid grid-cols-2 gap-3">
+            <!-- Tổng Điện Solar Sản Xuất -->
+            <div class="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 rounded-xl p-3 sm:p-4 border border-amber-200 dark:border-amber-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-lg sm:text-xl">☀️</span>
+                    <span class="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium">Tổng Điện Solar</span>
+                </div>
+                <div class="text-base sm:text-xl font-black text-amber-600 dark:text-amber-400" id="summaryTotalSolar">0 kWh</div>
+            </div>
+            <!-- Tổng Điện Lưới EVN -->
+            <div class="bg-gradient-to-br from-red-50 to-rose-50 dark:from-red-900/20 dark:to-rose-900/20 rounded-xl p-3 sm:p-4 border border-red-200 dark:border-red-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-lg sm:text-xl">🔌</span>
+                    <span class="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium">Tổng Điện Lưới EVN</span>
+                </div>
+                <div class="text-base sm:text-xl font-black text-red-600 dark:text-red-400" id="summaryTotalGrid">0 kWh</div>
+            </div>
+        </div>
+        
+        <!-- Row 3: Chi phí nếu không có Solar + Trung bình tiết kiệm/tháng -->
+        <div class="grid grid-cols-2 gap-3">
+            <!-- Chi Phí Nếu Không Có Solar -->
+            <div class="bg-gradient-to-br from-purple-50 to-violet-50 dark:from-purple-900/20 dark:to-violet-900/20 rounded-xl p-3 sm:p-4 border border-purple-200 dark:border-purple-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-lg sm:text-xl">📉</span>
+                    <span class="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium">Không Có Solar</span>
+                </div>
+                <div class="text-base sm:text-xl font-black text-purple-600 dark:text-purple-400" id="summaryCostWithoutSolar">0 ₫</div>
+            </div>
+            <!-- Trung Bình Tiết Kiệm/Tháng -->
+            <div class="bg-gradient-to-br from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 rounded-xl p-3 sm:p-4 border border-teal-200 dark:border-teal-700">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-lg sm:text-xl">📈</span>
+                    <span class="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium">TB Tiết Kiệm/Tháng</span>
+                </div>
+                <div class="text-base sm:text-xl font-black text-teal-600 dark:text-teal-400" id="summaryAvgSavings">0 ₫</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Link to Calculator -->
+    <div class="mt-3 text-center">
+        <a href="/calculator" id="goToCalculatorBtn" 
+           class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 
+                  text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+            </svg>
+            <span>Mở Calculator Chi Tiết</span>
+        </a>
+    </div>
+</div>
+
 <!-- Loading indicator -->
 <div id="loading" class="hidden flex justify-center items-center p-8">
     <div class="flex flex-col items-center gap-3">
@@ -1337,10 +1428,121 @@
                 const calcUrl = '/calculator?deviceId=' + encodeURIComponent(deviceId);
                 
                 // Update all calculator links
-                ['calcLinkHeader', 'calcLinkCompact', 'calcLinkFAB'].forEach(id => {
+                ['calcLinkHeader', 'calcLinkCompact', 'calcLinkFAB', 'viewCalculatorLink', 'goToCalculatorBtn'].forEach(id => {
                     const link = document.getElementById(id);
                     if (link) link.href = calcUrl;
                 });
+            }
+        })();
+        
+        // ========================================
+        // SOLAR PROJECT SUMMARY - Load from localStorage
+        // ========================================
+        (function loadSolarProjectSummary() {
+            try {
+                const savedSettings = localStorage.getItem('solarSettings');
+                if (!savedSettings) {
+                    // No data saved - hide section
+                    return;
+                }
+                
+                const settings = JSON.parse(savedSettings);
+                if (!settings.monthlyData || settings.monthlyData.length === 0) {
+                    return;
+                }
+                
+                // EVN Tiered pricing (same as calculator)
+                const evnTiers = [
+                    { limit: 50, price: 1893 },
+                    { limit: 100, price: 1956 },
+                    { limit: 200, price: 2271 },
+                    { limit: 300, price: 2860 },
+                    { limit: 400, price: 3197 },
+                    { limit: Infinity, price: 3302 }
+                ];
+                
+                function calculateTieredPrice(kwh, vatRate = 0.08) {
+                    let totalCost = 0;
+                    let remainingKwh = kwh;
+                    let previousLimit = 0;
+                    
+                    for (const tier of evnTiers) {
+                        const tierRange = tier.limit - previousLimit;
+                        const kwhInTier = Math.min(remainingKwh, tierRange);
+                        
+                        if (kwhInTier <= 0) break;
+                        
+                        totalCost += kwhInTier * tier.price;
+                        remainingKwh -= kwhInTier;
+                        previousLimit = tier.limit;
+                    }
+                    
+                    return totalCost * (1 + vatRate);
+                }
+                
+                // Calculate totals (same logic as calculator)
+                let totalSavings = 0;
+                let totalLoad = 0;
+                let totalSolarProduced = 0;
+                let totalGrid = 0;
+                let totalCostWithoutSolar = 0;
+                let monthsWithData = 0;
+                const vatRate = (settings.vatRate || 8) / 100;
+                
+                settings.monthlyData.forEach(month => {
+                    const load = parseFloat(month.load) || 0;
+                    const grid = parseFloat(month.grid) || 0;
+                    const backup = parseFloat(month.backup) || 0;
+                    
+                    if (load > 0 || grid > 0 || backup > 0) {
+                        monthsWithData++;
+                    }
+                    
+                    const totalConsumption = load + backup;
+                    const solarProduced = totalConsumption - grid;
+                    const gridCost = calculateTieredPrice(grid, vatRate);
+                    const costWithoutSolar = calculateTieredPrice(totalConsumption, vatRate);
+                    const savings = costWithoutSolar - gridCost;
+                    
+                    totalSavings += savings;
+                    totalLoad += load;
+                    totalSolarProduced += solarProduced;
+                    totalGrid += grid;
+                    totalCostWithoutSolar += costWithoutSolar;
+                });
+                
+                const avgSavings = monthsWithData > 0 ? totalSavings / monthsWithData : 0;
+                
+                // Format functions
+                function formatVND(value) {
+                    return new Intl.NumberFormat('vi-VN', {
+                        style: 'decimal',
+                        maximumFractionDigits: 0
+                    }).format(value) + ' ₫';
+                }
+                
+                function formatKWh(value) {
+                    return new Intl.NumberFormat('vi-VN', {
+                        style: 'decimal',
+                        maximumFractionDigits: 1
+                    }).format(value) + ' kWh';
+                }
+                
+                // Update UI
+                document.getElementById('summaryTotalSavings').textContent = formatVND(totalSavings);
+                document.getElementById('summaryTotalLoad').textContent = formatKWh(totalLoad);
+                document.getElementById('summaryTotalSolar').textContent = formatKWh(totalSolarProduced);
+                document.getElementById('summaryTotalGrid').textContent = formatKWh(totalGrid);
+                document.getElementById('summaryCostWithoutSolar').textContent = formatVND(totalCostWithoutSolar);
+                document.getElementById('summaryAvgSavings').textContent = formatVND(avgSavings);
+                
+                // Show section if has data
+                if (monthsWithData > 0) {
+                    document.getElementById('solarProjectSummary').classList.remove('hidden');
+                }
+                
+            } catch (e) {
+                console.error('Error loading solar summary:', e);
             }
         })();
         
