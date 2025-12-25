@@ -3082,10 +3082,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const loadPower = document.getElementById('load-power')?.textContent || '--';
         const essentialPower = document.getElementById('essential-power')?.textContent || '--';
         
-        // Convert W to kW for display (cleaner format)
-        const formatToKW = (value) => {
+        // Keep value in W (just extract the number)
+        const formatToW = (value) => {
             const numVal = parseInt(value.replace(/[^\d-]/g, '')) || 0;
-            return (numVal / 1000).toFixed(2);
+            return numVal;
         };
         
         // Update 3D Home view elements
@@ -3094,11 +3094,11 @@ document.addEventListener('DOMContentLoaded', function () {
             if (el) el.textContent = value;
         };
         
-        // Update power displays (just the number, kW label is in HTML)
-        updateElement('pv-power-3d', formatToKW(pvPower));
-        updateElement('grid-power-3d', formatToKW(gridPower));
-        updateElement('load-power-3d', formatToKW(loadPower));
-        updateElement('battery-power-3d', formatToKW(batteryPower));
+        // Update power displays in W (just the number, W label is in HTML)
+        updateElement('pv-power-3d', formatToW(pvPower));
+        updateElement('grid-power-3d', formatToW(gridPower));
+        updateElement('load-power-3d', formatToW(loadPower));
+        updateElement('battery-power-3d', formatToW(batteryPower));
         updateElement('battery-soc-3d', batteryPercent);
         
         // Update battery fill bar (width instead of height for horizontal bar)
