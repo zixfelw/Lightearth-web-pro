@@ -2943,6 +2943,18 @@
         let startYear = new Date().getFullYear(); // Năm bắt đầu
         let startMonth = 1; // Tháng bắt đầu (1-12)
         
+        // Current device ID from URL
+        let currentDeviceId = '';
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            currentDeviceId = (urlParams.get('deviceId') || '').toUpperCase();
+        })();
+        
+        // Get storage key based on deviceId
+        function getStorageKey() {
+            return currentDeviceId ? `solarSettings_${currentDeviceId}` : 'solarSettings';
+        }
+        
         // Pagination for input
         let currentPage = 1;
         const MONTHS_PER_PAGE = 12; // Hiển thị 12 tháng mỗi trang
@@ -3411,7 +3423,7 @@
             }
 
             try {
-                localStorage.setItem('solarSettings', JSON.stringify(settings));
+                localStorage.setItem(getStorageKey(), JSON.stringify(settings));
                 updateStorageStatus();
                 
                 // Hiển thị indicator khi lưu
@@ -3597,7 +3609,7 @@
         
         // Tải cài đặt từ localStorage
         function loadSettings() {
-            const savedSettings = localStorage.getItem('solarSettings');
+            const savedSettings = localStorage.getItem(getStorageKey());
             
             if (!savedSettings) {
                 showNotification('⚠️ Không tìm thấy dữ liệu đã lưu!', 'info');
@@ -3732,7 +3744,7 @@
 
         // Cập nhật trạng thái lưu trữ
         function updateStorageStatus() {
-            const savedSettings = localStorage.getItem('solarSettings');
+            const savedSettings = localStorage.getItem(getStorageKey());
             const statusEl = document.getElementById('storageStatus');
             
             if (savedSettings) {
@@ -4614,7 +4626,7 @@
             setupInitialCostInput(); // Setup auto-format cho initialCost
             
             // Tự động tải cài đặt nếu có
-            const savedSettings = localStorage.getItem('solarSettings');
+            const savedSettings = localStorage.getItem(getStorageKey());
             if (savedSettings) {
                 loadSettings();
             } else {

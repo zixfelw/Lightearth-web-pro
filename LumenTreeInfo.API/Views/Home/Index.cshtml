@@ -1440,9 +1440,16 @@
         // ========================================
         (function loadSolarProjectSummary() {
             try {
-                const savedSettings = localStorage.getItem('solarSettings');
+                // Get deviceId from URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const deviceId = (urlParams.get('deviceId') || '').toUpperCase();
+                
+                // Get storage key based on deviceId (same as Calculator)
+                const storageKey = deviceId ? `solarSettings_${deviceId}` : 'solarSettings';
+                
+                const savedSettings = localStorage.getItem(storageKey);
                 if (!savedSettings) {
-                    // No data saved - hide section
+                    // No data saved for this device - hide section
                     return;
                 }
                 
