@@ -3259,6 +3259,33 @@ document.addEventListener('DOMContentLoaded', function () {
     setTimeout(() => {
         window.switchEnergyFlowView(savedView);
     }, 100);
+    
+    // Add click event listeners to ensure buttons work (fix for cached pages)
+    setTimeout(() => {
+        const proBtn = document.getElementById('proViewBtn');
+        const basicBtn = document.getElementById('basicViewBtn');
+        const home3DBtn = document.getElementById('home3DViewBtn');
+        
+        if (proBtn) {
+            proBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.switchEnergyFlowView('pro');
+            });
+        }
+        if (basicBtn) {
+            basicBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.switchEnergyFlowView('basic');
+            });
+        }
+        if (home3DBtn) {
+            home3DBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.switchEnergyFlowView('3dhome');
+            });
+        }
+        console.log('Energy flow view buttons initialized');
+    }, 200);
 
     // Legacy function - kept for backward compatibility but not used
     function createChart(chartObj, canvasId, label, labels, data, borderColor, backgroundColor, options) {

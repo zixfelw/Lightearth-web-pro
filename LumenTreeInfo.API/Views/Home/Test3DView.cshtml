@@ -1085,19 +1085,17 @@
         <!-- 3D Home View - Cyberpunk Glassmorphism Style (hidden by default) -->
         <div id="energyFlow3DHome" class="hidden">
             <div class="home3d-container relative mx-auto" style="max-width: 420px;">
-                <!-- 3D House Image with Overlay Stats -->
-                <div class="relative rounded-2xl overflow-hidden bg-gradient-to-b from-slate-900 to-black">
+                <!-- 3D House Image - No background, transparent -->
+                <div class="relative">
                     <!-- Main 3D House Image -->
                     <img src="/images/3dhome/house-3d-dark.png" alt="3D Solar Home" 
-                         class="w-full h-auto object-contain" style="min-height: 350px;">
+                         class="w-full h-auto object-contain" style="min-height: 320px;">
                     
                     <!-- PV Power Circle (Top Center) -->
-                    <div class="absolute top-3 left-1/2 -translate-x-1/2 z-20">
+                    <div class="absolute top-0 left-1/2 -translate-x-1/2 z-20">
                         <div class="pv-circle-3d relative">
                             <svg class="w-20 h-20 sm:w-24 sm:h-24" viewBox="0 0 100 100">
-                                <!-- Background circle -->
                                 <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(34,197,94,0.2)" stroke-width="6"/>
-                                <!-- Animated progress circle -->
                                 <circle id="pv-progress-3d" cx="50" cy="50" r="45" fill="none" 
                                         stroke="url(#pvGradient3d)" stroke-width="6" 
                                         stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="70"
@@ -1119,82 +1117,50 @@
                         </div>
                     </div>
                     
-                    <!-- Battery Power (Left Side) -->
-                    <div class="absolute left-2 sm:left-4 bottom-24 sm:bottom-28 z-20">
-                        <div class="glassmorphism-card-3d p-2 sm:p-3 rounded-xl">
-                            <div class="flex items-center gap-2">
-                                <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/50">
-                                    <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3h6v2H9zM4 5h16a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z"/>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <div id="battery-power-3d" class="text-base sm:text-lg font-black text-emerald-400">--</div>
-                                    <div class="text-[10px] text-emerald-300/70">kW</div>
-                                </div>
-                            </div>
-                            <div class="mt-1 flex items-center gap-1">
-                                <div class="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                                    <div id="battery-fill-3d" class="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500" style="width: 0%"></div>
-                                </div>
-                                <span id="battery-soc-3d" class="text-[10px] text-emerald-400 font-bold">--%</span>
-                            </div>
-                            <div class="text-[10px] text-slate-400 mt-0.5">Battery ></div>
-                        </div>
-                    </div>
-                    
-                    <!-- Grid Power (Right Side) -->
-                    <div class="absolute right-2 sm:right-4 bottom-24 sm:bottom-28 z-20">
-                        <div class="glassmorphism-card-3d p-2 sm:p-3 rounded-xl">
-                            <div class="flex items-center gap-2">
-                                <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/50">
-                                    <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <div id="grid-power-3d" class="text-base sm:text-lg font-black text-purple-400">--</div>
-                                    <div class="text-[10px] text-purple-300/70">kW</div>
-                                </div>
-                            </div>
-                            <div class="text-[10px] text-slate-400 mt-1">Grid ></div>
-                        </div>
-                    </div>
-                    
-                    <!-- Consumption Power (Bottom Center) -->
-                    <div class="absolute bottom-3 left-1/2 -translate-x-1/2 z-20">
-                        <div class="glassmorphism-card-3d px-4 sm:px-6 py-2 sm:py-3 rounded-xl">
-                            <div class="flex items-center gap-3">
-                                <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50">
-                                    <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                                    </svg>
-                                </div>
-                                <div>
-                                    <div id="load-power-3d" class="text-lg sm:text-xl font-black text-cyan-400">--</div>
-                                    <div class="text-[10px] text-cyan-300/70">kW · Consumption ></div>
-                                </div>
-                            </div>
+                    <!-- Battery SOC % Display (On the green battery in image - left side) -->
+                    <div class="absolute left-[15%] top-[45%] z-20">
+                        <div class="text-center">
+                            <span id="battery-soc-3d" class="text-2xl sm:text-3xl font-black text-emerald-400 drop-shadow-[0_0_10px_rgba(34,197,94,0.8)]">--%</span>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Bottom Stats Cards - Glassmorphism -->
+                <!-- Bottom Stats Cards - 3 Equal Cards -->
                 <div class="mt-3 grid grid-cols-3 gap-2">
-                    <!-- Battery Today -->
-                    <div class="glassmorphism-stat-card rounded-xl p-2.5 text-center">
-                        <div class="text-[10px] text-emerald-400 font-semibold mb-1">Battery</div>
-                        <div id="battery-today-3d" class="text-sm sm:text-base font-black text-white">-- kWh</div>
+                    <!-- Battery Card -->
+                    <div class="glassmorphism-stat-card rounded-xl p-3 text-center">
+                        <div class="w-10 h-10 mx-auto mb-2 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/50">
+                            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3h6v2H9zM4 5h16a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z"/>
+                            </svg>
+                        </div>
+                        <div id="battery-power-3d" class="text-lg sm:text-xl font-black text-emerald-400">--</div>
+                        <div class="text-[10px] text-emerald-300/70 mb-1">kW</div>
+                        <div class="text-[10px] text-slate-400">Battery ></div>
                     </div>
-                    <!-- Grid Today -->
-                    <div class="glassmorphism-stat-card rounded-xl p-2.5 text-center">
-                        <div class="text-[10px] text-purple-400 font-semibold mb-1">Grid</div>
-                        <div id="grid-today-3d" class="text-sm sm:text-base font-black text-white">-- kWh</div>
+                    
+                    <!-- Grid EVN Card -->
+                    <div class="glassmorphism-stat-card rounded-xl p-3 text-center">
+                        <div class="w-10 h-10 mx-auto mb-2 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/50">
+                            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                        </div>
+                        <div id="grid-power-3d" class="text-lg sm:text-xl font-black text-purple-400">--</div>
+                        <div class="text-[10px] text-purple-300/70 mb-1">kW</div>
+                        <div class="text-[10px] text-slate-400">Grid EVN ></div>
                     </div>
-                    <!-- Consumption Today -->
-                    <div class="glassmorphism-stat-card rounded-xl p-2.5 text-center">
-                        <div class="text-[10px] text-cyan-400 font-semibold mb-1">Consumption</div>
-                        <div id="consumption-today-3d" class="text-sm sm:text-base font-black text-white">-- kWh</div>
+                    
+                    <!-- Consumption Card -->
+                    <div class="glassmorphism-stat-card rounded-xl p-3 text-center">
+                        <div class="w-10 h-10 mx-auto mb-2 rounded-lg bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50">
+                            <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                            </svg>
+                        </div>
+                        <div id="load-power-3d" class="text-lg sm:text-xl font-black text-cyan-400">--</div>
+                        <div class="text-[10px] text-cyan-300/70 mb-1">kW</div>
+                        <div class="text-[10px] text-slate-400">Consumption ></div>
                     </div>
                 </div>
             </div>
