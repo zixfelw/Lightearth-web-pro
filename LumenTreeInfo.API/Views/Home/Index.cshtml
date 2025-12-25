@@ -70,6 +70,20 @@
             box-shadow: 0 4px 14px 0 rgba(139, 92, 246, 0.4);
         }
         
+        /* Glow animation for values */
+        @keyframes glow {
+            0%, 100% {
+                text-shadow: 0 0 5px rgba(16, 185, 129, 0.5), 0 0 10px rgba(16, 185, 129, 0.3);
+            }
+            50% {
+                text-shadow: 0 0 15px rgba(16, 185, 129, 0.8), 0 0 25px rgba(16, 185, 129, 0.5), 0 0 35px rgba(16, 185, 129, 0.3);
+            }
+        }
+        
+        .animate-glow {
+            animation: glow 2s ease-in-out infinite;
+        }
+        
         /* Scrollbar styling */
         ::-webkit-scrollbar {
             width: 6px;
@@ -1304,7 +1318,7 @@
                         <span class="text-lg sm:text-xl">💰</span>
                         <span class="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">Tổng Tiết Kiệm</span>
                     </div>
-                    <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryTotalSavings">0 ₫</div>
+                    <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400 animate-glow" id="summaryTotalSavings">0 VNĐ</div>
                 </div>
                 <!-- Tổng Điện Tiêu Thụ -->
                 <div class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/30 dark:to-green-900/30 rounded-xl p-3 sm:p-4 border border-emerald-200 dark:border-emerald-700">
@@ -1312,7 +1326,7 @@
                         <span class="text-lg sm:text-xl">⚡</span>
                         <span class="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">Tổng Điện Tiêu Thụ</span>
                     </div>
-                    <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryTotalLoad">0 kWh</div>
+                    <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400 animate-glow" id="summaryTotalLoad">0 kWh</div>
                 </div>
             </div>
             
@@ -1324,7 +1338,7 @@
                         <span class="text-lg sm:text-xl">☀️</span>
                         <span class="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">Tổng Điện Solar</span>
                     </div>
-                    <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryTotalSolar">0 kWh</div>
+                    <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400 animate-glow" id="summaryTotalSolar">0 kWh</div>
                 </div>
                 <!-- Tổng Điện Lưới EVN -->
                 <div class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/30 dark:to-green-900/30 rounded-xl p-3 sm:p-4 border border-emerald-200 dark:border-emerald-700">
@@ -1332,7 +1346,7 @@
                         <span class="text-lg sm:text-xl">🔌</span>
                         <span class="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">Tổng Điện Lưới EVN</span>
                     </div>
-                    <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryTotalGrid">0 kWh</div>
+                    <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400 animate-glow" id="summaryTotalGrid">0 kWh</div>
                 </div>
             </div>
             
@@ -1344,7 +1358,7 @@
                         <span class="text-lg sm:text-xl">📉</span>
                         <span class="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">Không Có Solar</span>
                     </div>
-                    <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryCostWithoutSolar">0 ₫</div>
+                    <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400 animate-glow" id="summaryCostWithoutSolar">0 VNĐ</div>
                 </div>
                 <!-- Trung Bình Tiết Kiệm/Tháng -->
                 <div class="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/30 dark:to-green-900/30 rounded-xl p-3 sm:p-4 border border-emerald-200 dark:border-emerald-700">
@@ -1352,7 +1366,7 @@
                         <span class="text-lg sm:text-xl">📈</span>
                         <span class="text-[10px] sm:text-xs text-emerald-600 dark:text-emerald-400 font-medium">TB Tiết Kiệm/Tháng</span>
                     </div>
-                    <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400" id="summaryAvgSavings">0 ₫</div>
+                    <div class="text-base sm:text-xl font-black text-emerald-600 dark:text-emerald-400 animate-glow" id="summaryAvgSavings">0 VNĐ</div>
                 </div>
             </div>
         </div>
@@ -1465,7 +1479,7 @@
                     return new Intl.NumberFormat('vi-VN', {
                         style: 'decimal',
                         maximumFractionDigits: 0
-                    }).format(value) + ' ₫';
+                    }).format(value) + ' VNĐ';
                 }
                 
                 function formatKWh(value) {
