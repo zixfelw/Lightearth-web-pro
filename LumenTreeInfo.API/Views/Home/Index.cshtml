@@ -1451,58 +1451,97 @@
                     return;
                 }
                 
-                // EVN Tiered pricing (same as calculator)
-                const evnTiers = [
-                    { limit: 50, price: 1893 },
-                    { limit: 100, price: 1956 },
-                    { limit: 200, price: 2271 },
-                    { limit: 300, price: 2860 },
-                    { limit: 400, price: 3197 },
-                    { limit: Infinity, price: 3302 }
-                ];
-                
-                function calculateTieredPrice(kwh, vatRate = 0.08) {
-                    let totalCost = 0;
-                    let remainingKwh = kwh;
-                    let previousLimit = 0;
+                // Tính giá điện theo bậc thang EVN (GIỐNG CALCULATOR)
+                function calculateTieredPrice(kWh, vatRate) {
+                    if (kWh <= 0) return 0;
                     
-                    for (const tier of evnTiers) {
-                        const tierRange = tier.limit - previousLimit;
-                        const kwhInTier = Math.min(remainingKwh, tierRange);
-                        
-                        if (kwhInTier <= 0) break;
-                        
-                        totalCost += kwhInTier * tier.price;
-                        remainingKwh -= kwhInTier;
-                        previousLimit = tier.limit;
+                    let totalCost = 0;
+                    let remaining = kWh;
+                    
+                    // Bậc 1: 0 - 50 kWh = 1,984 đồng/kWh
+                    if (remaining > 0) {
+                        const tier1 = Math.min(remaining, 50);
+                        totalCost += tier1 * 1984;
+                        remaining -= tier1;
                     }
                     
+                    // Bậc 2: 51 - 100 kWh = 2,050 đồng/kWh
+                    if (remaining > 0) {
+                        const tier2 = Math.min(remaining, 50);
+                        totalCost += tier2 * 2050;
+                        remaining -= tier2;
+                    }
+                    
+                    // Bậc 3: 101 - 200 kWh = 2,380 đồng/kWh
+                    if (remaining > 0) {
+                        const tier3 = Math.min(remaining, 100);
+                        totalCost += tier3 * 2380;
+                        remaining -= tier3;
+                    }
+                    
+                    // Bậc 4: 201 - 300 kWh = 2,998 đồng/kWh
+                    if (remaining > 0) {
+                        const tier4 = Math.min(remaining, 100);
+                        totalCost += tier4 * 2998;
+                        remaining -= tier4;
+                    }
+                    
+                    // Bậc 5: 301 - 400 kWh = 3,350 đồng/kWh
+                    if (remaining > 0) {
+                        const tier5 = Math.min(remaining, 100);
+                        totalCost += tier5 * 3350;
+                        remaining -= tier5;
+                    }
+                    
+                    // Bậc 6: 401+ kWh = 3,460 đồng/kWh
+                    if (remaining > 0) {
+                        totalCost += remaining * 3460;
+                    }
+                    
+                    // Áp dụng VAT
                     return totalCost * (1 + vatRate);
                 }
                 
-                // Calculate totals (same logic as calculator)
+                // Calculate totals (GIỐNG CALCULATOR - line 3835-3946)
                 let totalSavings = 0;
                 let totalLoad = 0;
                 let totalSolarProduced = 0;
                 let totalGrid = 0;
                 let totalCostWithoutSolar = 0;
                 let monthsWithData = 0;
-                const vatRate = (settings.vatRate || 8) / 100;
+                const solarPrice = parseFloat(settings.solarPrice) || 0;
+                const vatRate = (parseFloat(settings.vatRate) || 8) / 100;
                 
                 settings.monthlyData.forEach(month => {
                     const load = parseFloat(month.load) || 0;
                     const grid = parseFloat(month.grid) || 0;
                     const backup = parseFloat(month.backup) || 0;
                     
+                    // Đếm tháng có dữ liệu
                     if (load > 0 || grid > 0 || backup > 0) {
                         monthsWithData++;
                     }
                     
+                    // Tổng tiêu thụ = Load + Backup
                     const totalConsumption = load + backup;
+                    
+                    // Điện mặt trời sản xuất = Tổng tiêu thụ - Grid EVN
                     const solarProduced = totalConsumption - grid;
+                    
+                    // Chi phí lưới điện EVN (Grid) - DÙNG BẬC THANG
                     const gridCost = calculateTieredPrice(grid, vatRate);
+                    
+                    // Chi phí nếu KHÔNG CÓ SOLAR = Tính bậc thang cho TOÀN BỘ tiêu thụ
                     const costWithoutSolar = calculateTieredPrice(totalConsumption, vatRate);
-                    const savings = costWithoutSolar - gridCost;
+                    
+                    // Chi phí điện mặt trời (hiện tại = 0 vì tự sản xuất)
+                    const solarCost = solarProduced * solarPrice;
+                    
+                    // Chi phí thực tế = Chi phí lưới điện + Chi phí mặt trời
+                    const actualCost = gridCost + solarCost;
+                    
+                    // Tiết kiệm = Chi phí nếu không có Solar - Chi phí thực tế
+                    const savings = costWithoutSolar - actualCost;
                     
                     totalSavings += savings;
                     totalLoad += load;
