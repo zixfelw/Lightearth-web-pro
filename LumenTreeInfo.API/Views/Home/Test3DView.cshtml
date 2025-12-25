@@ -1108,19 +1108,30 @@
                                 </defs>
                             </svg>
                             <div class="absolute inset-0 flex flex-col items-center justify-center">
-                                <span id="pv-power-3d" class="text-xl sm:text-2xl font-black text-white">--</span>
-                                <span class="text-[10px] text-emerald-400 font-semibold">W</span>
+                                <span id="pv-power-3d" class="text-lg sm:text-xl font-black text-white">--W</span>
                             </div>
                         </div>
                         <div class="text-center mt-1">
-                            <span class="text-xs text-emerald-400 font-bold">PV ></span>
+                            <span class="text-xs text-emerald-400 font-bold">Nguồn PV ></span>
                         </div>
                     </div>
                     
-                    <!-- Battery SOC % Display (Inside the green battery in image) -->
-                    <div class="absolute left-[12%] top-[52%] z-20">
-                        <div class="text-center">
-                            <span id="battery-soc-3d" class="text-xl sm:text-2xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">--%</span>
+                    <!-- Battery SOC % Display with Charge/Discharge Animation (Inside the green battery) -->
+                    <div class="absolute left-[8%] top-[50%] z-20">
+                        <div class="flex items-center gap-1">
+                            <!-- Charge/Discharge Animation Icon -->
+                            <div id="battery-status-icon-3d" class="hidden">
+                                <!-- Charging: arrow up -->
+                                <svg id="battery-charging-3d" class="w-4 h-4 text-emerald-400 animate-bounce hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+                                </svg>
+                                <!-- Discharging: arrow down -->
+                                <svg id="battery-discharging-3d" class="w-4 h-4 text-orange-400 animate-bounce hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+                                </svg>
+                            </div>
+                            <!-- SOC Percentage -->
+                            <span id="battery-soc-3d" class="text-lg sm:text-xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">--%</span>
                         </div>
                     </div>
                 </div>
@@ -1134,9 +1145,8 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3h6v2H9zM4 5h16a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z"/>
                             </svg>
                         </div>
-                        <div id="battery-power-3d" class="text-lg sm:text-xl font-black text-emerald-400">--</div>
-                        <div class="text-[10px] text-emerald-300/70 mb-1">W</div>
-                        <div class="text-[10px] text-slate-400">Battery ></div>
+                        <div id="battery-power-3d" class="text-lg sm:text-xl font-black text-emerald-400">--W</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Pin sạc/xả ></div>
                     </div>
                     
                     <!-- Grid EVN Card -->
@@ -1146,9 +1156,8 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                             </svg>
                         </div>
-                        <div id="grid-power-3d" class="text-lg sm:text-xl font-black text-purple-400">--</div>
-                        <div class="text-[10px] text-purple-300/70 mb-1">W</div>
-                        <div class="text-[10px] text-slate-400">Grid EVN ></div>
+                        <div id="grid-power-3d" class="text-lg sm:text-xl font-black text-purple-400">--W</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Lưới điện EVN ></div>
                     </div>
                     
                     <!-- Consumption Card -->
@@ -1158,9 +1167,8 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
                             </svg>
                         </div>
-                        <div id="load-power-3d" class="text-lg sm:text-xl font-black text-cyan-400">--</div>
-                        <div class="text-[10px] text-cyan-300/70 mb-1">W</div>
-                        <div class="text-[10px] text-slate-400">Consumption ></div>
+                        <div id="load-power-3d" class="text-lg sm:text-xl font-black text-cyan-400">--W</div>
+                        <div class="text-[10px] text-slate-400 mt-1">Tải tiêu thụ ></div>
                     </div>
                 </div>
             </div>

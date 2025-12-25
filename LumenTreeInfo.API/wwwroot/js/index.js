@@ -3074,32 +3074,57 @@ document.addEventListener('DOMContentLoaded', function () {
     // Auto-sync data to 3D Home view elements
     // Auto-sync data to 3D Home view - Cyberpunk Glassmorphism V3.1
     function autoSync3DHomeView() {
-        // Get current values from Pro view
-        const pvPower = document.getElementById('pv-power')?.textContent || '--';
-        const gridPower = document.getElementById('grid-power')?.textContent || '--';
+        // Get current values from Pro view (same format as Pro)
+        const pvPower = document.getElementById('pv-power')?.textContent || '--W';
+        const gridPower = document.getElementById('grid-power')?.textContent || '--W';
         const batteryPercent = document.getElementById('battery-percent-icon')?.textContent || '--%';
-        const batteryPower = document.getElementById('battery-power')?.textContent || '--';
-        const loadPower = document.getElementById('load-power')?.textContent || '--';
-        const essentialPower = document.getElementById('essential-power')?.textContent || '--';
+        const batteryPower = document.getElementById('battery-power')?.textContent || '--W';
+        const loadPower = document.getElementById('load-power')?.textContent || '--W';
         
-        // Keep value in W (just extract the number)
-        const formatToW = (value) => {
-            const numVal = parseInt(value.replace(/[^\d-]/g, '')) || 0;
-            return numVal;
-        };
-        
-        // Update 3D Home view elements
-        const updateElement = (id, value) => {
+        // Update 3D Home view elements with blink effect (same as Pro)
+        const update3DValue = (id, value) => {
             const el = document.getElementById(id);
-            if (el) el.textContent = value;
+            if (el) {
+                const oldValue = el.textContent;
+                if (oldValue !== value) {
+                    el.textContent = value;
+                    el.classList.remove('value-updated');
+                    void el.offsetWidth; // Force reflow
+                    el.classList.add('value-updated');
+                    setTimeout(() => el.classList.remove('value-updated'), 600);
+                }
+            }
         };
         
-        // Update power displays in W (just the number, W label is in HTML)
-        updateElement('pv-power-3d', formatToW(pvPower));
-        updateElement('grid-power-3d', formatToW(gridPower));
-        updateElement('load-power-3d', formatToW(loadPower));
-        updateElement('battery-power-3d', formatToW(batteryPower));
-        updateElement('battery-soc-3d', batteryPercent);
+        // Update power displays (same format as Pro: "1234W")
+        update3DValue('pv-power-3d', pvPower);
+        update3DValue('grid-power-3d', gridPower);
+        update3DValue('load-power-3d', loadPower);
+        update3DValue('battery-power-3d', batteryPower);
+        update3DValue('battery-soc-3d', batteryPercent);
+        
+        // Update battery charge/discharge animation
+        const batteryVal = parseInt(batteryPower.replace(/[^\d-]/g, '')) || 0;
+        const chargingIcon = document.getElementById('battery-charging-3d');
+        const dischargingIcon = document.getElementById('battery-discharging-3d');
+        const statusIcon = document.getElementById('battery-status-icon-3d');
+        
+        if (statusIcon) {
+            if (batteryVal > 10) {
+                // Charging (positive value = charging)
+                statusIcon.classList.remove('hidden');
+                chargingIcon?.classList.remove('hidden');
+                dischargingIcon?.classList.add('hidden');
+            } else if (batteryVal < -10) {
+                // Discharging (negative value = discharging)
+                statusIcon.classList.remove('hidden');
+                chargingIcon?.classList.add('hidden');
+                dischargingIcon?.classList.remove('hidden');
+            } else {
+                // Idle
+                statusIcon.classList.add('hidden');
+            }
+        }
         
         // Update battery fill bar (width instead of height for horizontal bar)
         const batteryFill3D = document.getElementById('battery-fill-3d');
