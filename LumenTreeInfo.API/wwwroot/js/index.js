@@ -3072,6 +3072,7 @@ document.addEventListener('DOMContentLoaded', function () {
     };
     
     // Auto-sync data to 3D Home view elements
+    // Auto-sync data to 3D Home view - Cyberpunk Glassmorphism V3.1
     function autoSync3DHomeView() {
         // Get current values from Pro view
         const pvPower = document.getElementById('pv-power')?.textContent || '--';
@@ -3079,14 +3080,12 @@ document.addEventListener('DOMContentLoaded', function () {
         const batteryPercent = document.getElementById('battery-percent-icon')?.textContent || '--%';
         const batteryPower = document.getElementById('battery-power')?.textContent || '--';
         const loadPower = document.getElementById('load-power')?.textContent || '--';
+        const essentialPower = document.getElementById('essential-power')?.textContent || '--';
         
-        // Convert W to kW for display
+        // Convert W to kW for display (cleaner format)
         const formatToKW = (value) => {
             const numVal = parseInt(value.replace(/[^\d-]/g, '')) || 0;
-            if (Math.abs(numVal) >= 1000) {
-                return (numVal / 1000).toFixed(2) + ' kW';
-            }
-            return (numVal / 1000).toFixed(2) + ' kW';
+            return (numVal / 1000).toFixed(2);
         };
         
         // Update 3D Home view elements
@@ -3095,57 +3094,46 @@ document.addEventListener('DOMContentLoaded', function () {
             if (el) el.textContent = value;
         };
         
-        // Update power displays
+        // Update power displays (just the number, kW label is in HTML)
         updateElement('pv-power-3d', formatToKW(pvPower));
         updateElement('grid-power-3d', formatToKW(gridPower));
         updateElement('load-power-3d', formatToKW(loadPower));
         updateElement('battery-power-3d', formatToKW(batteryPower));
         updateElement('battery-soc-3d', batteryPercent);
         
-        // Update battery fill
+        // Update battery fill bar (width instead of height for horizontal bar)
         const batteryFill3D = document.getElementById('battery-fill-3d');
         if (batteryFill3D) {
             const percent = parseInt(batteryPercent) || 0;
-            batteryFill3D.style.height = percent + '%';
+            batteryFill3D.style.width = percent + '%';
         }
         
-        // Show/hide battery container based on battery presence
-        const battery3DContainer = document.getElementById('battery-3d-container');
-        const batteryFlow3D = document.getElementById('batteryFlow3d');
-        const hasBattery = batteryPower !== '--' && batteryPower !== '0 W';
-        
-        if (battery3DContainer) {
-            battery3DContainer.classList.toggle('hidden', !hasBattery);
+        // Update PV circle progress (stroke-dashoffset)
+        const pvProgress = document.getElementById('pv-progress-3d');
+        if (pvProgress) {
+            const pvValue = parseInt(pvPower.replace(/[^\d-]/g, '')) || 0;
+            // Max expected PV is around 10000W, calculate percentage
+            const pvPercent = Math.min(100, (pvValue / 10000) * 100);
+            // stroke-dasharray is 283, so offset = 283 - (283 * percent / 100)
+            const offset = 283 - (283 * pvPercent / 100);
+            pvProgress.setAttribute('stroke-dashoffset', offset);
         }
-        if (batteryFlow3D) {
-            batteryFlow3D.classList.toggle('hidden', !hasBattery);
-        }
         
-        // Update energy flow visibility based on power values
+        // Calculate and display today's energy stats
         const pvValue = parseInt(pvPower.replace(/[^\d-]/g, '')) || 0;
         const gridValue = parseInt(gridPower.replace(/[^\d-]/g, '')) || 0;
+        const loadValue = parseInt(loadPower.replace(/[^\d-]/g, '')) || 0;
+        const batteryValue = Math.abs(parseInt(batteryPower.replace(/[^\d-]/g, '')) || 0);
         
-        const pvToHouseFlow = document.getElementById('pvToHouseFlow3d');
-        const gridToHouseFlow = document.getElementById('gridToHouseFlow3d');
+        // Estimate today's energy (simplified - multiply current power by hours factor)
+        const hoursFactor = 0.5; // Rough estimate
+        const todayBattery = (batteryValue * hoursFactor / 1000).toFixed(1);
+        const todayGrid = (gridValue * hoursFactor / 1000).toFixed(1);
+        const todayConsumption = (loadValue * hoursFactor / 1000).toFixed(1);
         
-        if (pvToHouseFlow) {
-            pvToHouseFlow.style.opacity = pvValue > 0 ? '1' : '0.2';
-        }
-        if (gridToHouseFlow) {
-            gridToHouseFlow.style.opacity = gridValue > 0 ? '1' : '0.2';
-        }
-        
-        // Calculate and display today's energy stats (placeholder values)
-        // These would normally come from API
-        const todaySolar = (pvValue * 0.1).toFixed(1); // Placeholder calculation
-        const todayGrid = (gridValue * 0.1).toFixed(1);
-        const todayLoad = ((pvValue + gridValue) * 0.1).toFixed(1);
-        const selfUse = pvValue > 0 ? Math.min(100, Math.round((pvValue / (pvValue + gridValue + 1)) * 100)) : 0;
-        
-        updateElement('solar-today-3d', todaySolar + ' kWh');
+        updateElement('battery-today-3d', todayBattery + ' kWh');
         updateElement('grid-today-3d', todayGrid + ' kWh');
-        updateElement('load-today-3d', todayLoad + ' kWh');
-        updateElement('selfuse-3d', selfUse + '%');
+        updateElement('consumption-today-3d', todayConsumption + ' kWh');
     }
     
     // Auto-sync data to Basic view elements
