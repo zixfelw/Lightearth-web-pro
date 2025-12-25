@@ -402,37 +402,7 @@
             color: #4ade80;
         }
 
-        .toggle-btn {
-            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.85em;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
 
-        .toggle-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(99, 102, 241, 0.4);
-        }
-
-        .collapsible-content {
-            overflow: hidden;
-            transition: max-height 0.4s ease, opacity 0.4s ease;
-        }
-
-        .collapsible-content.collapsed {
-            max-height: 0;
-            opacity: 0;
-        }
-
-        .collapsible-content.expanded {
-            max-height: 5000px;
-            opacity: 1;
-        }
 
         .price-config {
             display: grid;
@@ -1411,17 +1381,6 @@
 
         .details-grid {
             overflow: hidden;
-            transition: max-height 0.4s ease, opacity 0.4s ease;
-        }
-
-        .details-grid.collapsed {
-            max-height: 0;
-            opacity: 0;
-        }
-
-        .details-grid.expanded {
-            max-height: 10000px;
-            opacity: 1;
         }
 
         .details-rows-container {
@@ -1961,9 +1920,7 @@
                 min-height: 44px; /* iOS minimum touch target */
             }
 
-            .toggle-btn {
-                min-height: 44px;
-            }
+
             
             /* Button group compact on mobile - 3x3 grid */
             .button-group button {
@@ -1979,7 +1936,6 @@
         }
 
         /* Better touch scrolling on iOS */
-        .collapsible-content,
         .details-grid {
             -webkit-overflow-scrolling: touch;
         }
@@ -2236,12 +2192,6 @@
 
             .input-section h2 span {
                 text-align: center;
-            }
-
-            .toggle-btn {
-                padding: 10px 15px;
-                font-size: 0.9em;
-                width: 100%;
             }
 
             /* Month inputs - 3 cột trên mobile, siêu compact */
@@ -2520,9 +2470,8 @@
         <div class="quick-stats" id="projectOverview" style="display: block;">
             <h2>
                 <span>📊 Tổng Quát Dự Án Solar Của Bạn</span>
-                <button class="toggle-btn" onclick="toggleProjectOverview()" id="toggleProjectOverviewBtn">🔼 Ẩn</button>
             </h2>
-            <div class="collapsible-content expanded" id="projectOverviewContent">
+            <div id="projectOverviewContent">
                 <div class="summary-cards">
                     <div class="card">
                         <h3>Tổng Tiết Kiệm</h3>
@@ -2576,9 +2525,8 @@
         <div class="quick-stats" id="quickStats" style="display: none;">
             <h2>
                 <span>📈 Phân Tích Nhanh</span>
-                <button class="toggle-btn" onclick="toggleQuickStats()" id="toggleQuickStatsBtn">🔼 Ẩn</button>
             </h2>
-            <div class="collapsible-content expanded" id="quickStatsContent">
+            <div id="quickStatsContent">
                 <div class="stats-grid">
                 <!-- NHÓM 1: SO SÁNH THÁNG -->
                 <div class="stat-card">
@@ -2644,9 +2592,8 @@
         <div class="roi-section" id="roiSection">
             <h2>
                 <span>💰 Đầu Tư & ROI</span>
-                <button class="toggle-btn" onclick="toggleROI()" id="toggleROIBtn">🔼 Ẩn</button>
             </h2>
-            <div class="collapsible-content expanded" id="roiContent">
+            <div id="roiContent">
                 <!-- Input Chi Phí -->
                 <div class="roi-input-row">
                     <label>💵 Chi phí lắp đặt:</label>
@@ -2729,9 +2676,8 @@
         <div class="input-section">
             <h2>
                 <span>📊 Nhập Dữ Liệu (12 Tháng)</span>
-                <button class="toggle-btn" onclick="toggleMonthInputs()" id="toggleBtn">🔼 Ẩn</button>
             </h2>
-            <div class="collapsible-content expanded" id="monthInputsContainer">
+            <div id="monthInputsContainer">
                 <div class="month-count-info" id="monthCountInfo">📅 Hiện có 12 tháng</div>
                 <div class="pagination" id="paginationTop">
                     <button onclick="previousPage()">◀️ Trước</button>
@@ -2771,9 +2717,8 @@
         <div class="month-details">
             <h2>
                 <span>📋 Chi Tiết Từng Tháng</span>
-                <button class="toggle-btn" onclick="toggleMonthDetails()" id="toggleDetailsBtn">🔼 Ẩn</button>
             </h2>
-            <div class="details-grid expanded" id="monthDetailsContainer">
+            <div class="details-grid" id="monthDetailsContainer">
                 <div class="month-count-info" id="detailsMonthCountInfo">📅 Hiện có 12 tháng</div>
                 <div class="pagination" id="detailsPaginationTop">
                     <button onclick="previousDetailsPage()">◀️ Trước</button>
@@ -3149,70 +3094,6 @@
                 // Tính toán lại
                 calculateSavings();
                 saveSettings(true);
-            }
-        }
-
-        // Toggle hiển thị/ẩn phần nhập dữ liệu
-        function toggleMonthInputs() {
-            const container = document.getElementById('monthInputsContainer');
-            const btn = document.getElementById('toggleBtn');
-            
-            if (container.classList.contains('expanded')) {
-                container.classList.remove('expanded');
-                container.classList.add('collapsed');
-                btn.textContent = '🔽 Hiện';
-            } else {
-                container.classList.remove('collapsed');
-                container.classList.add('expanded');
-                btn.textContent = '🔼 Ẩn';
-            }
-        }
-
-        // Toggle hiển thị/ẩn phần chi tiết tháng
-        function toggleMonthDetails() {
-            const container = document.getElementById('monthDetails');
-            const btn = document.getElementById('toggleDetailsBtn');
-            
-            if (container.classList.contains('expanded')) {
-                container.classList.remove('expanded');
-                container.classList.add('collapsed');
-                btn.textContent = '🔽 Hiện';
-            } else {
-                container.classList.remove('collapsed');
-                container.classList.add('expanded');
-                btn.textContent = '🔼 Ẩn';
-            }
-        }
-
-        // Toggle ROI Section
-        function toggleROI() {
-            const container = document.getElementById('roiContent');
-            const btn = document.getElementById('toggleROIBtn');
-            
-            if (container.classList.contains('expanded')) {
-                container.classList.remove('expanded');
-                container.classList.add('collapsed');
-                btn.textContent = '🔽 Hiện';
-            } else {
-                container.classList.remove('collapsed');
-                container.classList.add('expanded');
-                btn.textContent = '🔼 Ẩn';
-            }
-        }
-
-        // Toggle Quick Stats
-        function toggleQuickStats() {
-            const container = document.getElementById('quickStatsContent');
-            const btn = document.getElementById('toggleQuickStatsBtn');
-            
-            if (container.classList.contains('expanded')) {
-                container.classList.remove('expanded');
-                container.classList.add('collapsed');
-                btn.textContent = '🔽 Hiện';
-            } else {
-                container.classList.remove('collapsed');
-                container.classList.add('expanded');
-                btn.textContent = '🔼 Ẩn';
             }
         }
 
@@ -5389,59 +5270,7 @@
         // Legacy tab functions removed - using single Lightearth API connection
         // ==================== END LUMENTREE SYNC ====================
         
-        // ==================== TOGGLE FUNCTIONS ====================
-        function toggleProjectOverview() {
-            const content = document.getElementById('projectOverviewContent');
-            const btn = document.getElementById('toggleProjectOverviewBtn');
-            
-            if (content.classList.contains('expanded')) {
-                content.classList.remove('expanded');
-                btn.textContent = '🔽 Mở';
-            } else {
-                content.classList.add('expanded');
-                btn.textContent = '🔼 Ẩn';
-            }
-        }
-        
-        function toggleQuickStats() {
-            const content = document.getElementById('quickStatsContent');
-            const btn = document.getElementById('toggleQuickStatsBtn');
-            
-            if (content.classList.contains('expanded')) {
-                content.classList.remove('expanded');
-                btn.textContent = '🔽 Mở';
-            } else {
-                content.classList.add('expanded');
-                btn.textContent = '🔼 Ẩn';
-            }
-        }
-        
-        function toggleMonthInputs() {
-            const content = document.getElementById('monthInputsContainer');
-            const btn = document.getElementById('toggleBtn');
-            
-            if (content.classList.contains('expanded')) {
-                content.classList.remove('expanded');
-                btn.textContent = '🔽 Mở';
-            } else {
-                content.classList.add('expanded');
-                btn.textContent = '🔼 Ẩn';
-            }
-        }
-        
-        function toggleMonthDetails() {
-            const content = document.getElementById('monthDetailsContainer');
-            const btn = document.getElementById('toggleDetailsBtn');
-            
-            if (content.classList.contains('expanded')) {
-                content.classList.remove('expanded');
-                btn.textContent = '🔽 Mở';
-            } else {
-                content.classList.add('expanded');
-                btn.textContent = '🔼 Ẩn';
-            }
-        }
-        // ==================== END TOGGLE FUNCTIONS ====================
+
 
         // ==================== THEME TOGGLE ====================
         function initTheme() {
