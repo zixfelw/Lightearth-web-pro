@@ -2242,6 +2242,11 @@ document.addEventListener('DOMContentLoaded', function () {
             window.autoSyncBasicView();
         }
         
+        // Auto-sync to 3D Home view if it's visible
+        if (typeof window.autoSync3DHomeView === 'function') {
+            window.autoSync3DHomeView();
+        }
+        
         // Update last refresh time with blink
         const now = new Date();
         const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
@@ -2992,55 +2997,156 @@ document.addEventListener('DOMContentLoaded', function () {
     // PRO/BASIC VIEW SWITCH - Version 13110
     // ========================================
     
-    // Switch between Pro and Basic Energy Flow views - exposed globally
+    // Switch between Pro, Basic, and 3D Home Energy Flow views - exposed globally
     window.switchEnergyFlowView = function(view) {
         const proView = document.getElementById('energyFlowPro');
         const basicView = document.getElementById('energyFlowBasic');
+        const home3DView = document.getElementById('energyFlow3DHome');
         const proBtn = document.getElementById('proViewBtn');
         const basicBtn = document.getElementById('basicViewBtn');
+        const home3DBtn = document.getElementById('home3DViewBtn');
         
         if (!proView || !basicView) {
             console.warn('Energy flow views not found');
             return;
         }
         
+        // Helper function to reset all buttons to inactive state
+        const resetAllButtons = () => {
+            const inactiveClasses = ['text-slate-600', 'dark:text-slate-300', 'hover:text-slate-800', 'dark:hover:text-slate-100'];
+            const activeClasses = ['bg-teal-500', 'text-white', 'shadow-sm'];
+            
+            [proBtn, basicBtn, home3DBtn].forEach(btn => {
+                if (btn) {
+                    btn.classList.remove(...activeClasses);
+                    btn.classList.add(...inactiveClasses);
+                }
+            });
+        };
+        
+        // Helper function to set button as active
+        const setActiveButton = (btn) => {
+            if (btn) {
+                btn.classList.remove('text-slate-600', 'dark:text-slate-300', 'hover:text-slate-800', 'dark:hover:text-slate-100');
+                btn.classList.add('bg-teal-500', 'text-white', 'shadow-sm');
+            }
+        };
+        
+        // Hide all views first
+        proView.classList.add('hidden');
+        basicView.classList.add('hidden');
+        if (home3DView) home3DView.classList.add('hidden');
+        
+        // Reset all buttons
+        resetAllButtons();
+        
         if (view === 'basic') {
             // Show Basic view (simple 3x2 grid)
-            proView.classList.add('hidden');
             basicView.classList.remove('hidden');
-            
-            // Update button states - Basic is active (teal), Pro is inactive
-            if (basicBtn) {
-                basicBtn.classList.remove('text-slate-500', 'dark:text-slate-400', 'hover:text-slate-700', 'dark:hover:text-slate-200');
-                basicBtn.classList.add('bg-teal-500', 'text-white', 'shadow-sm');
-            }
-            if (proBtn) {
-                proBtn.classList.remove('bg-teal-500', 'text-white', 'shadow-sm');
-                proBtn.classList.add('text-slate-600', 'dark:text-slate-300', 'hover:text-slate-800', 'dark:hover:text-slate-100');
-            }
+            setActiveButton(basicBtn);
             
             // Sync current data to Basic view
             autoSyncBasicView();
+        } else if (view === '3dhome') {
+            // Show 3D Home view (FusionSolar-style)
+            if (home3DView) {
+                home3DView.classList.remove('hidden');
+                setActiveButton(home3DBtn);
+                
+                // Sync current data to 3D Home view
+                autoSync3DHomeView();
+            } else {
+                // Fallback to Pro view if 3D Home not available
+                proView.classList.remove('hidden');
+                setActiveButton(proBtn);
+            }
         } else {
-            // Show Pro view (animated flow diagram)
-            basicView.classList.add('hidden');
+            // Show Pro view (animated flow diagram) - default
             proView.classList.remove('hidden');
-            
-            // Update button states - Pro is active (teal), Basic is inactive
-            if (proBtn) {
-                proBtn.classList.remove('text-slate-600', 'dark:text-slate-300', 'hover:text-slate-800', 'dark:hover:text-slate-100');
-                proBtn.classList.add('bg-teal-500', 'text-white', 'shadow-sm');
-            }
-            if (basicBtn) {
-                basicBtn.classList.remove('bg-teal-500', 'text-white', 'shadow-sm');
-                basicBtn.classList.add('text-slate-600', 'dark:text-slate-300', 'hover:text-slate-800', 'dark:hover:text-slate-100');
-            }
+            setActiveButton(proBtn);
         }
         
         // Save preference to localStorage
         localStorage.setItem('energyFlowView', view);
         console.log('Energy flow view switched to:', view);
     };
+    
+    // Auto-sync data to 3D Home view elements
+    function autoSync3DHomeView() {
+        // Get current values from Pro view
+        const pvPower = document.getElementById('pv-power')?.textContent || '--';
+        const gridPower = document.getElementById('grid-power')?.textContent || '--';
+        const batteryPercent = document.getElementById('battery-percent-icon')?.textContent || '--%';
+        const batteryPower = document.getElementById('battery-power')?.textContent || '--';
+        const loadPower = document.getElementById('load-power')?.textContent || '--';
+        
+        // Convert W to kW for display
+        const formatToKW = (value) => {
+            const numVal = parseInt(value.replace(/[^\d-]/g, '')) || 0;
+            if (Math.abs(numVal) >= 1000) {
+                return (numVal / 1000).toFixed(2) + ' kW';
+            }
+            return (numVal / 1000).toFixed(2) + ' kW';
+        };
+        
+        // Update 3D Home view elements
+        const updateElement = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        };
+        
+        // Update power displays
+        updateElement('pv-power-3d', formatToKW(pvPower));
+        updateElement('grid-power-3d', formatToKW(gridPower));
+        updateElement('load-power-3d', formatToKW(loadPower));
+        updateElement('battery-power-3d', formatToKW(batteryPower));
+        updateElement('battery-soc-3d', batteryPercent);
+        
+        // Update battery fill
+        const batteryFill3D = document.getElementById('battery-fill-3d');
+        if (batteryFill3D) {
+            const percent = parseInt(batteryPercent) || 0;
+            batteryFill3D.style.height = percent + '%';
+        }
+        
+        // Show/hide battery container based on battery presence
+        const battery3DContainer = document.getElementById('battery-3d-container');
+        const batteryFlow3D = document.getElementById('batteryFlow3d');
+        const hasBattery = batteryPower !== '--' && batteryPower !== '0 W';
+        
+        if (battery3DContainer) {
+            battery3DContainer.classList.toggle('hidden', !hasBattery);
+        }
+        if (batteryFlow3D) {
+            batteryFlow3D.classList.toggle('hidden', !hasBattery);
+        }
+        
+        // Update energy flow visibility based on power values
+        const pvValue = parseInt(pvPower.replace(/[^\d-]/g, '')) || 0;
+        const gridValue = parseInt(gridPower.replace(/[^\d-]/g, '')) || 0;
+        
+        const pvToHouseFlow = document.getElementById('pvToHouseFlow3d');
+        const gridToHouseFlow = document.getElementById('gridToHouseFlow3d');
+        
+        if (pvToHouseFlow) {
+            pvToHouseFlow.style.opacity = pvValue > 0 ? '1' : '0.2';
+        }
+        if (gridToHouseFlow) {
+            gridToHouseFlow.style.opacity = gridValue > 0 ? '1' : '0.2';
+        }
+        
+        // Calculate and display today's energy stats (placeholder values)
+        // These would normally come from API
+        const todaySolar = (pvValue * 0.1).toFixed(1); // Placeholder calculation
+        const todayGrid = (gridValue * 0.1).toFixed(1);
+        const todayLoad = ((pvValue + gridValue) * 0.1).toFixed(1);
+        const selfUse = pvValue > 0 ? Math.min(100, Math.round((pvValue / (pvValue + gridValue + 1)) * 100)) : 0;
+        
+        updateElement('solar-today-3d', todaySolar + ' kWh');
+        updateElement('grid-today-3d', todayGrid + ' kWh');
+        updateElement('load-today-3d', todayLoad + ' kWh');
+        updateElement('selfuse-3d', selfUse + '%');
+    }
     
     // Auto-sync data to Basic view elements
     function autoSyncBasicView() {
@@ -3156,6 +3262,9 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Expose autoSyncBasicView globally for use in updateRealTimeDisplay
     window.autoSyncBasicView = autoSyncBasicView;
+    
+    // Expose autoSync3DHomeView globally for use in updateRealTimeDisplay
+    window.autoSync3DHomeView = autoSync3DHomeView;
     
     // Load saved view preference on page load - Default to Pro
     const savedView = localStorage.getItem('energyFlowView') || 'pro';

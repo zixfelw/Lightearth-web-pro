@@ -84,6 +84,131 @@
             animation: glow 4s ease-in-out infinite;
         }
         
+        /* 3D Home View Styles - FusionSolar Inspired */
+        .home3d-container {
+            background: linear-gradient(180deg, #e0f2fe 0%, #f0f9ff 50%, #ffffff 100%);
+            border-radius: 1rem;
+            padding: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .dark .home3d-container {
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+        }
+        
+        /* 3D Sun Animation */
+        .sun-3d-container {
+            position: relative;
+            width: 50px;
+            height: 50px;
+        }
+        
+        .sun-3d-core {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30px;
+            height: 30px;
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+            border-radius: 50%;
+            box-shadow: 0 0 20px #fbbf24, 0 0 40px #f59e0b, 0 0 60px #d9770666;
+            animation: sun-3d-pulse 2s ease-in-out infinite;
+        }
+        
+        .sun-3d-rays {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            background: 
+                linear-gradient(0deg, transparent 45%, #fbbf24 45%, #fbbf24 55%, transparent 55%),
+                linear-gradient(90deg, transparent 45%, #fbbf24 45%, #fbbf24 55%, transparent 55%),
+                linear-gradient(45deg, transparent 45%, #fbbf2466 45%, #fbbf2466 55%, transparent 55%),
+                linear-gradient(-45deg, transparent 45%, #fbbf2466 45%, #fbbf2466 55%, transparent 55%);
+            animation: sun-3d-rotate 10s linear infinite;
+        }
+        
+        @@keyframes sun-3d-pulse {
+            0%, 100% { 
+                box-shadow: 0 0 20px #fbbf24, 0 0 40px #f59e0b, 0 0 60px #d9770666;
+                transform: translate(-50%, -50%) scale(1);
+            }
+            50% { 
+                box-shadow: 0 0 30px #fbbf24, 0 0 60px #f59e0b, 0 0 80px #d9770699;
+                transform: translate(-50%, -50%) scale(1.1);
+            }
+        }
+        
+        @@keyframes sun-3d-rotate {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        
+        /* Solar Panel 3D Shine Effect */
+        .solar-panel-3d {
+            animation: panel-shine 3s ease-in-out infinite;
+        }
+        
+        @@keyframes panel-shine {
+            0%, 100% { 
+                filter: brightness(1);
+            }
+            50% { 
+                filter: brightness(1.3);
+            }
+        }
+        
+        /* Energy Flow Path Animation */
+        .energy-flow-path path {
+            stroke-linecap: round;
+        }
+        
+        /* Grid Icon Pulse */
+        .grid-3d-icon > div:first-child {
+            animation: grid-pulse 2s ease-in-out infinite;
+        }
+        
+        @@keyframes grid-pulse {
+            0%, 100% { 
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            }
+            50% { 
+                box-shadow: 0 10px 15px -3px rgba(168, 85, 247, 0.3), 0 4px 6px -2px rgba(168, 85, 247, 0.2);
+            }
+        }
+        
+        /* Battery Icon Charge Animation */
+        .battery-3d-icon > div:first-child {
+            animation: battery-glow 2s ease-in-out infinite;
+        }
+        
+        @@keyframes battery-glow {
+            0%, 100% { 
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+            50% { 
+                box-shadow: 0 10px 15px -3px rgba(34, 197, 94, 0.3), 0 4px 6px -2px rgba(34, 197, 94, 0.2);
+            }
+        }
+        
+        /* Load Icon Animation */
+        .load-3d-icon > div:first-child {
+            animation: load-pulse 1.5s ease-in-out infinite;
+        }
+        
+        @@keyframes load-pulse {
+            0%, 100% { 
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            }
+            50% { 
+                box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3), 0 4px 6px -2px rgba(59, 130, 246, 0.2);
+            }
+        }
+        
         /* Scrollbar styling */
         ::-webkit-scrollbar {
             width: 6px;
@@ -488,7 +613,7 @@
             </h2>
             
             <div class="flex items-center gap-2">
-                <!-- Pro/Basic Interface Toggle -->
+                <!-- Pro/Basic/3D Interface Toggle -->
                 <div class="flex items-center bg-slate-200 dark:bg-slate-700 rounded-lg p-0.5">
                     <button id="basicViewBtn" onclick="switchEnergyFlowView('basic')" 
                         class="px-2.5 py-1.5 text-xs font-medium rounded-md transition-all duration-200
@@ -501,6 +626,16 @@
                                bg-teal-500 text-white shadow-sm"
                         title="Giao diện Pro - Đầy đủ animation">
                         Pro
+                    </button>
+                    <button id="home3DViewBtn" onclick="switchEnergyFlowView('3dhome')" 
+                        class="px-2.5 py-1.5 text-xs font-medium rounded-md transition-all duration-200
+                               text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100
+                               flex items-center gap-1"
+                        title="Giao diện 3D Home - Giống FusionSolar">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+                        </svg>
+                        3D Home
                     </button>
                 </div>
                 
@@ -931,6 +1066,205 @@
                         </div>
                         <div class="text-xs font-semibold text-emerald-700 dark:text-emerald-300 text-center">Tải hòa lưới</div>
                         <div class="text-base sm:text-lg font-black text-emerald-600 dark:text-emerald-400" id="load-power-basic">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 3D Home View - Huawei FusionSolar Style (hidden by default) -->
+        <div id="energyFlow3DHome" class="hidden">
+            <div class="home3d-container relative mx-auto" style="max-width: 500px;">
+                <!-- 3D House with Solar Panels -->
+                <div class="relative">
+                    <!-- Sky Background Gradient -->
+                    <div class="absolute inset-0 bg-gradient-to-b from-sky-200 via-sky-100 to-white dark:from-slate-800 dark:via-slate-700 dark:to-slate-600 rounded-2xl"></div>
+                    
+                    <!-- Sun Rays Animation (top-left) -->
+                    <div class="absolute top-4 left-4 z-10">
+                        <div class="sun-3d-container">
+                            <div class="sun-3d-core"></div>
+                            <div class="sun-3d-rays"></div>
+                        </div>
+                        <div class="mt-1 text-center">
+                            <div class="text-[10px] text-amber-600 dark:text-amber-400 font-bold">PV</div>
+                            <div id="pv-power-3d" class="text-sm font-black text-amber-500">-- kW</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 3D House SVG -->
+                    <svg viewBox="0 0 400 320" class="relative z-0 w-full h-auto">
+                        <!-- House Roof with Solar Panels -->
+                        <defs>
+                            <linearGradient id="roofGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#1e3a5f"/>
+                                <stop offset="100%" style="stop-color:#0f172a"/>
+                            </linearGradient>
+                            <linearGradient id="solarPanelGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" style="stop-color:#1e40af"/>
+                                <stop offset="50%" style="stop-color:#1e3a8a"/>
+                                <stop offset="100%" style="stop-color:#172554"/>
+                            </linearGradient>
+                            <linearGradient id="houseWallGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#f8fafc"/>
+                                <stop offset="100%" style="stop-color:#e2e8f0"/>
+                            </linearGradient>
+                            <filter id="houseShadow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feDropShadow dx="3" dy="6" stdDeviation="8" flood-color="#000" flood-opacity="0.15"/>
+                            </filter>
+                            <!-- Energy Flow Glow -->
+                            <filter id="energyGlow">
+                                <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                                <feMerge>
+                                    <feMergeNode in="coloredBlur"/>
+                                    <feMergeNode in="SourceGraphic"/>
+                                </feMerge>
+                            </filter>
+                        </defs>
+                        
+                        <!-- Main House Structure -->
+                        <g filter="url(#houseShadow)">
+                            <!-- Roof -->
+                            <polygon points="200,60 80,130 320,130" fill="url(#roofGradient)"/>
+                            <!-- Left Roof Face (with solar panels) -->
+                            <polygon points="200,60 80,130 80,135 200,65" fill="#334155"/>
+                            
+                            <!-- Solar Panels on Roof (3 panels) -->
+                            <g class="solar-panels-3d">
+                                <rect x="95" y="85" width="45" height="30" rx="2" fill="url(#solarPanelGradient)" class="solar-panel-3d" style="animation-delay: 0s;"/>
+                                <rect x="145" y="75" width="45" height="30" rx="2" fill="url(#solarPanelGradient)" class="solar-panel-3d" style="animation-delay: 0.2s;"/>
+                                <rect x="195" y="85" width="45" height="30" rx="2" fill="url(#solarPanelGradient)" class="solar-panel-3d" style="animation-delay: 0.4s;"/>
+                                <!-- Panel grid lines -->
+                                <g stroke="#1e3a8a" stroke-width="0.5" opacity="0.5">
+                                    <line x1="95" y1="95" x2="140" y2="95"/><line x1="95" y1="105" x2="140" y2="105"/>
+                                    <line x1="105" y1="85" x2="105" y2="115"/><line x1="120" y1="85" x2="120" y2="115"/><line x1="130" y1="85" x2="130" y2="115"/>
+                                    <line x1="145" y1="85" x2="190" y2="85"/><line x1="145" y1="95" x2="190" y2="95"/>
+                                    <line x1="155" y1="75" x2="155" y2="105"/><line x1="170" y1="75" x2="170" y2="105"/><line x1="180" y1="75" x2="180" y2="105"/>
+                                    <line x1="195" y1="95" x2="240" y2="95"/><line x1="195" y1="105" x2="240" y2="105"/>
+                                    <line x1="205" y1="85" x2="205" y2="115"/><line x1="220" y1="85" x2="220" y2="115"/><line x1="230" y1="85" x2="230" y2="115"/>
+                                </g>
+                            </g>
+                            
+                            <!-- House Front Wall -->
+                            <rect x="100" y="130" width="200" height="120" fill="url(#houseWallGradient)"/>
+                            
+                            <!-- Door -->
+                            <rect x="175" y="180" width="50" height="70" rx="3" fill="#78350f"/>
+                            <circle cx="215" cy="218" r="3" fill="#fbbf24"/>
+                            
+                            <!-- Windows -->
+                            <rect x="115" y="150" width="40" height="35" rx="2" fill="#7dd3fc" stroke="#0ea5e9" stroke-width="2"/>
+                            <line x1="135" y1="150" x2="135" y2="185" stroke="#0ea5e9" stroke-width="1.5"/>
+                            <line x1="115" y1="167" x2="155" y2="167" stroke="#0ea5e9" stroke-width="1.5"/>
+                            
+                            <rect x="245" y="150" width="40" height="35" rx="2" fill="#7dd3fc" stroke="#0ea5e9" stroke-width="2"/>
+                            <line x1="265" y1="150" x2="265" y2="185" stroke="#0ea5e9" stroke-width="1.5"/>
+                            <line x1="245" y1="167" x2="285" y2="167" stroke="#0ea5e9" stroke-width="1.5"/>
+                            
+                            <!-- Grass/Ground -->
+                            <rect x="50" y="250" width="300" height="40" fill="#86efac" rx="5"/>
+                        </g>
+                        
+                        <!-- Energy Flow Paths (animated) -->
+                        <!-- PV to House Flow -->
+                        <g id="pvToHouseFlow3d" class="energy-flow-path">
+                            <path d="M 60 50 Q 80 90 140 100" stroke="#fbbf24" stroke-width="3" fill="none" stroke-dasharray="8,4" filter="url(#energyGlow)">
+                                <animate attributeName="stroke-dashoffset" from="24" to="0" dur="1s" repeatCount="indefinite"/>
+                            </path>
+                            <circle r="5" fill="#fbbf24" filter="url(#energyGlow)">
+                                <animateMotion path="M 60 50 Q 80 90 140 100" dur="1.5s" repeatCount="indefinite"/>
+                            </circle>
+                        </g>
+                        
+                        <!-- Grid to House Flow -->
+                        <g id="gridToHouseFlow3d" class="energy-flow-path">
+                            <path d="M 380 180 L 300 180" stroke="#a855f7" stroke-width="3" fill="none" stroke-dasharray="8,4" filter="url(#energyGlow)">
+                                <animate attributeName="stroke-dashoffset" from="24" to="0" dur="1s" repeatCount="indefinite"/>
+                            </path>
+                            <circle r="4" fill="#a855f7" filter="url(#energyGlow)">
+                                <animateMotion path="M 380 180 L 300 180" dur="1.2s" repeatCount="indefinite"/>
+                            </circle>
+                        </g>
+                        
+                        <!-- House to Load Flow (consumption) -->
+                        <g id="houseToLoadFlow3d" class="energy-flow-path">
+                            <path d="M 200 250 L 200 290" stroke="#3b82f6" stroke-width="3" fill="none" stroke-dasharray="6,3" filter="url(#energyGlow)">
+                                <animate attributeName="stroke-dashoffset" from="18" to="0" dur="0.8s" repeatCount="indefinite"/>
+                            </path>
+                        </g>
+                        
+                        <!-- Battery Flow (if battery exists) -->
+                        <g id="batteryFlow3d" class="energy-flow-path hidden">
+                            <path d="M 100 180 L 50 180" stroke="#22c55e" stroke-width="3" fill="none" stroke-dasharray="6,3" filter="url(#energyGlow)">
+                                <animate attributeName="stroke-dashoffset" from="18" to="0" dur="1s" repeatCount="indefinite"/>
+                            </path>
+                        </g>
+                    </svg>
+                    
+                    <!-- Grid Icon (right side) -->
+                    <div class="absolute top-1/2 right-2 -translate-y-1/2 z-10">
+                        <div class="grid-3d-icon flex flex-col items-center">
+                            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-purple-100 to-purple-200 dark:from-purple-900/50 dark:to-purple-800/50 flex items-center justify-center shadow-lg border-2 border-purple-300 dark:border-purple-600">
+                                <svg class="w-6 h-6 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                </svg>
+                            </div>
+                            <div class="mt-1 text-center">
+                                <div class="text-[10px] text-purple-600 dark:text-purple-400 font-bold">Grid</div>
+                                <div id="grid-power-3d" class="text-sm font-black text-purple-500">-- kW</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Battery Icon (left side) - conditionally shown -->
+                    <div id="battery-3d-container" class="absolute top-1/2 left-2 -translate-y-1/2 z-10 hidden">
+                        <div class="battery-3d-icon flex flex-col items-center">
+                            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-200 dark:from-emerald-900/50 dark:to-emerald-800/50 flex items-center justify-center shadow-lg border-2 border-emerald-300 dark:border-emerald-600 relative overflow-hidden">
+                                <div id="battery-fill-3d" class="absolute bottom-0 left-0 right-0 bg-emerald-500 transition-all duration-500" style="height: 0%;"></div>
+                                <svg class="w-6 h-6 text-emerald-600 dark:text-emerald-400 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3h6v2H9zM4 5h16a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z"/>
+                                </svg>
+                            </div>
+                            <div class="mt-1 text-center">
+                                <div class="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Battery</div>
+                                <div id="battery-power-3d" class="text-sm font-black text-emerald-500">-- kW</div>
+                                <div id="battery-soc-3d" class="text-[10px] text-emerald-400">--%</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Load Icon (bottom center) -->
+                    <div class="absolute bottom-2 left-1/2 -translate-x-1/2 z-10">
+                        <div class="load-3d-icon flex flex-col items-center">
+                            <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/50 dark:to-blue-800/50 flex items-center justify-center shadow-lg border-2 border-blue-300 dark:border-blue-600">
+                                <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                                </svg>
+                            </div>
+                            <div class="mt-1 text-center">
+                                <div class="text-[10px] text-blue-600 dark:text-blue-400 font-bold">Load</div>
+                                <div id="load-power-3d" class="text-sm font-black text-blue-500">-- kW</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Energy Stats Bar (bottom) -->
+                <div class="mt-3 grid grid-cols-4 gap-2 text-center">
+                    <div class="bg-amber-50 dark:bg-amber-900/30 rounded-lg p-2 border border-amber-200 dark:border-amber-700">
+                        <div class="text-[10px] text-amber-600 dark:text-amber-400 font-medium">Solar</div>
+                        <div id="solar-today-3d" class="text-sm font-black text-amber-500">-- kWh</div>
+                    </div>
+                    <div class="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-2 border border-purple-200 dark:border-purple-700">
+                        <div class="text-[10px] text-purple-600 dark:text-purple-400 font-medium">Grid</div>
+                        <div id="grid-today-3d" class="text-sm font-black text-purple-500">-- kWh</div>
+                    </div>
+                    <div class="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-2 border border-blue-200 dark:border-blue-700">
+                        <div class="text-[10px] text-blue-600 dark:text-blue-400 font-medium">Load</div>
+                        <div id="load-today-3d" class="text-sm font-black text-blue-500">-- kWh</div>
+                    </div>
+                    <div class="bg-emerald-50 dark:bg-emerald-900/30 rounded-lg p-2 border border-emerald-200 dark:border-emerald-700">
+                        <div class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Self-use</div>
+                        <div id="selfuse-3d" class="text-sm font-black text-emerald-500">--%</div>
                     </div>
                 </div>
             </div>
