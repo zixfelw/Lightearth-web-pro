@@ -1131,11 +1131,11 @@
                     <img src="/images/3dhome/house-3d-dark.png" alt="3D Solar Home" 
                          class="w-full h-auto object-contain" style="min-height: 320px;">
                     
-                    <!-- Sun/Moon Animation (Above solar panels) -->
-                    <div class="absolute top-[8%] left-[45%] z-10">
+                    <!-- Sun/Moon Animation (Above solar panels - right side) -->
+                    <div class="absolute top-[12%] left-[55%] z-10">
                         <!-- Sun - visible when PV > 0 -->
-                        <div id="sun-3d-icon" class="sun-3d-animate">
-                            <svg class="w-10 h-10 sm:w-12 sm:h-12 text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.8)]" viewBox="0 0 24 24" fill="currentColor">
+                        <div id="sun-3d-icon" class="sun-3d-animate hidden">
+                            <svg class="w-8 h-8 sm:w-10 sm:h-10 text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.8)]" viewBox="0 0 24 24" fill="currentColor">
                                 <circle cx="12" cy="12" r="5" class="animate-pulse"/>
                                 <g class="sun-rays-3d">
                                     <line x1="12" y1="1" x2="12" y2="4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -1150,20 +1150,30 @@
                             </svg>
                         </div>
                         <!-- Moon - visible when PV = 0 -->
-                        <div id="moon-3d-icon" class="moon-3d-animate hidden">
-                            <svg class="w-10 h-10 sm:w-12 sm:h-12 text-slate-300 drop-shadow-[0_0_10px_rgba(203,213,225,0.6)]" viewBox="0 0 24 24" fill="currentColor">
+                        <div id="moon-3d-icon" class="moon-3d-animate">
+                            <svg class="w-8 h-8 sm:w-10 sm:h-10 text-slate-300 drop-shadow-[0_0_10px_rgba(203,213,225,0.6)]" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                                <!-- Stars around moon -->
-                                <circle cx="19" cy="5" r="1" class="animate-pulse" fill="white" opacity="0.8"/>
-                                <circle cx="22" cy="9" r="0.5" class="animate-pulse" fill="white" opacity="0.6"/>
-                                <circle cx="17" cy="2" r="0.5" class="animate-pulse" fill="white" opacity="0.7"/>
                             </svg>
                         </div>
                     </div>
                     
-                    <!-- PV Power Box (Top Center) - Changed from circle to rectangle -->
-                    <div class="absolute -top-2 left-1/2 -translate-x-1/2 z-20">
-                        <div class="glassmorphism-card-3d rounded-xl px-3 py-2 min-w-[140px]">
+                    <!-- Stars for night mode (separate, visible with moon) -->
+                    <div id="stars-3d" class="absolute top-[8%] left-[62%] z-10">
+                        <svg class="w-6 h-6" viewBox="0 0 24 24">
+                            <circle cx="5" cy="5" r="1.5" class="animate-pulse" fill="white" opacity="0.8"/>
+                            <circle cx="18" cy="8" r="1" class="animate-pulse" fill="white" opacity="0.6" style="animation-delay: 0.3s"/>
+                            <circle cx="12" cy="3" r="0.8" class="animate-pulse" fill="white" opacity="0.7" style="animation-delay: 0.6s"/>
+                        </svg>
+                    </div>
+                    
+                    <!-- PV Power Box (Top LEFT - aligned with solar panel edge) -->
+                    <div class="absolute top-[5%] left-[5%] z-20">
+                        <div class="glassmorphism-card-3d rounded-xl px-3 py-2 min-w-[120px]">
+                            <!-- Label on TOP -->
+                            <div class="text-center mb-1">
+                                <span class="text-[10px] text-emerald-400 font-bold">Nguồn PV ></span>
+                            </div>
+                            <!-- PV Total Power -->
                             <div class="text-center">
                                 <span id="pv-power-3d" class="text-lg sm:text-xl font-black text-emerald-400">--W</span>
                             </div>
@@ -1172,9 +1182,6 @@
                                 <span id="pv1-detail-3d">--W --V</span>
                                 <span class="opacity-50 mx-1">|</span>
                                 <span id="pv2-detail-3d">--W --V</span>
-                            </div>
-                            <div class="text-center mt-1">
-                                <span class="text-[10px] text-emerald-400 font-bold">Nguồn PV ></span>
                             </div>
                         </div>
                     </div>

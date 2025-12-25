@@ -3131,16 +3131,19 @@ document.addEventListener('DOMContentLoaded', function () {
         const pvValue = parseInt(pvPower.replace(/[^\d-]/g, '')) || 0;
         const sunIcon = document.getElementById('sun-3d-icon');
         const moonIcon = document.getElementById('moon-3d-icon');
+        const starsIcon = document.getElementById('stars-3d');
         
         if (sunIcon && moonIcon) {
             if (pvValue > 0) {
-                // Daytime - show sun
+                // Daytime - show sun, hide moon and stars
                 sunIcon.classList.remove('hidden');
                 moonIcon.classList.add('hidden');
+                if (starsIcon) starsIcon.classList.add('hidden');
             } else {
-                // Nighttime - show moon
+                // Nighttime - show moon and stars, hide sun
                 sunIcon.classList.add('hidden');
                 moonIcon.classList.remove('hidden');
+                if (starsIcon) starsIcon.classList.remove('hidden');
             }
         }
         
