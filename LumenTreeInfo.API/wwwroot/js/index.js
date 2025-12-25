@@ -3103,6 +3103,7 @@ document.addEventListener('DOMContentLoaded', function () {
         update3DValue('pv-power-3d', pvPower);
         update3DValue('grid-power-3d', gridPower);
         update3DValue('load-power-3d', loadPower);
+        update3DValue('load-power-overlay-3d', loadPower); // Overlay on house image
         update3DValue('battery-power-3d', batteryPower);
         update3DValue('battery-soc-3d', batteryPercent);
         update3DValue('essential-power-3d', essentialPower);

@@ -1131,11 +1131,11 @@
                     <img src="/images/3dhome/house-3d-dark.png" alt="3D Solar Home" 
                          class="w-full h-auto object-contain" style="min-height: 320px;">
                     
-                    <!-- Sun/Moon Animation (Above solar panels - right side) -->
-                    <div class="absolute top-[12%] left-[55%] z-10">
+                    <!-- Sun/Moon Animation (Above solar panels - right side) - BIGGER -->
+                    <div class="absolute top-[8%] left-[52%] z-10">
                         <!-- Sun - visible when PV > 0 -->
                         <div id="sun-3d-icon" class="sun-3d-animate hidden">
-                            <svg class="w-8 h-8 sm:w-10 sm:h-10 text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.8)]" viewBox="0 0 24 24" fill="currentColor">
+                            <svg class="w-14 h-14 sm:w-16 sm:h-16 text-yellow-400 drop-shadow-[0_0_20px_rgba(250,204,21,0.9)]" viewBox="0 0 24 24" fill="currentColor">
                                 <circle cx="12" cy="12" r="5" class="animate-pulse"/>
                                 <g class="sun-rays-3d">
                                     <line x1="12" y1="1" x2="12" y2="4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -1149,20 +1149,20 @@
                                 </g>
                             </svg>
                         </div>
-                        <!-- Moon - visible when PV = 0 -->
+                        <!-- Moon - visible when PV = 0 - BIGGER -->
                         <div id="moon-3d-icon" class="moon-3d-animate">
-                            <svg class="w-8 h-8 sm:w-10 sm:h-10 text-slate-300 drop-shadow-[0_0_10px_rgba(203,213,225,0.6)]" viewBox="0 0 24 24" fill="currentColor">
+                            <svg class="w-12 h-12 sm:w-14 sm:h-14 text-slate-300 drop-shadow-[0_0_15px_rgba(203,213,225,0.7)]" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
                             </svg>
                         </div>
                     </div>
                     
                     <!-- Stars for night mode (separate, visible with moon) -->
-                    <div id="stars-3d" class="absolute top-[8%] left-[62%] z-10">
-                        <svg class="w-6 h-6" viewBox="0 0 24 24">
-                            <circle cx="5" cy="5" r="1.5" class="animate-pulse" fill="white" opacity="0.8"/>
-                            <circle cx="18" cy="8" r="1" class="animate-pulse" fill="white" opacity="0.6" style="animation-delay: 0.3s"/>
-                            <circle cx="12" cy="3" r="0.8" class="animate-pulse" fill="white" opacity="0.7" style="animation-delay: 0.6s"/>
+                    <div id="stars-3d" class="absolute top-[5%] left-[65%] z-10">
+                        <svg class="w-10 h-10" viewBox="0 0 24 24">
+                            <circle cx="5" cy="5" r="1.5" class="animate-pulse" fill="white" opacity="0.9"/>
+                            <circle cx="18" cy="8" r="1.2" class="animate-pulse" fill="white" opacity="0.7" style="animation-delay: 0.3s"/>
+                            <circle cx="12" cy="3" r="1" class="animate-pulse" fill="white" opacity="0.8" style="animation-delay: 0.6s"/>
                         </svg>
                     </div>
                     
@@ -1186,8 +1186,8 @@
                         </div>
                     </div>
                     
-                    <!-- Battery SOC % Display with Charge/Discharge Animation (Inside the green battery) -->
-                    <div class="absolute left-[8%] top-[50%] z-20">
+                    <!-- Battery SOC % Display with Charge/Discharge Animation (Inside the green battery) - LOWER -->
+                    <div class="absolute left-[8%] top-[55%] z-20">
                         <div class="flex items-center gap-1">
                             <!-- Charge/Discharge Animation Icon -->
                             <div id="battery-status-icon-3d" class="hidden">
@@ -1203,6 +1203,11 @@
                             <!-- SOC Percentage -->
                             <span id="battery-soc-3d" class="text-lg sm:text-xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">--%</span>
                         </div>
+                    </div>
+                    
+                    <!-- Load Power Display (Right of inverter, before door) - NO BOX, just number -->
+                    <div class="absolute right-[28%] top-[58%] z-20">
+                        <span id="load-power-overlay-3d" class="text-base sm:text-lg font-black text-cyan-400 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">--W</span>
                     </div>
                 </div>
                 
