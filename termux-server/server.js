@@ -83,10 +83,9 @@ function saveRegisteredDevices() {
 // API Key for Railway Server
 const API_SECRET_KEY = 'LONG_tothemoonfuckingo_2025';
 
-// Fetch data from Railway Server (primary) or Home Assistant Cloud (fallback)
+// Fetch data from Railway Server
 async function fetchCloudData(deviceId) {
     try {
-        // Primary: Get data from Railway server (already has synced data)
         const railwayUrl = `https://lightearth1.up.railway.app/api/solar/dashboard/${deviceId}`;
         
         console.log(`[${new Date().toISOString()}] Fetching from Railway: ${deviceId}`);
@@ -98,16 +97,30 @@ async function fetchCloudData(deviceId) {
             }
         });
         
-        if (response.data && response.data.totalSavings !== undefined) {
+        const res = response.data;
+        
+        // Check if has data (Railway format: {success, hasData, raw, display})
+        if (res && res.success && res.hasData && res.raw) {
             const data = {
-                ...response.data,
+                deviceId: deviceId,
+                totalSavings: res.raw.totalSavings || 0,
+                totalConsumption: res.raw.totalLoad || 0,
+                totalSolarProduction: res.raw.totalSolarProduced || 0,
+                totalGridUsage: res.raw.totalGrid || 0,
+                costWithoutSolar: res.raw.costWithoutSolar || 0,
+                avgMonthlySavings: res.raw.avgSavings || 0,
+                monthsWithData: res.monthsWithData || 0,
+                year: res.year || 2025,
+                display: res.display,
                 lastSync: new Date().toISOString(),
-                dataSource: 'Railway-HomeAssistant'
+                dataSource: res.source || 'Railway-HomeAssistant',
+                syncedAt: res.syncedAt
             };
             console.log(`[${new Date().toISOString()}] ✅ Got data for ${deviceId}: ${data.totalSavings?.toLocaleString()}đ`);
             return data;
         }
         
+        console.log(`[${new Date().toISOString()}] ⚠️ No data in response for ${deviceId}`);
         return null;
     } catch (error) {
         console.error(`[${new Date().toISOString()}] ❌ Error fetching ${deviceId}:`, error.message);
