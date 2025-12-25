@@ -3080,6 +3080,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const batteryPercent = document.getElementById('battery-percent-icon')?.textContent || '--%';
         const batteryPower = document.getElementById('battery-power')?.textContent || '--W';
         const loadPower = document.getElementById('load-power')?.textContent || '--W';
+        const essentialPower = document.getElementById('essential-power')?.textContent || '--W';
+        const pvDesc = document.getElementById('pv-desc')?.innerHTML || '';
+        const gridVoltage = document.getElementById('grid-voltage')?.textContent || '--V';
         
         // Update 3D Home view elements with blink effect (same as Pro)
         const update3DValue = (id, value) => {
@@ -3102,6 +3105,44 @@ document.addEventListener('DOMContentLoaded', function () {
         update3DValue('load-power-3d', loadPower);
         update3DValue('battery-power-3d', batteryPower);
         update3DValue('battery-soc-3d', batteryPercent);
+        update3DValue('essential-power-3d', essentialPower);
+        
+        // Update PV1/PV2 details from pv-desc HTML
+        // Format: "1234W 234V | 5678W 235V"
+        if (pvDesc && pvDesc.includes('|')) {
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = pvDesc;
+            const text = tempDiv.textContent || '';
+            const parts = text.split('|');
+            if (parts.length >= 2) {
+                update3DValue('pv1-detail-3d', parts[0].trim());
+                update3DValue('pv2-detail-3d', parts[1].trim());
+            }
+        } else if (pvDesc) {
+            // Single PV - just show voltage
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = pvDesc;
+            update3DValue('pv1-detail-3d', tempDiv.textContent || '--V');
+            const pv2El = document.getElementById('pv2-detail-3d');
+            if (pv2El) pv2El.parentElement.style.display = 'none';
+        }
+        
+        // Update Sun/Moon based on PV power
+        const pvValue = parseInt(pvPower.replace(/[^\d-]/g, '')) || 0;
+        const sunIcon = document.getElementById('sun-3d-icon');
+        const moonIcon = document.getElementById('moon-3d-icon');
+        
+        if (sunIcon && moonIcon) {
+            if (pvValue > 0) {
+                // Daytime - show sun
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+            } else {
+                // Nighttime - show moon
+                sunIcon.classList.add('hidden');
+                moonIcon.classList.remove('hidden');
+            }
+        }
         
         // Update battery charge/discharge animation
         const batteryVal = parseInt(batteryPower.replace(/[^\d-]/g, '')) || 0;
@@ -3126,17 +3167,9 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
         
-        // Update battery fill bar (width instead of height for horizontal bar)
-        const batteryFill3D = document.getElementById('battery-fill-3d');
-        if (batteryFill3D) {
-            const percent = parseInt(batteryPercent) || 0;
-            batteryFill3D.style.width = percent + '%';
-        }
-        
-        // Update PV circle progress (stroke-dashoffset)
+        // Update PV progress bar (removed circle, but keep logic for future)
         const pvProgress = document.getElementById('pv-progress-3d');
         if (pvProgress) {
-            const pvValue = parseInt(pvPower.replace(/[^\d-]/g, '')) || 0;
             // Max expected PV is around 10000W, calculate percentage
             const pvPercent = Math.min(100, (pvValue / 10000) * 100);
             // stroke-dasharray is 283, so offset = 283 - (283 * percent / 100)
