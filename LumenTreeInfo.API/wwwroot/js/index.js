@@ -863,6 +863,12 @@ document.addEventListener('DOMContentLoaded', function () {
         // Fetch device info (inverter model)
         fetchDeviceInfo(deviceId);
         
+        // Load Solar Project Summary (Tổng Quát Dự Án Solar)
+        if (typeof window.loadSolarProjectSummary === 'function') {
+            console.log('📊 Loading solar project summary for', deviceId);
+            window.loadSolarProjectSummary(deviceId);
+        }
+        
         // ALWAYS fetch chart data if cache is empty or stale
         // This ensures charts are always populated
         if (!hasCachedChart) {

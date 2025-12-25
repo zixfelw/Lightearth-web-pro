@@ -1437,18 +1437,25 @@
         
         // ========================================
         // SOLAR PROJECT SUMMARY - Load from API (auto-synced data)
-        // Fallback to localStorage if API fails
+        // Global function - can be called on page load, F5, or device change
         // ========================================
-        (async function loadSolarProjectSummary() {
+        window.loadSolarProjectSummary = async function(customDeviceId) {
             try {
-                // Get deviceId from URL
-                const urlParams = new URLSearchParams(window.location.search);
-                const deviceId = (urlParams.get('deviceId') || '').toUpperCase();
+                // Get deviceId from parameter or URL
+                let deviceId = customDeviceId;
+                if (!deviceId) {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    deviceId = (urlParams.get('deviceId') || '').toUpperCase();
+                }
+                deviceId = (deviceId || '').toUpperCase();
                 
                 if (!deviceId) {
-                    console.log('No deviceId provided, skipping solar summary');
+                    console.log('No deviceId provided, hiding solar summary');
+                    document.getElementById('solarProjectSummary')?.classList.add('hidden');
                     return;
                 }
+                
+                console.log(`🔄 Loading solar summary for device: ${deviceId}`);
                 
                 // Format functions
                 function formatVND(value) {
@@ -1484,7 +1491,7 @@
                     const result = await response.json();
                     
                     if (result.success && result.hasData) {
-                        console.log(`Loaded solar summary from API (${result.source}) for ${deviceId}`);
+                        console.log(`✅ Loaded solar summary from API (${result.source}) for ${deviceId}`);
                         updateSummaryUI({
                             totalSavings: result.raw.totalSavings,
                             totalLoad: result.raw.totalLoad,
@@ -1494,6 +1501,8 @@
                             avgSavings: result.raw.avgSavings
                         });
                         return;
+                    } else {
+                        console.log(`⚠️ API returned no data for ${deviceId}, trying localStorage...`);
                     }
                 } catch (apiError) {
                     console.log('API not available, falling back to localStorage:', apiError.message);
@@ -1504,11 +1513,14 @@
                 const savedSettings = localStorage.getItem(storageKey);
                 
                 if (!savedSettings) {
+                    console.log(`No localStorage data for ${deviceId}, hiding section`);
+                    document.getElementById('solarProjectSummary')?.classList.add('hidden');
                     return;
                 }
                 
                 const settings = JSON.parse(savedSettings);
                 if (!settings.monthlyData || settings.monthlyData.length === 0) {
+                    document.getElementById('solarProjectSummary')?.classList.add('hidden');
                     return;
                 }
                 
@@ -1598,7 +1610,7 @@
                 const avgSavings = monthsWithData > 0 ? totalSavings / monthsWithData : 0;
                 
                 if (monthsWithData > 0) {
-                    console.log(`Loaded solar summary from localStorage for ${deviceId}`);
+                    console.log(`✅ Loaded solar summary from localStorage for ${deviceId}`);
                     updateSummaryUI({
                         totalSavings,
                         totalLoad,
@@ -1607,12 +1619,18 @@
                         costWithoutSolar: totalCostWithoutSolar,
                         avgSavings
                     });
+                } else {
+                    document.getElementById('solarProjectSummary')?.classList.add('hidden');
                 }
                 
             } catch (e) {
                 console.error('Error loading solar summary:', e);
+                document.getElementById('solarProjectSummary')?.classList.add('hidden');
             }
-        })();
+        };
+        
+        // Call on page load
+        window.loadSolarProjectSummary();
         
         // ========================================
         // HEADER SCROLL HIDE - Always hide when scrolled
