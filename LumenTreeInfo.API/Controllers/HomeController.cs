@@ -36,14 +36,13 @@ public class HomeController : Controller
     }
 
     /// <summary>
-    /// Returns the 3D View test page (clone of Index for design/testing)
-    /// Accessible via URL: /?testid=xxx
+    /// Returns the V2 page with simplified 3D Home view
     /// </summary>
-    [Route("/test3d")]
-    public IActionResult Test3DView()
+    [Route("/ver2")]
+    public IActionResult Ver2()
     {
-        Log.Information("Rendering 3D View test page");
-        return View("Test3DView");
+        Log.Information("Rendering Ver2 page");
+        return View("Ver2View");
     }
 
     /// <summary>
