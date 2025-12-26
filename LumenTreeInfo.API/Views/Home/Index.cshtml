@@ -482,6 +482,22 @@
             transition: opacity 0.5s ease;
         }
         
+        /* Tiếp điểm tròn ở cuối đường line */
+        .energy-endpoint {
+            animation: endpointPulse 2s ease-in-out infinite;
+        }
+        
+        @@keyframes endpointPulse {
+            0%, 100% {
+                transform: translateX(-50%) scale(1);
+                box-shadow: 0 0 10px #fbbf24, 0 0 20px rgba(251, 191, 36, 0.5);
+            }
+            50% {
+                transform: translateX(-50%) scale(1.2);
+                box-shadow: 0 0 15px #fbbf24, 0 0 30px rgba(251, 191, 36, 0.7);
+            }
+        }
+        
         /* Reduced motion preference */
         @@media (prefers-reduced-motion: reduce) {
             .energy-particle {
@@ -490,6 +506,9 @@
                 top: 50%;
             }
             .pv-energy-line::before {
+                animation: none;
+            }
+            .energy-endpoint {
                 animation: none;
             }
         }
@@ -1296,19 +1315,24 @@
                     </div>
                 </div>
                 
-                <!-- Energy Flow Line: Nguồn PV → Solar Panel -->
-                <!-- Positioned from bottom of PV box to top of solar panel on roof -->
-                <div class="relative h-8 sm:h-10">
+                <!-- Energy Flow Line: Nguồn PV → Solar Panel (dài đến giữa tấm pin) -->
+                <div class="relative h-20 sm:h-24">
                     <div id="pv-energy-line" class="pv-energy-line absolute left-[16.5%] top-0 bottom-0">
                         <!-- Energy particles flowing down -->
                         <div class="energy-particle"></div>
                         <div class="energy-particle"></div>
                         <div class="energy-particle"></div>
+                        
+                        <!-- Tiếp điểm tròn ở cuối đường line (giữa tấm pin) -->
+                        <div class="energy-endpoint absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-amber-400 border-2 border-amber-300 shadow-[0_0_10px_#fbbf24,0_0_20px_rgba(251,191,36,0.5)]">
+                            <!-- Inner glow pulse -->
+                            <div class="absolute inset-0.5 rounded-full bg-amber-200 animate-pulse"></div>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- 3D House Image with battery overlay -->
-                <div class="relative -mt-32 sm:-mt-38">
+                <div class="relative -mt-44 sm:-mt-52">
                     <img src="/images/3dhome/house-3d-dark.png" alt="3D Solar Home" 
                          class="w-full h-auto object-contain">
                     
@@ -2119,7 +2143,7 @@
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13185" defer></script>
+    <script src="/js/index.js?v=13186" defer></script>
 
 </body>
 </html>

@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13185 - 3D Home: Add gentle PV energy flow line (Nguồn PV → Solar Panel)
+ * Version: 13186 - 3D Home: Longer PV energy flow line with endpoint circle at solar panel
  * 
  * Features:
  * - Real-time data via SignalR
