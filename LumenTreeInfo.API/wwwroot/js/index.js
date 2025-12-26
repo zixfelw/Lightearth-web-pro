@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13205 - Fix SOC chart not rendering after F5 (canvas visibility + retry)
+ * Version: 13206 - Fix cache mismatch: Clear localStorage cache when deviceId changes
  * 
  * Features:
  * - Real-time data via SignalR
@@ -276,14 +276,24 @@ document.addEventListener('DOMContentLoaded', function () {
     };
     
     // Load cached data from localStorage on startup
+    // ONLY load if cached deviceId matches current URL deviceId
     function loadCacheFromLocalStorage() {
         try {
-            // Load chart/lightearth cache
+            // Get deviceId from URL to validate cache
+            const urlDeviceId = new URLSearchParams(window.location.search).get('deviceId');
+            console.log(`🔍 URL deviceId: ${urlDeviceId}`);
+            
+            // Load chart/lightearth cache - ONLY if device matches
             const cached = localStorage.getItem(LS_CACHE_KEYS.lightearthData);
             if (cached) {
                 const parsed = JSON.parse(cached);
                 const age = Date.now() - parsed.timestamp;
-                if (age < LIGHTEARTH_CACHE_TTL) {
+                
+                // Check if cache is for current device AND not expired
+                if (urlDeviceId && parsed.deviceId !== urlDeviceId) {
+                    console.log(`🔄 Cache device (${parsed.deviceId}) != URL device (${urlDeviceId}), clearing cache`);
+                    localStorage.removeItem(LS_CACHE_KEYS.lightearthData);
+                } else if (age < LIGHTEARTH_CACHE_TTL) {
                     console.log(`📦 Loaded Lightearth cache from localStorage (age: ${Math.round(age/1000)}s, device: ${parsed.deviceId}, date: ${parsed.date})`);
                     lightearthCache = parsed;
                 } else {
@@ -292,13 +302,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             }
             
-            // Load summary cache
+            // Load summary cache - ONLY if device matches
             const summaryCached = localStorage.getItem(LS_CACHE_KEYS.summaryData);
             if (summaryCached) {
                 const parsed = JSON.parse(summaryCached);
                 const age = Date.now() - parsed.timestamp;
-                // Summary cache valid for 30 minutes
-                if (age < LIGHTEARTH_CACHE_TTL) {
+                
+                // Check if cache is for current device AND not expired
+                if (urlDeviceId && parsed.deviceId !== urlDeviceId) {
+                    console.log(`🔄 Summary cache device (${parsed.deviceId}) != URL device (${urlDeviceId}), clearing`);
+                    localStorage.removeItem(LS_CACHE_KEYS.summaryData);
+                } else if (age < LIGHTEARTH_CACHE_TTL) {
                     console.log(`📦 Loaded Summary cache from localStorage (age: ${Math.round(age/1000)}s, device: ${parsed.deviceId})`);
                     summaryDataCache = parsed;
                 } else {
