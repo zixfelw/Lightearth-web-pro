@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13153 - Added debug logging for cell data
+ * Version: 13154 - Fixed cell data display and debug logging
  * 
  * Features:
  * - Real-time data via SignalR
@@ -755,6 +755,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 };
                 cellsData = data.batteryCells;
                 console.log('📊 Using Cloud format', displayData);
+                console.log('🔋 batteryCells from API:', data.batteryCells);
             } else if (data.data) {
                 // Legacy format from API
                 displayData = {
@@ -784,8 +785,10 @@ document.addEventListener('DOMContentLoaded', function () {
             updateRealTimeDisplay(displayData);
             
             // Update battery cell voltages
-            console.log('🔋 CellsData received:', cellsData ? 'YES' : 'NO', cellsData);
+            console.log('🔋 CellsData received:', cellsData ? 'YES' : 'NO');
+            console.log('🔋 CellsData.cellVoltages:', cellsData?.cellVoltages);
             if (cellsData && cellsData.cellVoltages) {
+                console.log('✅ Processing cell voltages...');
                 let cellVoltages = [];
                 const rawVoltages = cellsData.cellVoltages;
                 
