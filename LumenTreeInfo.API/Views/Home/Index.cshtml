@@ -1117,31 +1117,36 @@
         <div id="energyFlow3DHome" class="hidden">
             <div class="relative mx-auto" style="max-width: 500px;">
                 
-                <!-- Top Section: PV Box (Left) + Sun/Moon (Center) -->
-                <div class="flex items-start justify-between mb-3 px-2">
-                    <!-- PV Source Box (Left) -->
-                    <div class="bg-slate-800/90 backdrop-blur rounded-xl p-3 border border-emerald-500/50 min-w-[140px]">
-                        <div class="text-center mb-2">
-                            <span class="text-xs font-bold text-emerald-400 uppercase tracking-wide">Nguồn PV</span>
-                        </div>
-                        <div class="text-center mb-2">
-                            <span id="pv-power-3d" class="text-2xl sm:text-3xl font-black text-white">--W</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2 text-center">
-                            <div class="bg-slate-700/50 rounded-lg p-1.5">
-                                <div class="text-[9px] text-slate-400">PV1</div>
-                                <div id="pv1-power-3d" class="text-sm font-bold text-emerald-300">--W</div>
+                <!-- 3D House Image with overlays -->
+                <div class="relative">
+                    <img src="/images/3dhome/house-3d-dark.png" alt="3D Solar Home" 
+                         class="w-full h-auto object-contain">
+                    
+                    <!-- PV Source Box (Top Left - overlay on roof) -->
+                    <div class="absolute top-[2%] left-[2%] z-20">
+                        <div class="bg-slate-800/90 backdrop-blur rounded-xl p-2.5 border border-emerald-500/50">
+                            <div class="text-center mb-1">
+                                <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wide">Nguồn PV</span>
                             </div>
-                            <div class="bg-slate-700/50 rounded-lg p-1.5">
-                                <div class="text-[9px] text-slate-400">PV2</div>
-                                <div id="pv2-power-3d" class="text-sm font-bold text-emerald-300">--W</div>
+                            <div class="text-center mb-1">
+                                <span id="pv-power-3d" class="text-xl sm:text-2xl font-black text-white">--W</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-1.5 text-center">
+                                <div class="bg-slate-700/50 rounded-lg p-1">
+                                    <div class="text-[8px] text-slate-400">PV1</div>
+                                    <div id="pv1-power-3d" class="text-xs font-bold text-emerald-300">--W</div>
+                                </div>
+                                <div class="bg-slate-700/50 rounded-lg p-1">
+                                    <div class="text-[8px] text-slate-400">PV2</div>
+                                    <div id="pv2-power-3d" class="text-xs font-bold text-emerald-300">--W</div>
+                                </div>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Sun/Moon Animation (Center) -->
-                    <div class="flex-1 flex justify-center items-center">
-                        <div class="relative w-24 h-24 sm:w-28 sm:h-28">
+                    <!-- Sun/Moon Animation (Top Right - near solar panels) -->
+                    <div class="absolute top-[0%] right-[15%] z-20">
+                        <div class="relative w-20 h-20 sm:w-24 sm:h-24">
                             <!-- Sun (shown when PV > 0) -->
                             <div id="sun-3d" class="absolute inset-0 flex items-center justify-center transition-all duration-500">
                                 <div class="sun-3d-container">
@@ -1170,17 +1175,8 @@
                         </div>
                     </div>
                     
-                    <!-- Empty space for balance -->
-                    <div class="min-w-[140px]"></div>
-                </div>
-                
-                <!-- 3D House Image -->
-                <div class="relative">
-                    <img src="/images/3dhome/house-3d-dark.png" alt="3D Solar Home" 
-                         class="w-full h-auto object-contain">
-                    
-                    <!-- Battery SOC % (on house) -->
-                    <div class="absolute left-[8%] top-[45%] z-20">
+                    <!-- Battery SOC % (on battery - lower position) -->
+                    <div class="absolute left-[8%] top-[55%] z-20">
                         <div class="flex items-center gap-1">
                             <div id="battery-status-icon-3d" class="hidden">
                                 <svg id="battery-charging-3d" class="w-4 h-4 text-emerald-400 animate-bounce hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1986,7 +1982,7 @@
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13159" defer></script>
+    <script src="/js/index.js?v=13160" defer></script>
 
 </body>
 </html>

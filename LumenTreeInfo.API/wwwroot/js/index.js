@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13159 - 3D Home: Cards closer to house image, clear old cache
+ * Version: 13160 - 3D Home: PV box and Sun overlay on house image, better layout
  * 
  * Features:
  * - Real-time data via SignalR
