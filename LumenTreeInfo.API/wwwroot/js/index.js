@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13171 - 3D Home: Top row even more closer to solar panels
+ * Version: 13172 - 3D Home: Orange-red border for PV & EVN boxes, PV1/PV2 grid layout
  * 
  * Features:
  * - Real-time data via SignalR

@@ -1119,23 +1119,24 @@
                 
                 <!-- Top Row: PV Source (Left) | Sun/Moon (Center) | Grid EVN (Right) - OUTSIDE image -->
                 <div class="grid grid-cols-3 gap-2 items-end mb-0 px-1">
-                    <!-- PV Source Box (Left) - Layout ngang, dài hơn -->
-                    <div class="bg-slate-800/95 backdrop-blur rounded-xl p-2 sm:p-2.5 border border-emerald-500/50 shadow-lg shadow-emerald-500/10">
+                    <!-- PV Source Box (Left) - Khung cam đỏ giống mặt trời -->
+                    <div class="bg-slate-800/95 backdrop-blur rounded-xl p-2 sm:p-2.5 border-2 border-orange-500/70 shadow-lg shadow-orange-500/20">
                         <div class="text-center mb-1">
-                            <span class="text-[10px] sm:text-[11px] font-bold text-emerald-400 uppercase tracking-wider">Nguồn PV</span>
+                            <span class="text-[10px] sm:text-[11px] font-bold text-orange-400 uppercase tracking-wider">Nguồn PV</span>
                         </div>
                         <div class="text-center mb-1.5">
                             <span id="pv-power-3d" class="text-xl sm:text-2xl font-black text-white drop-shadow-lg">--W</span>
                         </div>
-                        <div class="flex justify-center gap-1.5 text-center">
-                            <div class="bg-slate-700/50 rounded-md px-2 py-1 border border-emerald-500/30">
+                        <!-- PV1/PV2 grid layout - cân đối hơn -->
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <div class="bg-slate-700/50 rounded-md py-1 px-1.5 text-center">
                                 <div class="text-[8px] text-slate-400 font-medium">PV1</div>
-                                <div id="pv1-power-3d" class="text-xs font-bold text-emerald-300">--W</div>
+                                <div id="pv1-power-3d" class="text-[11px] sm:text-xs font-bold text-emerald-300 truncate">--W</div>
                                 <div id="pv1-voltage-3d" class="text-[8px] text-slate-500">--V</div>
                             </div>
-                            <div class="bg-slate-700/50 rounded-md px-2 py-1 border border-emerald-500/30">
+                            <div class="bg-slate-700/50 rounded-md py-1 px-1.5 text-center">
                                 <div class="text-[8px] text-slate-400 font-medium">PV2</div>
-                                <div id="pv2-power-3d" class="text-xs font-bold text-emerald-300">--W</div>
+                                <div id="pv2-power-3d" class="text-[11px] sm:text-xs font-bold text-emerald-300 truncate">--W</div>
                                 <div id="pv2-voltage-3d" class="text-[8px] text-slate-500">--V</div>
                             </div>
                         </div>
@@ -1172,10 +1173,10 @@
                         </div>
                     </div>
                     
-                    <!-- Grid EVN Box (Right) - Màu tím purple -->
-                    <div class="bg-slate-800/95 backdrop-blur rounded-xl p-2 sm:p-2.5 border border-purple-500/50 shadow-lg shadow-purple-500/10">
+                    <!-- Grid EVN Box (Right) - Khung cam đỏ giống mặt trời -->
+                    <div class="bg-slate-800/95 backdrop-blur rounded-xl p-2 sm:p-2.5 border-2 border-orange-500/70 shadow-lg shadow-orange-500/20">
                         <div class="text-center mb-1">
-                            <span class="text-[10px] sm:text-[11px] font-bold text-purple-400 uppercase tracking-wider">Lưới EVN</span>
+                            <span class="text-[10px] sm:text-[11px] font-bold text-orange-400 uppercase tracking-wider">Lưới EVN</span>
                         </div>
                         <div class="text-center">
                             <div class="w-7 h-7 sm:w-8 sm:h-8 mx-auto mb-0.5 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/40">
@@ -1993,7 +1994,7 @@
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13171" defer></script>
+    <script src="/js/index.js?v=13172" defer></script>
 
 </body>
 </html>
