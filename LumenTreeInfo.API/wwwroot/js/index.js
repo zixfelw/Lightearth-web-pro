@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13164 - 3D Home: Revert to emerald/purple colors, keep overlay layout
+ * Version: 13165 - 3D Home: PV box horizontal, top row above image, cards closer
  * 
  * Features:
  * - Real-time data via SignalR
