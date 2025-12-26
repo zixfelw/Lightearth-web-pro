@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13178 - 3D Home: Amber/yellow gradient theme matching Pro view
+ * Version: 13179 - 3D Home: Cyan/teal dark theme like Tải cổng load card
  * 
  * Features:
  * - Real-time data via SignalR
