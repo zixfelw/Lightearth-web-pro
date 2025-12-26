@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13155 - Fix cell data reset on F5/device change
+ * Version: 13156 - Fix Service Worker caching API requests (PC cell data issue)
  * 
  * Features:
  * - Real-time data via SignalR
