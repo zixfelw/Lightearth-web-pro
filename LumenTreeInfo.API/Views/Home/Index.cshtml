@@ -1117,87 +1117,89 @@
         <div id="energyFlow3DHome" class="hidden">
             <div class="relative mx-auto" style="max-width: 500px;">
                 
-                <!-- Top Row: PV Source (Left) | Sun/Moon (Center) | Grid EVN (Right) -->
-                <div class="grid grid-cols-3 gap-2 mb-2">
-                    <!-- PV Source Box (Left) -->
-                    <div class="bg-slate-800/90 backdrop-blur rounded-xl p-3 border border-emerald-500/50">
-                        <div class="text-center mb-2">
-                            <span class="text-xs font-bold text-emerald-400 uppercase tracking-wide">Nguồn PV</span>
-                        </div>
-                        <div class="text-center mb-2">
-                            <span id="pv-power-3d" class="text-2xl sm:text-3xl font-black text-white">--W</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2 text-center">
-                            <div class="bg-slate-700/50 rounded-lg p-1.5">
-                                <div class="text-[9px] text-slate-400 font-medium">PV1</div>
-                                <div id="pv1-power-3d" class="text-sm font-bold text-emerald-300">--W</div>
-                                <div id="pv1-voltage-3d" class="text-[9px] text-slate-400">--V</div>
-                            </div>
-                            <div class="bg-slate-700/50 rounded-lg p-1.5">
-                                <div class="text-[9px] text-slate-400 font-medium">PV2</div>
-                                <div id="pv2-power-3d" class="text-sm font-bold text-emerald-300">--W</div>
-                                <div id="pv2-voltage-3d" class="text-[9px] text-slate-400">--V</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Sun/Moon Animation (Center) -->
-                    <div class="flex items-center justify-center">
-                        <div class="relative w-24 h-24 sm:w-28 sm:h-28">
-                            <!-- Sun (shown when PV > 0) -->
-                            <div id="sun-3d" class="absolute inset-0 flex items-center justify-center transition-all duration-500">
-                                <div class="sun-3d-container">
-                                    <div class="sun-3d-core"></div>
-                                    <div class="sun-3d-rays"></div>
-                                    <div class="sun-3d-glow"></div>
-                                </div>
-                            </div>
-                            <!-- Moon (shown when PV = 0) -->
-                            <div id="moon-3d" class="absolute inset-0 flex items-center justify-center hidden transition-all duration-500">
-                                <div class="moon-3d-container">
-                                    <div class="moon-3d-core"></div>
-                                    <div class="moon-3d-crater moon-3d-crater-1"></div>
-                                    <div class="moon-3d-crater moon-3d-crater-2"></div>
-                                    <div class="moon-3d-crater moon-3d-crater-3"></div>
-                                    <div class="moon-3d-glow"></div>
-                                    <div class="stars-container">
-                                        <div class="star star-1"></div>
-                                        <div class="star star-2"></div>
-                                        <div class="star star-3"></div>
-                                        <div class="star star-4"></div>
-                                        <div class="star star-5"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Grid EVN Box (Right) -->
-                    <div class="bg-slate-800/90 backdrop-blur rounded-xl p-3 border border-purple-500/50">
-                        <div class="text-center mb-2">
-                            <span class="text-xs font-bold text-purple-400 uppercase tracking-wide">Lưới EVN</span>
-                        </div>
-                        <div class="text-center mb-2">
-                            <div class="w-10 h-10 mx-auto mb-1 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/50">
-                                <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                                </svg>
-                            </div>
-                            <span id="grid-power-3d" class="text-2xl sm:text-3xl font-black text-purple-300">--W</span>
-                        </div>
-                        <div class="text-center">
-                            <span id="grid-status-3d" class="text-[10px] text-slate-400">Nhập điện</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- 3D House Image with battery overlay -->
+                <!-- 3D House Image with all overlays -->
                 <div class="relative">
                     <img src="/images/3dhome/house-3d-dark.png" alt="3D Solar Home" 
                          class="w-full h-auto object-contain">
                     
-                    <!-- Battery SOC % (on battery - adjusted position) -->
-                    <div class="absolute left-[8%] top-[45%] z-20">
+                    <!-- Top Row Overlay: PV Source (Left) | Sun/Moon (Center) | Grid EVN (Right) -->
+                    <div class="absolute top-[2%] left-0 right-0 z-20 px-2">
+                        <div class="grid grid-cols-3 gap-2 items-start">
+                            <!-- PV Source Box (Left) - Màu cam đỏ giống Pro -->
+                            <div class="bg-gradient-to-br from-orange-900/95 to-red-900/95 backdrop-blur rounded-xl p-3 border border-orange-500/60 shadow-lg shadow-orange-500/20">
+                                <div class="text-center mb-1.5">
+                                    <span class="text-[11px] font-bold text-orange-300 uppercase tracking-wider">Nguồn PV</span>
+                                </div>
+                                <div class="text-center mb-2">
+                                    <span id="pv-power-3d" class="text-2xl sm:text-3xl font-black text-white drop-shadow-lg">--W</span>
+                                </div>
+                                <div class="grid grid-cols-2 gap-1.5 text-center">
+                                    <div class="bg-black/30 rounded-lg p-1.5 border border-orange-500/30">
+                                        <div class="text-[9px] text-orange-200/80 font-medium">PV1</div>
+                                        <div id="pv1-power-3d" class="text-sm font-bold text-orange-200">--W</div>
+                                        <div id="pv1-voltage-3d" class="text-[9px] text-orange-300/70">--V</div>
+                                    </div>
+                                    <div class="bg-black/30 rounded-lg p-1.5 border border-orange-500/30">
+                                        <div class="text-[9px] text-orange-200/80 font-medium">PV2</div>
+                                        <div id="pv2-power-3d" class="text-sm font-bold text-orange-200">--W</div>
+                                        <div id="pv2-voltage-3d" class="text-[9px] text-orange-300/70">--V</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Sun/Moon Animation (Center) -->
+                            <div class="flex items-center justify-center pt-2">
+                                <div class="relative w-20 h-20 sm:w-24 sm:h-24">
+                                    <!-- Sun (shown when PV > 0) -->
+                                    <div id="sun-3d" class="absolute inset-0 flex items-center justify-center transition-all duration-500">
+                                        <div class="sun-3d-container">
+                                            <div class="sun-3d-core"></div>
+                                            <div class="sun-3d-rays"></div>
+                                            <div class="sun-3d-glow"></div>
+                                        </div>
+                                    </div>
+                                    <!-- Moon (shown when PV = 0) -->
+                                    <div id="moon-3d" class="absolute inset-0 flex items-center justify-center hidden transition-all duration-500">
+                                        <div class="moon-3d-container">
+                                            <div class="moon-3d-core"></div>
+                                            <div class="moon-3d-crater moon-3d-crater-1"></div>
+                                            <div class="moon-3d-crater moon-3d-crater-2"></div>
+                                            <div class="moon-3d-crater moon-3d-crater-3"></div>
+                                            <div class="moon-3d-glow"></div>
+                                            <div class="stars-container">
+                                                <div class="star star-1"></div>
+                                                <div class="star star-2"></div>
+                                                <div class="star star-3"></div>
+                                                <div class="star star-4"></div>
+                                                <div class="star star-5"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Grid EVN Box (Right) - Màu cam đỏ giống Pro -->
+                            <div class="bg-gradient-to-br from-orange-900/95 to-red-900/95 backdrop-blur rounded-xl p-3 border border-orange-500/60 shadow-lg shadow-orange-500/20">
+                                <div class="text-center mb-1.5">
+                                    <span class="text-[11px] font-bold text-orange-300 uppercase tracking-wider">Lưới EVN</span>
+                                </div>
+                                <div class="text-center">
+                                    <div class="w-9 h-9 mx-auto mb-1 rounded-lg bg-black/30 flex items-center justify-center border border-orange-500/40">
+                                        <svg class="w-5 h-5 text-orange-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                        </svg>
+                                    </div>
+                                    <span id="grid-power-3d" class="text-2xl sm:text-3xl font-black text-white drop-shadow-lg">--W</span>
+                                </div>
+                                <div class="text-center mt-1">
+                                    <span id="grid-status-3d" class="text-[10px] text-orange-200/80">Nhập điện</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Battery SOC % (on battery - xích xuống dưới) -->
+                    <div class="absolute left-[8%] top-[52%] z-20">
                         <div class="flex items-center gap-1">
                             <div id="battery-status-icon-3d" class="hidden">
                                 <svg id="battery-charging-3d" class="w-5 h-5 text-emerald-400 animate-bounce hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1992,7 +1994,7 @@
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13162" defer></script>
+    <script src="/js/index.js?v=13163" defer></script>
 
 </body>
 </html>
