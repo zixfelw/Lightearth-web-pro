@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13193 - 3D Home: Sun animation with orange color (less bright)
+ * Version: 13194 - 3D Home: New realistic sun style with corona effect
  * 
  * Features:
  * - Real-time data via SignalR
