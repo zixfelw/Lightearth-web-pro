@@ -218,6 +218,177 @@
             -moz-transform: scale(0.9);
             -moz-transform-origin: 0 0;
         }
+        
+        /* ========================================
+           3D Home View - Sun/Moon Animations
+           ======================================== */
+        
+        /* Sun Container */
+        .sun-3d-container {
+            position: relative;
+            width: 80px;
+            height: 80px;
+        }
+        
+        .sun-3d-core {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+            border-radius: 50%;
+            box-shadow: 
+                0 0 20px rgba(251, 191, 36, 0.8),
+                0 0 40px rgba(251, 191, 36, 0.5),
+                0 0 60px rgba(251, 191, 36, 0.3);
+            animation: sun-3d-pulse 2s ease-in-out infinite;
+        }
+        
+        .sun-3d-rays {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 80px;
+            background: 
+                repeating-conic-gradient(
+                    from 0deg,
+                    transparent 0deg 10deg,
+                    rgba(251, 191, 36, 0.3) 10deg 20deg
+                );
+            border-radius: 50%;
+            animation: sun-3d-rotate 20s linear infinite;
+        }
+        
+        .sun-3d-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90px;
+            height: 90px;
+            background: radial-gradient(circle, rgba(251, 191, 36, 0.4) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: sun-3d-glow 3s ease-in-out infinite;
+        }
+        
+        @@keyframes sun-3d-pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.1); }
+        }
+        
+        @@keyframes sun-3d-rotate {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        
+        @@keyframes sun-3d-glow {
+            0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+        }
+        
+        /* Moon Container */
+        .moon-3d-container {
+            position: relative;
+            width: 80px;
+            height: 80px;
+        }
+        
+        .moon-3d-core {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
+            border-radius: 50%;
+            box-shadow: 
+                0 0 15px rgba(226, 232, 240, 0.6),
+                0 0 30px rgba(226, 232, 240, 0.3),
+                inset -8px -5px 15px rgba(100, 116, 139, 0.4);
+            animation: moon-3d-float 4s ease-in-out infinite;
+        }
+        
+        .moon-3d-crater {
+            position: absolute;
+            background: rgba(100, 116, 139, 0.3);
+            border-radius: 50%;
+        }
+        
+        .moon-3d-crater-1 {
+            width: 10px;
+            height: 10px;
+            top: 35%;
+            left: 30%;
+        }
+        
+        .moon-3d-crater-2 {
+            width: 7px;
+            height: 7px;
+            top: 55%;
+            left: 55%;
+        }
+        
+        .moon-3d-crater-3 {
+            width: 5px;
+            height: 5px;
+            top: 25%;
+            left: 60%;
+        }
+        
+        .moon-3d-glow {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 70px;
+            height: 70px;
+            background: radial-gradient(circle, rgba(226, 232, 240, 0.3) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: moon-3d-glow 4s ease-in-out infinite;
+        }
+        
+        @@keyframes moon-3d-float {
+            0%, 100% { transform: translate(-50%, -50%) translateY(0); }
+            50% { transform: translate(-50%, -50%) translateY(-5px); }
+        }
+        
+        @@keyframes moon-3d-glow {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.6; }
+        }
+        
+        /* Stars around moon */
+        .stars-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
+        }
+        
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: star-twinkle 2s ease-in-out infinite;
+        }
+        
+        .star-1 { width: 3px; height: 3px; top: 5%; left: 10%; animation-delay: 0s; }
+        .star-2 { width: 2px; height: 2px; top: 15%; left: 85%; animation-delay: 0.5s; }
+        .star-3 { width: 3px; height: 3px; top: 80%; left: 20%; animation-delay: 1s; }
+        .star-4 { width: 2px; height: 2px; top: 70%; left: 90%; animation-delay: 1.5s; }
+        .star-5 { width: 2px; height: 2px; top: 90%; left: 60%; animation-delay: 0.3s; }
+        
+        @@keyframes star-twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.5); }
+        }
     </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-screen">
@@ -944,39 +1115,72 @@
         
         <!-- 3D Home View (hidden by default) -->
         <div id="energyFlow3DHome" class="hidden">
-            <div class="relative mx-auto" style="max-width: 420px;">
-                <!-- 3D House Image -->
-                <div class="relative">
-                    <img src="/images/3dhome/house-3d-dark.png" alt="3D Solar Home" 
-                         class="w-full h-auto object-contain" style="min-height: 280px;">
-                    
-                    <!-- PV Power Circle (Top Center) -->
-                    <div class="absolute top-0 left-1/2 -translate-x-1/2 z-20">
-                        <div class="relative">
-                            <svg class="w-20 h-20 sm:w-24 sm:h-24" viewBox="0 0 100 100">
-                                <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(34,197,94,0.2)" stroke-width="6"/>
-                                <circle cx="50" cy="50" r="45" fill="none" 
-                                        stroke="url(#pvGradient3d)" stroke-width="6" 
-                                        stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="70"
-                                        transform="rotate(-90 50 50)"/>
-                                <defs>
-                                    <linearGradient id="pvGradient3d" x1="0%" y1="0%" x2="100%" y2="0%">
-                                        <stop offset="0%" style="stop-color:#22c55e"/>
-                                        <stop offset="100%" style="stop-color:#06b6d4"/>
-                                    </linearGradient>
-                                </defs>
-                            </svg>
-                            <div class="absolute inset-0 flex flex-col items-center justify-center">
-                                <span id="pv-power-3d" class="text-lg sm:text-xl font-black text-white">--W</span>
-                            </div>
+            <div class="relative mx-auto" style="max-width: 500px;">
+                
+                <!-- Top Section: PV Box (Left) + Sun/Moon (Center) -->
+                <div class="flex items-start justify-between mb-3 px-2">
+                    <!-- PV Source Box (Left) -->
+                    <div class="bg-slate-800/90 backdrop-blur rounded-xl p-3 border border-emerald-500/50 min-w-[140px]">
+                        <div class="text-center mb-2">
+                            <span class="text-xs font-bold text-emerald-400 uppercase tracking-wide">Nguồn PV</span>
                         </div>
-                        <div class="text-center mt-1">
-                            <span class="text-xs text-emerald-400 font-bold">Nguồn PV</span>
+                        <div class="text-center mb-2">
+                            <span id="pv-power-3d" class="text-2xl sm:text-3xl font-black text-white">--W</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-center">
+                            <div class="bg-slate-700/50 rounded-lg p-1.5">
+                                <div class="text-[9px] text-slate-400">PV1</div>
+                                <div id="pv1-power-3d" class="text-sm font-bold text-emerald-300">--W</div>
+                            </div>
+                            <div class="bg-slate-700/50 rounded-lg p-1.5">
+                                <div class="text-[9px] text-slate-400">PV2</div>
+                                <div id="pv2-power-3d" class="text-sm font-bold text-emerald-300">--W</div>
+                            </div>
                         </div>
                     </div>
                     
-                    <!-- Battery SOC % -->
-                    <div class="absolute left-[8%] top-[50%] z-20">
+                    <!-- Sun/Moon Animation (Center) -->
+                    <div class="flex-1 flex justify-center items-center">
+                        <div class="relative w-24 h-24 sm:w-28 sm:h-28">
+                            <!-- Sun (shown when PV > 0) -->
+                            <div id="sun-3d" class="absolute inset-0 flex items-center justify-center transition-all duration-500">
+                                <div class="sun-3d-container">
+                                    <div class="sun-3d-core"></div>
+                                    <div class="sun-3d-rays"></div>
+                                    <div class="sun-3d-glow"></div>
+                                </div>
+                            </div>
+                            <!-- Moon (shown when PV = 0) -->
+                            <div id="moon-3d" class="absolute inset-0 flex items-center justify-center hidden transition-all duration-500">
+                                <div class="moon-3d-container">
+                                    <div class="moon-3d-core"></div>
+                                    <div class="moon-3d-crater moon-3d-crater-1"></div>
+                                    <div class="moon-3d-crater moon-3d-crater-2"></div>
+                                    <div class="moon-3d-crater moon-3d-crater-3"></div>
+                                    <div class="moon-3d-glow"></div>
+                                    <div class="stars-container">
+                                        <div class="star star-1"></div>
+                                        <div class="star star-2"></div>
+                                        <div class="star star-3"></div>
+                                        <div class="star star-4"></div>
+                                        <div class="star star-5"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Empty space for balance -->
+                    <div class="min-w-[140px]"></div>
+                </div>
+                
+                <!-- 3D House Image -->
+                <div class="relative">
+                    <img src="/images/3dhome/house-3d-dark.png" alt="3D Solar Home" 
+                         class="w-full h-auto object-contain" style="min-height: 250px;">
+                    
+                    <!-- Battery SOC % (on house) -->
+                    <div class="absolute left-[8%] top-[45%] z-20">
                         <div class="flex items-center gap-1">
                             <div id="battery-status-icon-3d" class="hidden">
                                 <svg id="battery-charging-3d" class="w-4 h-4 text-emerald-400 animate-bounce hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -986,44 +1190,55 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
                                 </svg>
                             </div>
-                            <span id="battery-soc-3d" class="text-lg sm:text-xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">--%</span>
+                            <span id="battery-soc-3d" class="text-xl sm:text-2xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">--%</span>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Bottom Stats Cards -->
-                <div class="mt-3 grid grid-cols-3 gap-2">
+                <!-- Bottom Stats Cards - 4 columns -->
+                <div class="mt-3 grid grid-cols-4 gap-2">
                     <!-- Battery Card -->
-                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-3 text-center border border-slate-700">
-                        <div class="w-10 h-10 mx-auto mb-2 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/50">
-                            <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2.5 text-center border border-slate-700">
+                        <div class="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/50">
+                            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3h6v2H9zM4 5h16a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z"/>
                             </svg>
                         </div>
-                        <div id="battery-power-3d" class="text-lg sm:text-xl font-black text-emerald-400">--W</div>
-                        <div class="text-[10px] text-slate-400 mt-1">Pin sạc/xả</div>
+                        <div id="battery-power-3d" class="text-base sm:text-lg font-black text-emerald-400">--W</div>
+                        <div class="text-[9px] text-slate-400 mt-0.5">Pin sạc/xả</div>
                     </div>
                     
                     <!-- Grid EVN Card -->
-                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-3 text-center border border-slate-700">
-                        <div class="w-10 h-10 mx-auto mb-2 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/50">
-                            <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2.5 text-center border border-slate-700">
+                        <div class="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/50">
+                            <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                             </svg>
                         </div>
-                        <div id="grid-power-3d" class="text-lg sm:text-xl font-black text-purple-400">--W</div>
-                        <div class="text-[10px] text-slate-400 mt-1">Lưới điện EVN</div>
+                        <div id="grid-power-3d" class="text-base sm:text-lg font-black text-purple-400">--W</div>
+                        <div class="text-[9px] text-slate-400 mt-0.5">Lưới EVN</div>
                     </div>
                     
                     <!-- Load Card -->
-                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-3 text-center border border-slate-700">
-                        <div class="w-10 h-10 mx-auto mb-2 rounded-lg bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50">
-                            <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2.5 text-center border border-slate-700">
+                        <div class="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50">
+                            <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
                             </svg>
                         </div>
-                        <div id="load-power-3d" class="text-lg sm:text-xl font-black text-cyan-400">--W</div>
-                        <div class="text-[10px] text-slate-400 mt-1">Tải tiêu thụ</div>
+                        <div id="load-power-3d" class="text-base sm:text-lg font-black text-cyan-400">--W</div>
+                        <div class="text-[9px] text-slate-400 mt-0.5">Tải tiêu thụ</div>
+                    </div>
+                    
+                    <!-- Essential Load Card (NEW) -->
+                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2.5 text-center border border-slate-700">
+                        <div class="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-amber-500/20 flex items-center justify-center border border-amber-500/50">
+                            <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                            </svg>
+                        </div>
+                        <div id="essential-power-3d" class="text-base sm:text-lg font-black text-amber-400">--W</div>
+                        <div class="text-[9px] text-slate-400 mt-0.5">Tải cổng load</div>
                     </div>
                 </div>
             </div>
@@ -1771,7 +1986,7 @@
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13157" defer></script>
+    <script src="/js/index.js?v=13158" defer></script>
 
 </body>
 </html>

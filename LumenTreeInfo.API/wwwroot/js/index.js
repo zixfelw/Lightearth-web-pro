@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13157 - Fix updateElement not defined error in autoSync3DHomeView
+ * Version: 13158 - 3D Home: Add Sun/Moon animation, PV box with PV1/PV2, Essential load card
  * 
  * Features:
  * - Real-time data via SignalR
@@ -3089,7 +3089,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ========================================
     
     // Auto-sync data to 3D Home view elements
-    // Auto-sync data to 3D Home view - Cyberpunk Glassmorphism V3.1
+    // Auto-sync data to 3D Home view - With Sun/Moon animation
     function autoSync3DHomeView() {
         // Get current values from Pro view (same format as Pro)
         const pvPower = document.getElementById('pv-power')?.textContent || '--W';
@@ -3097,6 +3097,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const batteryPercent = document.getElementById('battery-percent-icon')?.textContent || '--%';
         const batteryPower = document.getElementById('battery-power')?.textContent || '--W';
         const loadPower = document.getElementById('load-power')?.textContent || '--W';
+        const essentialPower = document.getElementById('essential-power')?.textContent || '--W';
+        
+        // Get PV1 and PV2 from pv-desc (format: "PV1: xxxW | PV2: xxxW")
+        const pvDesc = document.getElementById('pv-desc')?.textContent || '';
+        let pv1Power = '--W', pv2Power = '--W';
+        const pv1Match = pvDesc.match(/PV1[:\s]*(\d+)\s*W/i);
+        const pv2Match = pvDesc.match(/PV2[:\s]*(\d+)\s*W/i);
+        if (pv1Match) pv1Power = pv1Match[1] + 'W';
+        if (pv2Match) pv2Power = pv2Match[1] + 'W';
         
         // Update 3D Home view elements with blink effect (same as Pro)
         const update3DValue = (id, value) => {
@@ -3113,12 +3122,35 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         };
         
-        // Update power displays (same format as Pro: "1234W")
+        // Update power displays
         update3DValue('pv-power-3d', pvPower);
+        update3DValue('pv1-power-3d', pv1Power);
+        update3DValue('pv2-power-3d', pv2Power);
         update3DValue('grid-power-3d', gridPower);
         update3DValue('load-power-3d', loadPower);
         update3DValue('battery-power-3d', batteryPower);
         update3DValue('battery-soc-3d', batteryPercent);
+        update3DValue('essential-power-3d', essentialPower);
+        
+        // ========================================
+        // Sun/Moon Animation Control
+        // Show Sun when PV > 0, show Moon when PV = 0
+        // ========================================
+        const pvValue = parseInt(pvPower.replace(/[^\d-]/g, '')) || 0;
+        const sun3D = document.getElementById('sun-3d');
+        const moon3D = document.getElementById('moon-3d');
+        
+        if (sun3D && moon3D) {
+            if (pvValue > 0) {
+                // Daytime - show Sun
+                sun3D.classList.remove('hidden');
+                moon3D.classList.add('hidden');
+            } else {
+                // Nighttime - show Moon
+                sun3D.classList.add('hidden');
+                moon3D.classList.remove('hidden');
+            }
+        }
         
         // Update battery charge/discharge animation
         const batteryVal = parseInt(batteryPower.replace(/[^\d-]/g, '')) || 0;
@@ -3142,40 +3174,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 statusIcon.classList.add('hidden');
             }
         }
-        
-        // Update battery fill bar (width instead of height for horizontal bar)
-        const batteryFill3D = document.getElementById('battery-fill-3d');
-        if (batteryFill3D) {
-            const percent = parseInt(batteryPercent) || 0;
-            batteryFill3D.style.width = percent + '%';
-        }
-        
-        // Update PV circle progress (stroke-dashoffset)
-        const pvProgress = document.getElementById('pv-progress-3d');
-        if (pvProgress) {
-            const pvValue = parseInt(pvPower.replace(/[^\d-]/g, '')) || 0;
-            // Max expected PV is around 10000W, calculate percentage
-            const pvPercent = Math.min(100, (pvValue / 10000) * 100);
-            // stroke-dasharray is 283, so offset = 283 - (283 * percent / 100)
-            const offset = 283 - (283 * pvPercent / 100);
-            pvProgress.setAttribute('stroke-dashoffset', offset);
-        }
-        
-        // Calculate and display today's energy stats
-        const pvValue = parseInt(pvPower.replace(/[^\d-]/g, '')) || 0;
-        const gridValue = parseInt(gridPower.replace(/[^\d-]/g, '')) || 0;
-        const loadValue = parseInt(loadPower.replace(/[^\d-]/g, '')) || 0;
-        const batteryValue = Math.abs(parseInt(batteryPower.replace(/[^\d-]/g, '')) || 0);
-        
-        // Estimate today's energy (simplified - multiply current power by hours factor)
-        const hoursFactor = 0.5; // Rough estimate
-        const todayBattery = (batteryValue * hoursFactor / 1000).toFixed(1);
-        const todayGrid = (gridValue * hoursFactor / 1000).toFixed(1);
-        const todayConsumption = (loadValue * hoursFactor / 1000).toFixed(1);
-        
-        update3DValue('battery-today-3d', todayBattery + ' kWh');
-        update3DValue('grid-today-3d', todayGrid + ' kWh');
-        update3DValue('consumption-today-3d', todayConsumption + ' kWh');
     }
     
     // Auto-sync data to Basic view elements
