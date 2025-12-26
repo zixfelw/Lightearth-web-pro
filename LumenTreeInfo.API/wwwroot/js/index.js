@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13176 - 3D Home: Grid EVN shows voltage instead of status
+ * Version: 13178 - 3D Home: Amber/yellow gradient theme matching Pro view
  * 
  * Features:
  * - Real-time data via SignalR
