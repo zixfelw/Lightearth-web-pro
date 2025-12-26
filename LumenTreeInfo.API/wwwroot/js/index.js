@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13207 - Force fresh fetch on F5: Add cache-busting + no-store for SOC/Power APIs
+ * Version: 13208 - Debug SOC fetch: Remove setTimeout, add detailed console logs
  * 
  * Features:
  * - Real-time data via SignalR
@@ -965,11 +965,11 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // ALWAYS fetch SOC data (for SOC chart) - even if we have cache
         // This ensures SOC chart is always displayed
-        // Use small delay to ensure chart-section is fully visible before rendering
-        console.log('📊 Fetching SOC data for chart...');
-        setTimeout(() => {
-            fetchSOCData().catch(err => console.warn('SOC fetch error:', err));
-        }, 100);
+        // Call immediately - no delay needed
+        console.log('🔋🔋🔋 [F5/LOAD] About to call fetchSOCData() for device:', deviceId);
+        fetchSOCData().catch(err => {
+            console.error('❌❌❌ SOC fetch error:', err);
+        });
         
         // ALWAYS fetch temperature min/max - even if we have cache
         console.log('🌡️ Fetching temperature data...');
@@ -1839,13 +1839,20 @@ document.addEventListener('DOMContentLoaded', function () {
     let socAutoReloadInterval = null;
     
     // Fetch SOC data from Railway API (LightEarth Cloud data only)
+    // This MUST be called on every F5/page load
     async function fetchSOCData() {
-        console.log('🔋🔋🔋 fetchSOCData CALLED at', new Date().toISOString());
+        console.log('%c🔋🔋🔋 fetchSOCData() EXECUTING 🔋🔋🔋', 'background: #22c55e; color: white; font-size: 14px; padding: 4px;');
+        console.log('Timestamp:', new Date().toISOString());
         
         // Get deviceId from input or URL parameter
-        const deviceId = document.getElementById('deviceId')?.value?.trim() || urlParams.get('deviceId');
+        const inputDeviceId = document.getElementById('deviceId')?.value?.trim();
+        const urlDeviceId = new URLSearchParams(window.location.search).get('deviceId');
+        const deviceId = inputDeviceId || urlDeviceId;
+        
+        console.log('📱 DeviceId sources:', { inputDeviceId, urlDeviceId, using: deviceId });
+        
         if (!deviceId) {
-            console.warn('❌ SOC fetch: No deviceId available');
+            console.error('❌❌❌ SOC fetch ABORTED: No deviceId available');
             return;
         }
         
@@ -1860,8 +1867,10 @@ document.addEventListener('DOMContentLoaded', function () {
         
         let data = null;
         
+        console.log('%c📡 SOC API REQUEST', 'background: #3b82f6; color: white; padding: 2px 6px;');
+        console.log('URL:', railwayUrl);
+        
         try {
-            console.log(`📡📡📡 [SOC CHART] Fetching from Railway API: ${railwayUrl}`);
             // Force no-cache to ensure fresh data on F5
             const response = await fetch(railwayUrl, {
                 method: 'GET',
