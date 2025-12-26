@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13190 - 3D Home: Shorter PV line on PC (h-24), EVN unchanged
+ * Version: 13191 - 3D Home: Sun animation 3 levels (0-1000W, 1000-2000W, 2000W+)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -3242,6 +3242,24 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Daytime - show Sun
                 sun3D.classList.remove('hidden');
                 moon3D.classList.add('hidden');
+                
+                // Set Sun power level based on PV wattage
+                const sunContainer = sun3D.querySelector('.sun-3d-container');
+                if (sunContainer) {
+                    // Reset all levels
+                    sunContainer.classList.remove('sun-level-1', 'sun-level-2', 'sun-level-3');
+                    
+                    if (pvValue >= 2000) {
+                        // Level 3: 2000W+ - Mạnh mẽ, rực rỡ
+                        sunContainer.classList.add('sun-level-3');
+                    } else if (pvValue >= 1000) {
+                        // Level 2: 1000-2000W - Trung bình
+                        sunContainer.classList.add('sun-level-2');
+                    } else {
+                        // Level 1: 0-1000W - Nhẹ nhàng
+                        sunContainer.classList.add('sun-level-1');
+                    }
+                }
             } else {
                 // Nighttime - show Moon
                 sun3D.classList.add('hidden');
