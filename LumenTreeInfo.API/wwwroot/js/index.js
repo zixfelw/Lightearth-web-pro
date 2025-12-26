@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13212 - Add debug logs for energy chart not rendering
+ * Version: 13215 - Combined: Energy chart (v13203) + SOC chart fix (v13211)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1146,20 +1146,10 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // PRIORITY 1: Try Railway Power History API first (most reliable, no region block)
         try {
-            // Add cache-busting timestamp to force fresh fetch on F5
-            const cacheBuster = Date.now();
-            const railwayPowerUrl = `${POWER_HISTORY_API}/${deviceId}?date=${queryDate}&_t=${cacheBuster}`;
+            const railwayPowerUrl = `${POWER_HISTORY_API}/${deviceId}?date=${queryDate}`;
             console.log("📊📊📊 [POWER CHART] Fetching from Railway API:", railwayPowerUrl);
             
-            // Force no-cache to ensure fresh data on F5
-            const railwayResponse = await fetch(railwayPowerUrl, {
-                method: 'GET',
-                cache: 'no-store',
-                headers: {
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache'
-                }
-            });
+            const railwayResponse = await fetch(railwayPowerUrl);
             console.log("📊 Railway response status:", railwayResponse.status, railwayResponse.ok);
             
             if (railwayResponse.ok) {
@@ -1512,7 +1502,7 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log("📊 Updating combined energy chart with LightEarth Cloud data");
         updateCharts(chartData);
         
-        // Update peak stats from Cloud data (timeline format)
+        // Update peak stats from Cloud data
         const filteredTimeline = timeline.filter((point, index) => {
             let slotIndex;
             if (point.time && point.time.includes(':') && point.time.length <= 5) {
@@ -1523,12 +1513,11 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             return slotIndex <= maxAllowedSlot;
         });
-        updateEnergyChartPeakStatsFromTimeline(filteredTimeline);
+        updateEnergyChartPeakStats(filteredTimeline);
     }
     
-    // Update peak stats from Cloud Power History (timeline array format)
-    // RENAMED to avoid conflict with updateEnergyChartPeakStats(labels, processedData)
-    function updateEnergyChartPeakStatsFromTimeline(timeline) {
+    // Update peak stats from Cloud Power History
+    function updateEnergyChartPeakStats(timeline) {
         if (!timeline || timeline.length === 0) return;
         
         // Find peak values and times
@@ -1553,35 +1542,29 @@ document.addEventListener('DOMContentLoaded', function () {
         timeline.forEach(point => {
             const timeStr = getTimeStr(point.time);
             
-            // Support both old format (pv, battery, load, grid) and Railway format (pvPower, batteryPower, etc.)
-            const pv = point.pvPower ?? point.pv ?? 0;
-            const battery = point.batteryPower ?? point.battery ?? 0;
-            const load = point.loadPower ?? point.load ?? 0;
-            const grid = point.gridPower ?? point.grid ?? 0;
-            
             // PV
-            if (pv > maxPv) {
-                maxPv = pv;
+            if (point.pv > maxPv) {
+                maxPv = point.pv;
                 maxPvTime = timeStr;
             }
             // Battery charge (positive battery = charging)
-            if (battery > 0 && battery > maxCharge) {
-                maxCharge = battery;
+            if (point.battery > 0 && point.battery > maxCharge) {
+                maxCharge = point.battery;
                 maxChargeTime = timeStr;
             }
             // Battery discharge (negative battery = discharging)
-            if (battery < 0 && Math.abs(battery) > maxDischarge) {
-                maxDischarge = Math.abs(battery);
+            if (point.battery < 0 && Math.abs(point.battery) > maxDischarge) {
+                maxDischarge = Math.abs(point.battery);
                 maxDischargeTime = timeStr;
             }
             // Load
-            if (load > maxLoad) {
-                maxLoad = load;
+            if (point.load > maxLoad) {
+                maxLoad = point.load;
                 maxLoadTime = timeStr;
             }
             // Grid
-            if (grid > maxGrid) {
-                maxGrid = grid;
+            if (point.grid > maxGrid) {
+                maxGrid = point.grid;
                 maxGridTime = timeStr;
             }
         });
@@ -2833,15 +2816,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     function updateCharts(data) {
-        console.log('📊📊📊 updateCharts() CALLED with data:', data);
-        
-        if (!data || !data.pv || !data.bat || !data.load || !data.grid) {
-            console.error('❌ updateCharts: Invalid data structure', data);
-            return;
-        }
-        
         const timeLabels = generateTimeLabels();
-        console.log('📊 Generated', timeLabels.length, 'time labels');
 
         const processedData = {
             pv: processChartData(data.pv.tableValueInfo),
@@ -2851,12 +2826,6 @@ document.addEventListener('DOMContentLoaded', function () {
             grid: processChartData(data.grid.tableValueInfo),
             essentialLoad: processChartData(data.essentialLoad.tableValueInfo)
         };
-        
-        // Log sample processed data
-        const pvNonZero = processedData.pv.filter(v => v !== null && v > 0).length;
-        const loadNonZero = processedData.load.filter(v => v !== null && v > 0).length;
-        const batDischargeNonZero = processedData.batDischarge.filter(v => v !== null && v > 0).length;
-        console.log(`📊 Processed data - PV non-zero: ${pvNonZero}, Load non-zero: ${loadNonZero}, BatDischarge non-zero: ${batDischargeNonZero}`);
 
         const commonOptions = getCommonChartOptions();
 
@@ -2866,29 +2835,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Combined Energy Chart - All 6 datasets in one chart - ENHANCED V2.0
     function updateCombinedEnergyChart(labels, processedData, options) {
-        console.log('📈📈📈 updateCombinedEnergyChart() CALLED');
-        
         const ctx = document.getElementById('combinedEnergyChart');
         if (!ctx) {
             console.error("❌ Canvas 'combinedEnergyChart' not found!");
             return;
         }
         
-        // Check canvas visibility and size
-        const canvasRect = ctx.getBoundingClientRect();
-        const computedStyle = window.getComputedStyle(ctx);
-        console.log("📈 Canvas state:", {
-            width: canvasRect.width,
-            height: canvasRect.height,
-            display: computedStyle.display,
-            visibility: computedStyle.visibility,
-            offsetParent: ctx.offsetParent ? 'visible' : 'hidden'
-        });
-        
         console.log("📈 Creating combined chart with", labels.length, "labels");
         console.log("📈 PV data points:", processedData.pv?.length || 0);
-        console.log("📈 Load data points:", processedData.load?.length || 0);
-        console.log("📈 BatDischarge data points:", processedData.batDischarge?.length || 0);
 
         // Calculate and update peak stats
         updateEnergyChartPeakStats(labels, processedData);
