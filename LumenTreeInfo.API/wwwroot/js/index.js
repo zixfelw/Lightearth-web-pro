@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13202 - Add debug logs for chart API calls (F5 debugging)
+ * Version: 13203 - Fix chart data mapping for Railway API format (pvPower vs pv)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1389,7 +1389,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const currentSlot = currentHour * 12 + Math.floor(currentMinute / 5);
         
         // Check if data is for today
-        const queryDate = haData.date || document.getElementById('dateInput')?.value;
+        const queryDate = cloudData.date || document.getElementById('dateInput')?.value;
         const todayStr = now.toISOString().split('T')[0];
         const isToday = queryDate === todayStr;
         
@@ -1433,13 +1433,18 @@ document.addEventListener('DOMContentLoaded', function () {
             
             // Only include data for valid slots
             if (slotIndex >= 0 && slotIndex < 288 && slotIndex <= maxAllowedSlot) {
-                pvData[slotIndex] = point.pv || 0;
-                batData[slotIndex] = point.battery || 0;
-                loadData[slotIndex] = point.load || 0;
-                gridData[slotIndex] = point.grid || 0;
+                // Support both old format (pv, battery) and new Railway format (pvPower, batteryPower)
+                pvData[slotIndex] = point.pvPower ?? point.pv ?? 0;
+                batData[slotIndex] = point.batteryPower ?? point.battery ?? 0;
+                loadData[slotIndex] = point.loadPower ?? point.load ?? 0;
+                gridData[slotIndex] = point.gridPower ?? point.grid ?? 0;
                 
                 // Track last slot with any actual data (non-zero)
-                const hasData = (point.pv > 0) || (point.battery !== 0) || (point.load > 0) || (point.grid > 0);
+                const pv = point.pvPower ?? point.pv ?? 0;
+                const bat = point.batteryPower ?? point.battery ?? 0;
+                const load = point.loadPower ?? point.load ?? 0;
+                const grid = point.gridPower ?? point.grid ?? 0;
+                const hasData = (pv > 0) || (bat !== 0) || (load > 0) || (grid > 0);
                 if (hasData && slotIndex > lastDataSlot) {
                     lastDataSlot = slotIndex;
                 }
