@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13200 - Force fetch fresh chart data on F5/page load (bypass cache)
+ * Version: 13201 - Use Railway Power History API as primary (no region block)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -13,8 +13,9 @@
  */
 
 // Global constants - defined outside DOMContentLoaded to avoid TDZ issues
-// SOC History API (Railway - LightEarth Cloud data)
+// Railway APIs (LightEarth Cloud data) - Primary source, always available
 const SOC_API_PRIMARY = window.location.origin + '/api/realtime/soc-history';
+const POWER_HISTORY_API = window.location.origin + '/api/realtime/power-history';
 
 // ========================================
 // GLOBAL FUNCTIONS - Available immediately for onclick handlers
@@ -1124,9 +1125,47 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log('🔄 Force refresh: Skipping cache, fetching fresh data...');
         }
         
-        // Try Cloud Power History API first
+        // PRIORITY 1: Try Railway Power History API first (most reliable, no region block)
         try {
-            console.log("📊 [Priority 2] Fetching chart data from Cloud API...");
+            const railwayPowerUrl = `${POWER_HISTORY_API}/${deviceId}?date=${queryDate}`;
+            console.log("📊 [Priority 1] Fetching chart data from Railway API:", railwayPowerUrl);
+            
+            const railwayResponse = await fetch(railwayPowerUrl);
+            
+            if (railwayResponse.ok) {
+                const railwayData = await railwayResponse.json();
+                console.log("📊 Railway API response:", railwayData);
+                
+                if (railwayData.success && railwayData.timeline && railwayData.timeline.length > 0) {
+                    console.log(`✅ [Priority 1] Railway API SUCCESS: ${railwayData.timeline.length} data points`);
+                    
+                    // Cache the Railway data
+                    lightearthCache = {
+                        data: { ...railwayData, dataSource: 'LightEarthCloud' },
+                        deviceId: deviceId,
+                        date: queryDate,
+                        timestamp: now
+                    };
+                    console.log("💾 Chart data cached (TTL: 30 minutes)");
+                    saveCacheToLocalStorage();
+                    
+                    // Update chart with Railway data
+                    updateChartFromCloudData(railwayData);
+                    chartDataLoaded = true;
+                    return; // Success!
+                } else {
+                    console.warn("⚠️ [Priority 1] Railway API returned no data");
+                }
+            } else {
+                console.warn(`⚠️ [Priority 1] Railway API failed: HTTP ${railwayResponse.status}`);
+            }
+        } catch (railwayError) {
+            console.warn("⚠️ [Priority 1] Railway API error:", railwayError.message);
+        }
+        
+        // PRIORITY 2: Fallback to Cloudflare Proxy (may be blocked in some regions)
+        try {
+            console.log("📊 [Priority 2] Fetching chart data from Cloudflare Proxy...");
             
             // Use fetchWithProxyFallback to automatically try fallback if primary fails
             const haResponse = await fetchWithProxyFallback(
