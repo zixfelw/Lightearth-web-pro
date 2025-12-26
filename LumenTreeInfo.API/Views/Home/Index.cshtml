@@ -483,7 +483,7 @@
         }
         
         /* Tiếp điểm tròn ở cuối đường line */
-        .energy-endpoint {
+        .energy-endpoint, .evn-endpoint {
             animation: endpointPulse 2s ease-in-out infinite;
         }
         
@@ -498,9 +498,69 @@
             }
         }
         
+        /* ========================================
+           EVN Grid Energy Flow Line
+           ======================================== */
+        
+        .evn-energy-line {
+            position: absolute;
+            width: 2px;
+            background: linear-gradient(to bottom, 
+                rgba(251, 191, 36, 0.8) 0%,
+                rgba(245, 158, 11, 0.6) 50%,
+                rgba(217, 119, 6, 0.4) 100%);
+            border-radius: 2px;
+            box-shadow: 0 0 8px rgba(251, 191, 36, 0.5),
+                        0 0 16px rgba(251, 191, 36, 0.3);
+            transition: opacity 0.5s ease;
+        }
+        
+        /* EVN particles - giống PV nhưng có class riêng để control */
+        .evn-energy-particle {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 6px;
+            background: radial-gradient(circle, #fef3c7 0%, #fbbf24 50%, #f59e0b 100%);
+            border-radius: 50%;
+            box-shadow: 0 0 6px #fbbf24, 0 0 12px rgba(251, 191, 36, 0.6);
+            opacity: 0;
+            /* Animation mặc định tắt, chỉ bật khi EVN > 20W */
+        }
+        
+        /* Khi EVN > 20W - bật animation */
+        .evn-energy-line.active-flow .evn-energy-particle {
+            animation: energyFlowDown 2.5s ease-in-out infinite;
+        }
+        
+        .evn-energy-line.active-flow .evn-energy-particle:nth-child(2) {
+            animation-delay: 0.8s;
+            width: 5px;
+            height: 5px;
+        }
+        
+        .evn-energy-line.active-flow .evn-energy-particle:nth-child(3) {
+            animation-delay: 1.6s;
+            width: 4px;
+            height: 4px;
+        }
+        
+        /* Hide EVN flow when grid = 0 */
+        .evn-energy-line.hidden-flow {
+            opacity: 0;
+        }
+        
+        /* Khi không active - endpoint không pulse mạnh */
+        .evn-energy-line:not(.active-flow) .evn-endpoint {
+            animation: none;
+            transform: translateX(-50%) scale(0.9);
+            opacity: 0.7;
+        }
+        
         /* Reduced motion preference */
         @@media (prefers-reduced-motion: reduce) {
-            .energy-particle {
+            .energy-particle, .evn-energy-particle {
                 animation: none;
                 opacity: 0.7;
                 top: 50%;
@@ -508,7 +568,7 @@
             .pv-energy-line::before {
                 animation: none;
             }
-            .energy-endpoint {
+            .energy-endpoint, .evn-endpoint {
                 animation: none;
             }
         }
@@ -1315,8 +1375,9 @@
                     </div>
                 </div>
                 
-                <!-- Energy Flow Line: Nguồn PV → Solar Panel (dài đến giữa tấm pin) -->
-                <div class="relative h-20 sm:h-24 z-30">
+                <!-- Energy Flow Lines Container -->
+                <div class="relative h-20 sm:h-24">
+                    <!-- PV Energy Flow Line (Left) - z-30 nằm trên ảnh -->
                     <div id="pv-energy-line" class="pv-energy-line absolute left-[16.5%] top-0 bottom-0 z-30">
                         <!-- Energy particles flowing down -->
                         <div class="energy-particle"></div>
@@ -1325,7 +1386,20 @@
                         
                         <!-- Tiếp điểm tròn ở cuối đường line (giữa tấm pin) -->
                         <div class="energy-endpoint absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-amber-400 border-2 border-amber-300 shadow-[0_0_10px_#fbbf24,0_0_20px_rgba(251,191,36,0.5)]">
-                            <!-- Inner glow pulse -->
+                            <div class="absolute inset-0.5 rounded-full bg-amber-200 animate-pulse"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- EVN Grid Energy Flow Line (Right) - z-0 nằm sau mái nhà -->
+                    <div id="evn-energy-line" class="evn-energy-line absolute right-[16.5%] top-0 bottom-0 z-0">
+                        <!-- Đường line tĩnh (luôn hiển thị khi có điện EVN) -->
+                        <!-- Energy particles (chỉ hiển thị khi EVN > 20W) -->
+                        <div class="evn-energy-particle"></div>
+                        <div class="evn-energy-particle"></div>
+                        <div class="evn-energy-particle"></div>
+                        
+                        <!-- Tiếp điểm tròn ở cuối -->
+                        <div class="evn-endpoint absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-amber-400 border-2 border-amber-300 shadow-[0_0_10px_#fbbf24,0_0_20px_rgba(251,191,36,0.5)]">
                             <div class="absolute inset-0.5 rounded-full bg-amber-200 animate-pulse"></div>
                         </div>
                     </div>
@@ -1336,8 +1410,8 @@
                     <img src="/images/3dhome/house-3d-dark.png" alt="3D Solar Home" 
                          class="w-full h-auto object-contain">
                     
-                    <!-- Battery SOC % (on battery) -->
-                    <div class="absolute left-[8%] top-[48%] z-20">
+                    <!-- Battery SOC % (on battery) - dịch xuống 1 chút -->
+                    <div class="absolute left-[8%] top-[52%] z-20">
                         <div class="flex items-center gap-1">
                             <div id="battery-status-icon-3d" class="hidden">
                                 <svg id="battery-charging-3d" class="w-5 h-5 text-emerald-400 animate-bounce hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2143,7 +2217,7 @@
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13187" defer></script>
+    <script src="/js/index.js?v=13188" defer></script>
 
 </body>
 </html>

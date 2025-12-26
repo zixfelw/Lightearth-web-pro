@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13187 - 3D Home: Fix energy flow line z-index (show above house image)
+ * Version: 13188 - 3D Home: Add EVN grid energy line (behind roof), battery SOC position adjusted
  * 
  * Features:
  * - Real-time data via SignalR
@@ -3256,6 +3256,28 @@ document.addEventListener('DOMContentLoaded', function () {
                 pvEnergyLine.classList.remove('hidden-flow');
             } else {
                 pvEnergyLine.classList.add('hidden-flow');
+            }
+        }
+        
+        // EVN Grid Energy Flow Line - show/hide and animate based on grid power
+        const gridValue = parseInt(gridPower.replace(/[^\d-]/g, '')) || 0;
+        const evnEnergyLine = document.getElementById('evn-energy-line');
+        if (evnEnergyLine) {
+            if (gridValue > 0) {
+                // Hiển thị đường line
+                evnEnergyLine.classList.remove('hidden-flow');
+                
+                // Nếu > 20W thì bật animation particles
+                if (gridValue > 20) {
+                    evnEnergyLine.classList.add('active-flow');
+                } else {
+                    // <= 20W chỉ hiển thị line tĩnh, không animation
+                    evnEnergyLine.classList.remove('active-flow');
+                }
+            } else {
+                // Ẩn hoàn toàn khi không có điện từ EVN
+                evnEnergyLine.classList.add('hidden-flow');
+                evnEnergyLine.classList.remove('active-flow');
             }
         }
         
