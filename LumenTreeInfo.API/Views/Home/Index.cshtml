@@ -1124,20 +1124,20 @@
                         <div class="text-center mb-1">
                             <span class="text-[10px] sm:text-[11px] font-bold text-orange-400 uppercase tracking-wider">Nguồn PV</span>
                         </div>
-                        <div class="text-center mb-1.5">
+                        <div class="text-center mb-1">
                             <span id="pv-power-3d" class="text-xl sm:text-2xl font-black text-white drop-shadow-lg">--W</span>
                         </div>
-                        <!-- PV1/PV2 grid layout - cân đối hơn -->
-                        <div class="grid grid-cols-2 gap-1.5">
-                            <div class="bg-slate-700/50 rounded-md py-1 px-1.5 text-center">
-                                <div class="text-[8px] text-slate-400 font-medium">PV1</div>
-                                <div id="pv1-power-3d" class="text-[11px] sm:text-xs font-bold text-emerald-300 truncate">--W</div>
-                                <div id="pv1-voltage-3d" class="text-[8px] text-slate-500">--V</div>
+                        <!-- PV1/PV2 đơn giản - màu amber giống Pro -->
+                        <div class="flex justify-center gap-3 text-center">
+                            <div>
+                                <span class="text-[9px] text-slate-400">PV1:</span>
+                                <span id="pv1-power-3d" class="text-[11px] sm:text-xs font-bold text-amber-400">--W</span>
+                                <span id="pv1-voltage-3d" class="text-[8px] text-slate-500 ml-0.5">--V</span>
                             </div>
-                            <div class="bg-slate-700/50 rounded-md py-1 px-1.5 text-center">
-                                <div class="text-[8px] text-slate-400 font-medium">PV2</div>
-                                <div id="pv2-power-3d" class="text-[11px] sm:text-xs font-bold text-emerald-300 truncate">--W</div>
-                                <div id="pv2-voltage-3d" class="text-[8px] text-slate-500">--V</div>
+                            <div>
+                                <span class="text-[9px] text-slate-400">PV2:</span>
+                                <span id="pv2-power-3d" class="text-[11px] sm:text-xs font-bold text-amber-400">--W</span>
+                                <span id="pv2-voltage-3d" class="text-[8px] text-slate-500 ml-0.5">--V</span>
                             </div>
                         </div>
                     </div>
@@ -1994,7 +1994,7 @@
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13172" defer></script>
+    <script src="/js/index.js?v=13173" defer></script>
 
 </body>
 </html>
