@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13174 - 3D Home: Larger PV text, amber color for all PV values
+ * Version: 13175 - 3D Home: Amber gradient background like Pro, smaller PC text
  * 
  * Features:
  * - Real-time data via SignalR
