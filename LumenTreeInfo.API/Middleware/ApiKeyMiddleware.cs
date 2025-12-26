@@ -208,8 +208,29 @@ public class ApiKeyMiddleware
         // If it's a fetch/XHR from browser with sec-fetch headers, it's likely from our web app
         var secFetchSite = context.Request.Headers["Sec-Fetch-Site"].ToString();
         var secFetchMode = context.Request.Headers["Sec-Fetch-Mode"].ToString();
+        var secFetchDest = context.Request.Headers["Sec-Fetch-Dest"].ToString();
         
         if (secFetchSite == "same-origin" || secFetchSite == "same-site")
+        {
+            return true;
+        }
+        
+        // Mobile browsers may not always send Sec-Fetch headers on refresh
+        // Check if it's likely a programmatic fetch (not direct URL access)
+        // Direct URL access typically has Sec-Fetch-Mode: navigate and Sec-Fetch-Dest: document
+        // Fetch API calls have Sec-Fetch-Mode: cors/no-cors and Sec-Fetch-Dest: empty
+        if (!string.IsNullOrEmpty(secFetchMode))
+        {
+            // If it's NOT a navigation request, it's likely a fetch from our app
+            if (secFetchMode != "navigate" && secFetchDest != "document")
+            {
+                return true;
+            }
+        }
+        
+        // Also allow if Accept header indicates JSON (typical for fetch API)
+        var acceptHeader = context.Request.Headers["Accept"].ToString();
+        if (acceptHeader.Contains("application/json") && !acceptHeader.Contains("text/html"))
         {
             return true;
         }

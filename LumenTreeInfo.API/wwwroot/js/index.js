@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13203 - Fix chart data mapping for Railway API format (pvPower vs pv)
+ * Version: 13204 - Fix SOC chart not loading on F5 (mobile/PC same-origin check)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1834,14 +1834,23 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             console.log(`📡📡📡 [SOC CHART] Fetching from Railway API: ${railwayUrl}`);
             const response = await fetch(railwayUrl);
+            console.log(`📡 [SOC] Response status: ${response.status}, ok: ${response.ok}`);
+            
             if (response.ok) {
                 data = await response.json();
+                console.log(`📡 [SOC] Response data:`, data);
+                
                 if (data.success && data.timeline && data.timeline.length > 0) {
                     console.log(`✅ [SOC] Railway API success: ${data.timeline.length} points`);
+                } else if (data.error) {
+                    console.warn(`⚠️ [SOC] API returned error: ${data.error} - ${data.message}`);
+                    data = null;
                 } else {
                     data = null;
                     console.warn(`⚠️ [SOC] Railway API returned no data for ${deviceId}`);
                 }
+            } else {
+                console.warn(`⚠️ [SOC] Railway API HTTP error: ${response.status}`);
             }
         } catch (error) {
             console.warn(`⚠️ [SOC] Railway API failed: ${error.message}`);
