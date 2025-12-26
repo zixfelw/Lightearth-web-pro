@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13208 - Debug SOC fetch: Remove setTimeout, add detailed console logs
+ * Version: 13209 - Fix TypeError in updateEnergyChartPeakStats (support Railway API format)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1552,29 +1552,35 @@ document.addEventListener('DOMContentLoaded', function () {
         timeline.forEach(point => {
             const timeStr = getTimeStr(point.time);
             
+            // Support both old format (pv, battery, load, grid) and Railway format (pvPower, batteryPower, etc.)
+            const pv = point.pvPower ?? point.pv ?? 0;
+            const battery = point.batteryPower ?? point.battery ?? 0;
+            const load = point.loadPower ?? point.load ?? 0;
+            const grid = point.gridPower ?? point.grid ?? 0;
+            
             // PV
-            if (point.pv > maxPv) {
-                maxPv = point.pv;
+            if (pv > maxPv) {
+                maxPv = pv;
                 maxPvTime = timeStr;
             }
             // Battery charge (positive battery = charging)
-            if (point.battery > 0 && point.battery > maxCharge) {
-                maxCharge = point.battery;
+            if (battery > 0 && battery > maxCharge) {
+                maxCharge = battery;
                 maxChargeTime = timeStr;
             }
             // Battery discharge (negative battery = discharging)
-            if (point.battery < 0 && Math.abs(point.battery) > maxDischarge) {
-                maxDischarge = Math.abs(point.battery);
+            if (battery < 0 && Math.abs(battery) > maxDischarge) {
+                maxDischarge = Math.abs(battery);
                 maxDischargeTime = timeStr;
             }
             // Load
-            if (point.load > maxLoad) {
-                maxLoad = point.load;
+            if (load > maxLoad) {
+                maxLoad = load;
                 maxLoadTime = timeStr;
             }
             // Grid
-            if (point.grid > maxGrid) {
-                maxGrid = point.grid;
+            if (grid > maxGrid) {
+                maxGrid = grid;
                 maxGridTime = timeStr;
             }
         });
