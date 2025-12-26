@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13163 - 3D Home: Orange-red theme, overlay layout, adjusted positions
+ * Version: 13164 - 3D Home: Revert to emerald/purple colors, keep overlay layout
  * 
  * Features:
  * - Real-time data via SignalR
@@ -3144,19 +3144,19 @@ document.addEventListener('DOMContentLoaded', function () {
         update3DValue('battery-soc-3d', batteryPercent);
         update3DValue('essential-power-3d', essentialPower);
         
-        // Update Grid EVN status (nhập/xuất điện) - màu cam đỏ theme
+        // Update Grid EVN status (nhập/xuất điện) - màu tím purple theme
         const gridVal = parseInt(gridPower.replace(/[^\d-]/g, '')) || 0;
         const gridStatusEl = document.getElementById('grid-status-3d');
         if (gridStatusEl) {
             if (gridVal > 5) {
                 gridStatusEl.textContent = 'Nhập điện';
-                gridStatusEl.className = 'text-[10px] text-red-300';
+                gridStatusEl.className = 'text-[10px] text-purple-400';
             } else if (gridVal < -5) {
                 gridStatusEl.textContent = 'Xuất điện';
-                gridStatusEl.className = 'text-[10px] text-emerald-300';
+                gridStatusEl.className = 'text-[10px] text-emerald-400';
             } else {
                 gridStatusEl.textContent = 'Chờ';
-                gridStatusEl.className = 'text-[10px] text-orange-200/80';
+                gridStatusEl.className = 'text-[10px] text-slate-400';
             }
         }
         
