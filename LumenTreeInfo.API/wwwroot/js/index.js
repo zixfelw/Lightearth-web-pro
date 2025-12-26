@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13182 - 3D Home: New icons for Essential Load & Grid Load
+ * Version: 13183 - 3D Home: Bigger icons, emerald text, dynamic battery status label
  * 
  * Features:
  * - Real-time data via SignalR
@@ -3175,23 +3175,36 @@ document.addEventListener('DOMContentLoaded', function () {
             batteryTextColor = 'text-amber-400';
         }
         
-        // Update power display with +/- sign
+        // Update power display with +/- sign AND status label
+        const batteryStatusLabelEl = document.getElementById('battery-status-label-3d');
         if (batteryPowerEl) {
             if (batteryPowerVal > 10) {
                 // Charging: + màu xanh
                 batteryPowerEl.textContent = '+' + Math.abs(batteryPowerVal) + 'W';
                 batteryPowerEl.className = 'text-xl sm:text-2xl font-black text-emerald-400 leading-tight';
                 if (batteryCardEl) batteryCardEl.className = 'bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-emerald-500/30 shadow-lg flex flex-col items-center';
+                if (batteryStatusLabelEl) {
+                    batteryStatusLabelEl.textContent = 'Pin đang sạc';
+                    batteryStatusLabelEl.className = 'text-xs sm:text-sm text-emerald-400 mt-1 font-medium';
+                }
             } else if (batteryPowerVal < -10) {
                 // Discharging: - màu đỏ
                 batteryPowerEl.textContent = '-' + Math.abs(batteryPowerVal) + 'W';
                 batteryPowerEl.className = 'text-xl sm:text-2xl font-black text-red-400 leading-tight';
                 if (batteryCardEl) batteryCardEl.className = 'bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-red-500/30 shadow-lg flex flex-col items-center';
+                if (batteryStatusLabelEl) {
+                    batteryStatusLabelEl.textContent = 'Pin đang xả';
+                    batteryStatusLabelEl.className = 'text-xs sm:text-sm text-red-400 mt-1 font-medium';
+                }
             } else {
-                // Idle: màu slate
+                // Idle: màu emerald (đồng bộ với các card khác)
                 batteryPowerEl.textContent = '0W';
-                batteryPowerEl.className = 'text-xl sm:text-2xl font-black text-slate-400 leading-tight';
-                if (batteryCardEl) batteryCardEl.className = 'bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-slate-500/30 shadow-lg flex flex-col items-center';
+                batteryPowerEl.className = 'text-xl sm:text-2xl font-black text-emerald-400 leading-tight';
+                if (batteryCardEl) batteryCardEl.className = 'bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-emerald-500/30 shadow-lg flex flex-col items-center';
+                if (batteryStatusLabelEl) {
+                    batteryStatusLabelEl.textContent = 'Pin chờ';
+                    batteryStatusLabelEl.className = 'text-xs sm:text-sm text-emerald-400 mt-1 font-medium';
+                }
             }
         }
         

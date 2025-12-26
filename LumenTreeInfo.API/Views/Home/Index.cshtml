@@ -1231,27 +1231,28 @@
                                 <div id="battery-cap-3d" class="absolute -right-1.5 top-1/2 -translate-y-1/2 w-1.5 h-4 sm:h-5 bg-emerald-400 rounded-r-sm"></div>
                             </div>
                         </div>
-                        <!-- Power value - chữ to hơn -->
+                        <!-- Power value - màu emerald giống các card khác -->
                         <div id="battery-power-3d" class="text-xl sm:text-2xl font-black text-emerald-400 leading-tight">--W</div>
-                        <div class="text-[11px] sm:text-xs text-slate-400 mt-1">Pin sạc/xả</div>
+                        <!-- Label động: Pin đang sạc / Pin đang xả -->
+                        <div id="battery-status-label-3d" class="text-xs sm:text-sm text-emerald-400 mt-1 font-medium">Pin sạc/xả</div>
                     </div>
                     
-                    <!-- 2. Essential Load Card (Tải cổng load) - NEW ICON UPS với shield -->
-                    <div class="bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-cyan-500/30 shadow-lg flex flex-col items-center">
-                        <div class="w-11 h-11 mb-2 flex items-center justify-center">
-                            <img src="/icons/essential-load-3d.png" loading="lazy" alt="Tải cổng load" class="w-10 h-10 object-contain drop-shadow-[0_2px_4px_rgba(0,255,255,0.3)]">
-                        </div>
-                        <div id="essential-power-3d" class="text-xl sm:text-2xl font-black text-cyan-400 leading-tight">--W</div>
-                        <div class="text-[11px] sm:text-xs text-slate-400 mt-1">Tải cổng load</div>
-                    </div>
-                    
-                    <!-- 3. Load Card (Tải tiêu thụ/hòa lưới) - NEW ICON plug với energy waves -->
+                    <!-- 2. Essential Load Card (Tải cổng load) - ICON TO HƠN -->
                     <div class="bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-emerald-500/30 shadow-lg flex flex-col items-center">
-                        <div class="w-11 h-11 mb-2 flex items-center justify-center">
-                            <img src="/icons/grid-load-3d.png" loading="lazy" alt="Tải tiêu thụ" class="w-10 h-10 object-contain drop-shadow-[0_2px_4px_rgba(0,255,200,0.3)]">
+                        <div class="w-12 h-12 sm:w-14 sm:h-14 mb-2 flex items-center justify-center">
+                            <img src="/icons/essential-load-3d.png" loading="lazy" alt="Tải cổng load" class="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-[0_2px_4px_rgba(16,185,129,0.3)]">
+                        </div>
+                        <div id="essential-power-3d" class="text-xl sm:text-2xl font-black text-emerald-400 leading-tight">--W</div>
+                        <div class="text-xs sm:text-sm text-emerald-400 mt-1 font-medium">Tải cổng load</div>
+                    </div>
+                    
+                    <!-- 3. Load Card (Tải tiêu thụ/hòa lưới) - ICON TO HƠN -->
+                    <div class="bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-emerald-500/30 shadow-lg flex flex-col items-center">
+                        <div class="w-12 h-12 sm:w-14 sm:h-14 mb-2 flex items-center justify-center">
+                            <img src="/icons/grid-load-3d.png" loading="lazy" alt="Tải tiêu thụ" class="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-[0_2px_4px_rgba(16,185,129,0.3)]">
                         </div>
                         <div id="load-power-3d" class="text-xl sm:text-2xl font-black text-emerald-400 leading-tight">--W</div>
-                        <div class="text-[11px] sm:text-xs text-slate-400 mt-1">Tải tiêu thụ</div>
+                        <div class="text-xs sm:text-sm text-emerald-400 mt-1 font-medium">Tải tiêu thụ</div>
                     </div>
                 </div>
             </div>
@@ -1999,7 +2000,7 @@
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13182" defer></script>
+    <script src="/js/index.js?v=13183" defer></script>
 
 </body>
 </html>
