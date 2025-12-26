@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13201 - Use Railway Power History API as primary (no region block)
+ * Version: 13202 - Add debug logs for chart API calls (F5 debugging)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1045,8 +1045,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // 2. Lightearth API - for chart data
     // forceRefresh = true: Skip cache and always fetch fresh data (used on F5/page load)
     async function fetchDayDataInBackground(deviceId, date, forceRefresh = false) {
+        console.log('🚀🚀🚀 fetchDayDataInBackground CALLED:', { deviceId, date, forceRefresh });
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
         const now = Date.now();
+        console.log('📅 Query date:', queryDate);
         
         // Clear chart cache if deviceId changed (summary cache is separate)
         if (lightearthCache.deviceId && lightearthCache.deviceId !== deviceId) {
@@ -1128,9 +1130,10 @@ document.addEventListener('DOMContentLoaded', function () {
         // PRIORITY 1: Try Railway Power History API first (most reliable, no region block)
         try {
             const railwayPowerUrl = `${POWER_HISTORY_API}/${deviceId}?date=${queryDate}`;
-            console.log("📊 [Priority 1] Fetching chart data from Railway API:", railwayPowerUrl);
+            console.log("📊📊📊 [POWER CHART] Fetching from Railway API:", railwayPowerUrl);
             
             const railwayResponse = await fetch(railwayPowerUrl);
+            console.log("📊 Railway response status:", railwayResponse.status, railwayResponse.ok);
             
             if (railwayResponse.ok) {
                 const railwayData = await railwayResponse.json();
@@ -1805,6 +1808,8 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Fetch SOC data from Railway API (LightEarth Cloud data only)
     async function fetchSOCData() {
+        console.log('🔋🔋🔋 fetchSOCData CALLED');
+        
         // Get deviceId from input or URL parameter
         const deviceId = document.getElementById('deviceId')?.value?.trim() || urlParams.get('deviceId');
         if (!deviceId) {
@@ -1822,7 +1827,7 @@ document.addEventListener('DOMContentLoaded', function () {
         let data = null;
         
         try {
-            console.log(`📡 [SOC] Fetching from Railway API: ${railwayUrl}`);
+            console.log(`📡📡📡 [SOC CHART] Fetching from Railway API: ${railwayUrl}`);
             const response = await fetch(railwayUrl);
             if (response.ok) {
                 data = await response.json();
