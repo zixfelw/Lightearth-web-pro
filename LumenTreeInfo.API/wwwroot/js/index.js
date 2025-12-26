@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13169 - 3D Home: Top row closer to solar panels/roof
+ * Version: 13170 - 3D Home: Top row much closer to solar panels/roof
  * 
  * Features:
  * - Real-time data via SignalR
