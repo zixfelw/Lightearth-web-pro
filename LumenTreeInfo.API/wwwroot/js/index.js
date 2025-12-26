@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13191 - 3D Home: Sun animation 3 levels (0-1000W, 1000-2000W, 2000W+)
+ * Version: 13192 - 3D Home: Sun animation 3 levels with !important CSS overrides
  * 
  * Features:
  * - Real-time data via SignalR
