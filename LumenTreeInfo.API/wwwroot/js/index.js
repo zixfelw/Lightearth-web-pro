@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13206 - Fix cache mismatch: Clear localStorage cache when deviceId changes
+ * Version: 13207 - Force fresh fetch on F5: Add cache-busting + no-store for SOC/Power APIs
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1146,10 +1146,20 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // PRIORITY 1: Try Railway Power History API first (most reliable, no region block)
         try {
-            const railwayPowerUrl = `${POWER_HISTORY_API}/${deviceId}?date=${queryDate}`;
+            // Add cache-busting timestamp to force fresh fetch on F5
+            const cacheBuster = Date.now();
+            const railwayPowerUrl = `${POWER_HISTORY_API}/${deviceId}?date=${queryDate}&_t=${cacheBuster}`;
             console.log("📊📊📊 [POWER CHART] Fetching from Railway API:", railwayPowerUrl);
             
-            const railwayResponse = await fetch(railwayPowerUrl);
+            // Force no-cache to ensure fresh data on F5
+            const railwayResponse = await fetch(railwayPowerUrl, {
+                method: 'GET',
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache'
+                }
+            });
             console.log("📊 Railway response status:", railwayResponse.status, railwayResponse.ok);
             
             if (railwayResponse.ok) {
@@ -1830,7 +1840,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Fetch SOC data from Railway API (LightEarth Cloud data only)
     async function fetchSOCData() {
-        console.log('🔋🔋🔋 fetchSOCData CALLED');
+        console.log('🔋🔋🔋 fetchSOCData CALLED at', new Date().toISOString());
         
         // Get deviceId from input or URL parameter
         const deviceId = document.getElementById('deviceId')?.value?.trim() || urlParams.get('deviceId');
@@ -1844,13 +1854,23 @@ document.addEventListener('DOMContentLoaded', function () {
         const date = dateInput || new Date().toISOString().split('T')[0];
         
         // Railway SOC History API (LightEarth Cloud data)
-        const railwayUrl = `${SOC_API_PRIMARY}/${deviceId}?date=${date}`;
+        // Add cache-busting timestamp to force fresh fetch on F5
+        const cacheBuster = Date.now();
+        const railwayUrl = `${SOC_API_PRIMARY}/${deviceId}?date=${date}&_t=${cacheBuster}`;
         
         let data = null;
         
         try {
             console.log(`📡📡📡 [SOC CHART] Fetching from Railway API: ${railwayUrl}`);
-            const response = await fetch(railwayUrl);
+            // Force no-cache to ensure fresh data on F5
+            const response = await fetch(railwayUrl, {
+                method: 'GET',
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache'
+                }
+            });
             console.log(`📡 [SOC] Response status: ${response.status}, ok: ${response.ok}`);
             
             if (response.ok) {
