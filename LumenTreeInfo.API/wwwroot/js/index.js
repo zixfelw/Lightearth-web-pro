@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13199 - Default to Dark Mode on first visit
+ * Version: 13200 - Force fetch fresh chart data on F5/page load (bypass cache)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -966,18 +966,12 @@ document.addEventListener('DOMContentLoaded', function () {
             window.loadSolarProjectSummary(deviceId);
         }
         
-        // ALWAYS fetch chart data if cache is empty or stale
-        // This ensures charts are always populated
-        if (!hasCachedChart) {
-            console.log('📊 No valid cache, fetching fresh chart data...');
-            fetchDayDataInBackground(deviceId, queryDate).catch(err => console.warn('Day data error:', err));
-        } else {
-            // Even with cache, refresh data in background for freshness
-            console.log('📊 Refreshing chart data in background...');
-            setTimeout(() => {
-                fetchDayDataInBackground(deviceId, queryDate).catch(err => console.warn('Background refresh error:', err));
-            }, 2000); // Delay 2s to not block initial render
-        }
+        // ALWAYS fetch fresh chart data on F5/page load
+        // This ensures charts are always up-to-date
+        // If we have cache, it was already displayed above for instant UX
+        // Now fetch fresh data to update the chart
+        console.log('📊 F5/Load: Fetching fresh chart data (forceRefresh=true)...');
+        fetchDayDataInBackground(deviceId, queryDate, true).catch(err => console.warn('Day data error:', err));
     }
     
     // Helper to apply summary data to UI
@@ -1048,7 +1042,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // PRIORITY ORDER:
     // 1. Railway API (LightEarth Cloud data) - always try first for all devices
     // 2. Lightearth API - for chart data
-    async function fetchDayDataInBackground(deviceId, date) {
+    // forceRefresh = true: Skip cache and always fetch fresh data (used on F5/page load)
+    async function fetchDayDataInBackground(deviceId, date, forceRefresh = false) {
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
         const now = Date.now();
         
@@ -1107,8 +1102,8 @@ document.addEventListener('DOMContentLoaded', function () {
         // STEP 2: Try LightEarth Cloud Power History API for chart data
         let chartDataLoaded = false;
         
-        // Check cache first
-        if (lightearthCache.data && 
+        // Check cache first (skip if forceRefresh is true - F5/page load)
+        if (!forceRefresh && lightearthCache.data && 
             lightearthCache.deviceId === deviceId && 
             lightearthCache.date === queryDate &&
             (now - lightearthCache.timestamp) < LIGHTEARTH_CACHE_TTL) {
@@ -1123,6 +1118,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 updateSummaryFromLightearthData(lightearthCache.data);
             }
             return;
+        }
+        
+        if (forceRefresh) {
+            console.log('🔄 Force refresh: Skipping cache, fetching fresh data...');
         }
         
         // Try Cloud Power History API first
