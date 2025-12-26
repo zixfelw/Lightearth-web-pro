@@ -24,15 +24,6 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
 # Colors for output
-function Write-ColorOutput($ForegroundColor) {
-    $fc = $host.UI.RawUI.ForegroundColor
-    $host.UI.RawUI.ForegroundColor = $ForegroundColor
-    if ($args) {
-        Write-Output $args
-    }
-    $host.UI.RawUI.ForegroundColor = $fc
-}
-
 function Write-Step($message) {
     Write-Host ""
     Write-Host "================================================" -ForegroundColor Cyan
@@ -61,6 +52,7 @@ $currentPrincipal = New-Object Security.Principal.WindowsPrincipal([Security.Pri
 if (-not $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Err "Script can chay voi quyen Administrator!"
     Write-Info "Click phai PowerShell -> Run as Administrator"
+    pause
     exit 1
 }
 Write-Success "Dang chay voi quyen Administrator"
@@ -75,7 +67,6 @@ if (-not $winget) {
     Write-Info "Dang cai dat Winget..."
     
     # Download and install App Installer (contains winget)
-    $progressPreference = 'silentlyContinue'
     Invoke-WebRequest -Uri https://aka.ms/getwinget -OutFile "$env:TEMP\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"
     Add-AppxPackage -Path "$env:TEMP\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"
     
@@ -84,7 +75,7 @@ if (-not $winget) {
     
     Write-Success "Winget da duoc cai dat"
 } else {
-    Write-Success "Winget da co san: $($winget.Source)"
+    Write-Success "Winget da co san"
 }
 
 # ============================================
@@ -167,7 +158,7 @@ if (-not $node) {
 }
 
 # ============================================
-# INSTALL WINDOWS TERMINAL (Optional but recommended)
+# INSTALL WINDOWS TERMINAL
 # ============================================
 Write-Step "Cai dat Windows Terminal"
 
@@ -197,7 +188,6 @@ $extensions = @(
     "dbaeumer.vscode-eslint",                   # ESLint
     "ritwickdey.LiveServer",                    # Live Server
     "ms-vscode.powershell",                     # PowerShell
-    "GitHub.copilot",                           # GitHub Copilot (optional)
     "formulahendry.auto-rename-tag",            # Auto Rename Tag
     "christian-kohler.path-intellisense",       # Path Intellisense
     "PKief.material-icon-theme"                 # Material Icon Theme
@@ -216,7 +206,7 @@ if ($codeCmd) {
 }
 
 # ============================================
-# CONFIGURE GIT (Basic)
+# CONFIGURE GIT
 # ============================================
 Write-Step "Cau hinh Git co ban"
 
@@ -254,12 +244,10 @@ if ($gitCmd) {
         Write-Host '  git config --global user.name "Ten cua ban"' -ForegroundColor White
         Write-Host '  git config --global user.email "email@example.com"' -ForegroundColor White
     }
-} else {
-    Write-Info "Git chua san sang, bo qua cau hinh"
 }
 
 # ============================================
-# CLONE PROJECT (Optional)
+# CLONE PROJECT
 # ============================================
 Write-Step "Clone du an LightEarth Web Pro"
 
@@ -277,9 +265,7 @@ if (-not (Test-Path $projectPath)) {
         git clone https://github.com/zixfelw/Lightearth-web-pro.git
         Write-Success "Du an da duoc clone vao: $projectPath"
     } else {
-        Write-Info "Git chua san sang. Clone thu cong sau:"
-        Write-Host "  cd $env:USERPROFILE\Projects" -ForegroundColor White
-        Write-Host "  git clone https://github.com/zixfelw/Lightearth-web-pro.git" -ForegroundColor White
+        Write-Info "Git chua san sang. Clone thu cong sau khi restart."
     }
 } else {
     Write-Success "Du an da ton tai: $projectPath"
@@ -299,16 +285,13 @@ if ($dotnetCmd -and (Test-Path $projectPath)) {
     Write-Info "Dang restore NuGet packages..."
     dotnet restore
     Write-Success "Da restore packages thanh cong"
-} else {
-    Write-Info "Bo qua restore - dotnet hoac project chua san sang"
 }
 
 # ============================================
-# CREATE USEFUL SHORTCUTS
+# CREATE DESKTOP SHORTCUT
 # ============================================
 Write-Step "Tao shortcuts tien ich"
 
-# Create desktop shortcut to open project in VS Code
 $desktopPath = [Environment]::GetFolderPath("Desktop")
 $shortcutPath = "$desktopPath\LightEarth Web Pro.lnk"
 
@@ -323,7 +306,7 @@ if (-not (Test-Path $shortcutPath)) {
         $Shortcut.Save()
         Write-Success "Da tao shortcut tren Desktop"
     } catch {
-        Write-Info "Khong the tao shortcut: $_"
+        Write-Info "Khong the tao shortcut"
     }
 }
 
@@ -344,26 +327,30 @@ Write-Host ""
 Write-Host "Du an duoc clone tai:" -ForegroundColor Green
 Write-Host "  $projectPath" -ForegroundColor White
 Write-Host ""
-Write-Host "DE CHAY DU AN:" -ForegroundColor Yellow
+Write-Host "========================================" -ForegroundColor Yellow
+Write-Host "  DE CHAY DU AN:" -ForegroundColor Yellow
+Write-Host "========================================" -ForegroundColor Yellow
+Write-Host ""
 Write-Host "  1. Mo Windows Terminal hoac PowerShell" -ForegroundColor White
-Write-Host "  2. cd $projectPath" -ForegroundColor White
-Write-Host "  3. dotnet restore" -ForegroundColor White
-Write-Host "  4. dotnet run --project LumenTreeInfo.API" -ForegroundColor White
-Write-Host "  5. Mo trinh duyet: http://localhost:5000" -ForegroundColor White
+Write-Host "  2. cd $projectPath" -ForegroundColor Cyan
+Write-Host "  3. dotnet restore" -ForegroundColor Cyan
+Write-Host "  4. dotnet run --project LumenTreeInfo.API" -ForegroundColor Cyan
+Write-Host "  5. Mo trinh duyet: http://localhost:5000" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "HOAC:" -ForegroundColor Yellow
-Write-Host "  1. Double-click shortcut 'LightEarth Web Pro' tren Desktop" -ForegroundColor White
-Write-Host "  2. Nhan F5 de chay debug trong VS Code" -ForegroundColor White
+Write-Host "  - Double-click shortcut 'LightEarth Web Pro' tren Desktop" -ForegroundColor White
+Write-Host "  - Nhan F5 de chay debug trong VS Code" -ForegroundColor White
 Write-Host ""
-Write-Host "CAU HINH GIT (neu chua co):" -ForegroundColor Yellow
-Write-Host '  git config --global user.name "Ten cua ban"' -ForegroundColor White
-Write-Host '  git config --global user.email "email@example.com"' -ForegroundColor White
+Write-Host "========================================" -ForegroundColor Yellow
+Write-Host "  CAU HINH GIT (neu chua co):" -ForegroundColor Yellow
+Write-Host "========================================" -ForegroundColor Yellow
+Write-Host '  git config --global user.name "Ten cua ban"' -ForegroundColor Cyan
+Write-Host '  git config --global user.email "email@example.com"' -ForegroundColor Cyan
 Write-Host ""
-
-# ============================================
-# RESTART PROMPT
-# ============================================
-Write-Host "LUU Y: Can RESTART may tinh de PATH duoc cap nhat day du!" -ForegroundColor Red
+Write-Host "========================================" -ForegroundColor Red
+Write-Host "  LUU Y QUAN TRONG!" -ForegroundColor Red
+Write-Host "========================================" -ForegroundColor Red
+Write-Host "  Can RESTART may tinh de PATH duoc cap nhat!" -ForegroundColor Red
 Write-Host ""
 
 $restart = Read-Host "Ban co muon restart ngay bay gio? (y/N)"
@@ -372,5 +359,8 @@ if ($restart -eq "y" -or $restart -eq "Y") {
     Write-Info "Nhan Ctrl+C de huy"
     shutdown /r /t 10
 } else {
-    Write-Info "Hay restart may tinh khi thuan tien de hoan tat cai dat."
+    Write-Info "Hay restart may tinh khi thuan tien."
+    Write-Host ""
+    Write-Host "Nhan phim bat ky de dong..." -ForegroundColor Gray
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
 }
