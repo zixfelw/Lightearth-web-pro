@@ -1215,41 +1215,45 @@
                 
                 <!-- Bottom Stats Cards - 3 columns: Pin sạc/xả | Tải cổng load | Tải tiêu thụ -->
                 <div class="-mt-12 grid grid-cols-3 gap-2.5 relative z-10 px-1">
-                    <!-- 1. Battery Card - Design giống điện thoại với % pin -->
+                    <!-- 1. Battery Card - Design giống điện thoại với % pin - CÂN ĐỐI CHIỀU CAO -->
                     <div id="battery-card-3d" class="bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-emerald-500/30 shadow-lg flex flex-col items-center">
-                        <!-- Battery icon kiểu điện thoại - TO HƠN -->
-                        <div class="flex justify-center mb-2">
+                        <!-- Battery icon - container cùng chiều cao với icon cards khác -->
+                        <div class="w-12 h-12 sm:w-14 sm:h-14 mb-2 flex items-center justify-center">
                             <div class="battery-phone-icon relative">
-                                <!-- Battery body - Dài và cao hơn -->
+                                <!-- Battery body -->
                                 <div id="battery-body-3d" class="w-16 h-7 sm:w-20 sm:h-8 rounded-[5px] border-2 border-emerald-400 relative overflow-hidden bg-slate-900/80">
-                                    <!-- Fill bar - màu thay đổi theo mức pin -->
                                     <div id="battery-fill-3d" class="absolute left-0.5 top-0.5 bottom-0.5 rounded-[3px] bg-emerald-500 transition-all duration-500" style="width: 0%"></div>
-                                    <!-- % text bên trong - TO HƠN -->
                                     <span id="battery-percent-3d-icon" class="absolute inset-0 flex items-center justify-center text-sm sm:text-base font-black text-white z-10 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">--%</span>
                                 </div>
-                                <!-- Battery cap (đầu pin) - TO HƠN -->
+                                <!-- Battery cap -->
                                 <div id="battery-cap-3d" class="absolute -right-1.5 top-1/2 -translate-y-1/2 w-1.5 h-4 sm:h-5 bg-emerald-400 rounded-r-sm"></div>
                             </div>
                         </div>
-                        <!-- Power value - màu emerald giống các card khác -->
+                        <!-- Power value -->
                         <div id="battery-power-3d" class="text-xl sm:text-2xl font-black text-emerald-400 leading-tight">--W</div>
-                        <!-- Label động: Pin đang sạc / Pin đang xả -->
+                        <!-- Label động -->
                         <div id="battery-status-label-3d" class="text-xs sm:text-sm text-emerald-400 mt-1 font-medium">Pin sạc/xả</div>
                     </div>
                     
-                    <!-- 2. Essential Load Card (Tải cổng load) - ICON TO HƠN -->
+                    <!-- 2. Essential Load Card - Mobile optimized với picture srcset -->
                     <div class="bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-emerald-500/30 shadow-lg flex flex-col items-center">
                         <div class="w-12 h-12 sm:w-14 sm:h-14 mb-2 flex items-center justify-center">
-                            <img src="/icons/essential-load-3d.png" loading="lazy" alt="Tải cổng load" class="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-[0_2px_4px_rgba(16,185,129,0.3)]">
+                            <picture>
+                                <source media="(max-width: 640px)" srcset="/icons/essential-load-3d-mobile.png">
+                                <img src="/icons/essential-load-3d.png" loading="lazy" alt="Tải cổng load" class="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-[0_2px_4px_rgba(16,185,129,0.3)]">
+                            </picture>
                         </div>
                         <div id="essential-power-3d" class="text-xl sm:text-2xl font-black text-emerald-400 leading-tight">--W</div>
                         <div class="text-xs sm:text-sm text-emerald-400 mt-1 font-medium">Tải cổng load</div>
                     </div>
                     
-                    <!-- 3. Load Card (Tải tiêu thụ/hòa lưới) - ICON TO HƠN -->
+                    <!-- 3. Load Card - Mobile optimized với picture srcset -->
                     <div class="bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-emerald-500/30 shadow-lg flex flex-col items-center">
                         <div class="w-12 h-12 sm:w-14 sm:h-14 mb-2 flex items-center justify-center">
-                            <img src="/icons/grid-load-3d.png" loading="lazy" alt="Tải tiêu thụ" class="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-[0_2px_4px_rgba(16,185,129,0.3)]">
+                            <picture>
+                                <source media="(max-width: 640px)" srcset="/icons/grid-load-3d-mobile.png">
+                                <img src="/icons/grid-load-3d.png" loading="lazy" alt="Tải tiêu thụ" class="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-[0_2px_4px_rgba(16,185,129,0.3)]">
+                            </picture>
                         </div>
                         <div id="load-power-3d" class="text-xl sm:text-2xl font-black text-emerald-400 leading-tight">--W</div>
                         <div class="text-xs sm:text-sm text-emerald-400 mt-1 font-medium">Tải tiêu thụ</div>
@@ -2000,7 +2004,7 @@
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13183" defer></script>
+    <script src="/js/index.js?v=13184" defer></script>
 
 </body>
 </html>

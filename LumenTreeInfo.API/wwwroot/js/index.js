@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13183 - 3D Home: Bigger icons, emerald text, dynamic battery status label
+ * Version: 13184 - 3D Home: Balanced card heights, mobile-optimized icons (srcset)
  * 
  * Features:
  * - Real-time data via SignalR
