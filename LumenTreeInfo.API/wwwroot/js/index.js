@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13188 - 3D Home: Add EVN grid energy line (behind roof), battery SOC position adjusted
+ * Version: 13189 - 3D Home: Longer EVN line, dynamic particle count based on power level
  * 
  * Features:
  * - Real-time data via SignalR
@@ -3260,24 +3260,28 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         
         // EVN Grid Energy Flow Line - show/hide and animate based on grid power
+        // 0 < EVN <= 20W: 1 hạt | 20W < EVN <= 1000W: 2 hạt | EVN > 1000W: 3 hạt
         const gridValue = parseInt(gridPower.replace(/[^\d-]/g, '')) || 0;
         const evnEnergyLine = document.getElementById('evn-energy-line');
         if (evnEnergyLine) {
+            // Reset all flow levels
+            evnEnergyLine.classList.remove('hidden-flow', 'flow-level-1', 'flow-level-2', 'flow-level-3');
+            
             if (gridValue > 0) {
-                // Hiển thị đường line
-                evnEnergyLine.classList.remove('hidden-flow');
-                
-                // Nếu > 20W thì bật animation particles
-                if (gridValue > 20) {
-                    evnEnergyLine.classList.add('active-flow');
+                // Xác định level dựa trên công suất
+                if (gridValue > 1000) {
+                    // > 1000W: 3 hạt
+                    evnEnergyLine.classList.add('flow-level-3');
+                } else if (gridValue > 20) {
+                    // 20W < EVN <= 1000W: 2 hạt
+                    evnEnergyLine.classList.add('flow-level-2');
                 } else {
-                    // <= 20W chỉ hiển thị line tĩnh, không animation
-                    evnEnergyLine.classList.remove('active-flow');
+                    // 0 < EVN <= 20W: 1 hạt
+                    evnEnergyLine.classList.add('flow-level-1');
                 }
             } else {
                 // Ẩn hoàn toàn khi không có điện từ EVN
                 evnEnergyLine.classList.add('hidden-flow');
-                evnEnergyLine.classList.remove('active-flow');
             }
         }
         
