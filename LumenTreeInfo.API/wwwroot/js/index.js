@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13186 - 3D Home: Longer PV energy flow line with endpoint circle at solar panel
+ * Version: 13187 - 3D Home: Fix energy flow line z-index (show above house image)
  * 
  * Features:
  * - Real-time data via SignalR
