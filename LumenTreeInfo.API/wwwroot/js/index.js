@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13178 - 3D Home: Amber/yellow gradient theme matching Pro view
+ * Version: 13180 - 3D Home: Redesign bottom cards, phone-style battery icon
  * 
  * Features:
  * - Real-time data via SignalR
@@ -3143,44 +3143,70 @@ document.addEventListener('DOMContentLoaded', function () {
         update3DValue('battery-soc-3d', batteryPercent);
         update3DValue('essential-power-3d', essentialPower);
         
-        // Update battery card with colors based on charge/discharge
+        // Update battery card with colors based on charge/discharge AND battery level
         const batteryPowerVal = parseInt(batteryPower.replace(/[^\d-]/g, '')) || 0;
+        const batteryPercentNum = parseInt(batteryPercent.replace(/[^\d]/g, '')) || 0;
         const batteryPowerEl = document.getElementById('battery-power-3d');
         const batteryCardEl = document.getElementById('battery-card-3d');
         const batteryFillEl = document.getElementById('battery-fill-3d');
         const batteryPercentIconEl = document.getElementById('battery-percent-3d-icon');
+        const batteryBodyEl = document.getElementById('battery-body-3d');
+        const batteryCapEl = document.getElementById('battery-cap-3d');
         
+        // Determine battery color based on % level (like phone battery)
+        // >50% = emerald/green, 20-50% = amber/yellow, <20% = red
+        let batteryColorClass = 'emerald';
+        let batteryBorderColor = 'border-emerald-400';
+        let batteryCapColor = 'bg-emerald-400';
+        let batteryFillColor = 'bg-emerald-500';
+        let batteryTextColor = 'text-emerald-400';
+        
+        if (batteryPercentNum < 20) {
+            batteryColorClass = 'red';
+            batteryBorderColor = 'border-red-400';
+            batteryCapColor = 'bg-red-400';
+            batteryFillColor = 'bg-red-500';
+            batteryTextColor = 'text-red-400';
+        } else if (batteryPercentNum < 50) {
+            batteryColorClass = 'amber';
+            batteryBorderColor = 'border-amber-400';
+            batteryCapColor = 'bg-amber-400';
+            batteryFillColor = 'bg-amber-500';
+            batteryTextColor = 'text-amber-400';
+        }
+        
+        // Update power display with +/- sign
         if (batteryPowerEl) {
             if (batteryPowerVal > 10) {
                 // Charging: + màu xanh
                 batteryPowerEl.textContent = '+' + Math.abs(batteryPowerVal) + 'W';
-                batteryPowerEl.className = 'text-base sm:text-lg font-black text-emerald-400';
-                if (batteryCardEl) batteryCardEl.className = 'bg-slate-800/80 backdrop-blur rounded-xl p-2 text-center border border-emerald-500/30';
+                batteryPowerEl.className = 'text-xl sm:text-2xl font-black text-emerald-400 leading-tight';
+                if (batteryCardEl) batteryCardEl.className = 'bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-emerald-500/30 shadow-lg flex flex-col items-center';
             } else if (batteryPowerVal < -10) {
                 // Discharging: - màu đỏ
                 batteryPowerEl.textContent = '-' + Math.abs(batteryPowerVal) + 'W';
-                batteryPowerEl.className = 'text-base sm:text-lg font-black text-red-400';
-                if (batteryCardEl) batteryCardEl.className = 'bg-slate-800/80 backdrop-blur rounded-xl p-2 text-center border border-red-500/30';
+                batteryPowerEl.className = 'text-xl sm:text-2xl font-black text-red-400 leading-tight';
+                if (batteryCardEl) batteryCardEl.className = 'bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-red-500/30 shadow-lg flex flex-col items-center';
             } else {
                 // Idle: màu slate
                 batteryPowerEl.textContent = '0W';
-                batteryPowerEl.className = 'text-base sm:text-lg font-black text-slate-400';
-                if (batteryCardEl) batteryCardEl.className = 'bg-slate-800/80 backdrop-blur rounded-xl p-2 text-center border border-slate-500/30';
+                batteryPowerEl.className = 'text-xl sm:text-2xl font-black text-slate-400 leading-tight';
+                if (batteryCardEl) batteryCardEl.className = 'bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-slate-500/30 shadow-lg flex flex-col items-center';
             }
         }
         
-        // Update battery fill % in card
-        const batteryPercentNum = parseInt(batteryPercent.replace(/[^\d]/g, '')) || 0;
+        // Update battery icon colors based on % level
+        if (batteryBodyEl) {
+            batteryBodyEl.className = `w-10 h-5 sm:w-12 sm:h-6 rounded-[4px] border-2 ${batteryBorderColor} relative overflow-hidden bg-slate-900/80`;
+        }
+        if (batteryCapEl) {
+            batteryCapEl.className = `absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-2.5 sm:h-3 ${batteryCapColor} rounded-r-sm`;
+        }
+        
+        // Update battery fill bar
         if (batteryFillEl) {
-            batteryFillEl.style.width = batteryPercentNum + '%';
-            // Change fill color based on charge/discharge
-            if (batteryPowerVal > 10) {
-                batteryFillEl.className = 'absolute left-0 top-0 bottom-0 bg-emerald-500 transition-all duration-500';
-            } else if (batteryPowerVal < -10) {
-                batteryFillEl.className = 'absolute left-0 top-0 bottom-0 bg-red-500 transition-all duration-500';
-            } else {
-                batteryFillEl.className = 'absolute left-0 top-0 bottom-0 bg-slate-500 transition-all duration-500';
-            }
+            batteryFillEl.style.width = Math.max(batteryPercentNum - 5, 0) + '%'; // -5% for padding
+            batteryFillEl.className = `absolute left-0.5 top-0.5 bottom-0.5 rounded-[2px] ${batteryFillColor} transition-all duration-500`;
         }
         if (batteryPercentIconEl) {
             batteryPercentIconEl.textContent = batteryPercent;
