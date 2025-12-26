@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13167 - 3D Home: Bottom cards reorder, battery color by state, Pro icons
+ * Version: 13168 - 3D Home: Larger bottom cards, closer to house image
  * 
  * Features:
  * - Real-time data via SignalR

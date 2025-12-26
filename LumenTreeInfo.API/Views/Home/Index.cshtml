@@ -1213,39 +1213,39 @@
                 </div>
                 
                 <!-- Bottom Stats Cards - 3 columns: Pin sạc/xả | Tải cổng load | Tải tiêu thụ -->
-                <div class="-mt-8 grid grid-cols-3 gap-2 relative z-10 px-1">
+                <div class="-mt-12 grid grid-cols-3 gap-2.5 relative z-10 px-1">
                     <!-- 1. Battery Card - với % pin và màu sắc theo trạng thái -->
-                    <div id="battery-card-3d" class="bg-slate-800/80 backdrop-blur rounded-xl p-2 text-center border border-emerald-500/30">
+                    <div id="battery-card-3d" class="bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-emerald-500/30 shadow-lg">
                         <!-- Battery icon với % fill -->
-                        <div class="flex justify-center mb-1">
+                        <div class="flex justify-center mb-1.5">
                             <div class="battery-icon-3d relative">
-                                <div class="w-10 h-6 rounded-md border-2 border-emerald-500 relative overflow-hidden bg-slate-700">
+                                <div class="w-12 h-7 rounded-md border-2 border-emerald-500 relative overflow-hidden bg-slate-700">
                                     <div id="battery-fill-3d" class="absolute left-0 top-0 bottom-0 bg-emerald-500 transition-all duration-500" style="width: 0%"></div>
-                                    <span id="battery-percent-3d-icon" class="absolute inset-0 flex items-center justify-center text-[10px] font-black text-white z-10">--%</span>
+                                    <span id="battery-percent-3d-icon" class="absolute inset-0 flex items-center justify-center text-[11px] font-black text-white z-10">--%</span>
                                 </div>
-                                <div class="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-2.5 bg-emerald-500 rounded-r-sm"></div>
+                                <div class="absolute -right-1 top-1/2 -translate-y-1/2 w-1.5 h-3 bg-emerald-500 rounded-r-sm"></div>
                             </div>
                         </div>
-                        <div id="battery-power-3d" class="text-base sm:text-lg font-black text-emerald-400">--W</div>
-                        <div class="text-[10px] text-slate-400 mt-0.5">Pin sạc/xả</div>
+                        <div id="battery-power-3d" class="text-lg sm:text-xl font-black text-emerald-400">--W</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">Pin sạc/xả</div>
                     </div>
                     
                     <!-- 2. Essential Load Card (Tải cổng load) - icon backup.png -->
-                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2 text-center border border-cyan-500/30">
-                        <div class="w-8 h-8 mx-auto mb-1 flex items-center justify-center">
-                            <img src="/icons/backup.png" loading="lazy" alt="Tải cổng load" class="w-7 h-7 object-contain drop-shadow-md">
+                    <div class="bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-cyan-500/30 shadow-lg">
+                        <div class="w-10 h-10 mx-auto mb-1.5 flex items-center justify-center">
+                            <img src="/icons/backup.png" loading="lazy" alt="Tải cổng load" class="w-9 h-9 object-contain drop-shadow-md">
                         </div>
-                        <div id="essential-power-3d" class="text-base sm:text-lg font-black text-cyan-400">--W</div>
-                        <div class="text-[10px] text-slate-400 mt-0.5">Tải cổng load</div>
+                        <div id="essential-power-3d" class="text-lg sm:text-xl font-black text-cyan-400">--W</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">Tải cổng load</div>
                     </div>
                     
                     <!-- 3. Load Card (Tải tiêu thụ/hòa lưới) - icon grid-export.png -->
-                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2 text-center border border-emerald-500/30">
-                        <div class="w-8 h-8 mx-auto mb-1 flex items-center justify-center">
-                            <img src="/icons/grid-export.png" loading="lazy" alt="Tải tiêu thụ" class="w-7 h-7 object-contain drop-shadow-md">
+                    <div class="bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-emerald-500/30 shadow-lg">
+                        <div class="w-10 h-10 mx-auto mb-1.5 flex items-center justify-center">
+                            <img src="/icons/grid-export.png" loading="lazy" alt="Tải tiêu thụ" class="w-9 h-9 object-contain drop-shadow-md">
                         </div>
-                        <div id="load-power-3d" class="text-base sm:text-lg font-black text-emerald-400">--W</div>
-                        <div class="text-[10px] text-slate-400 mt-0.5">Tải tiêu thụ</div>
+                        <div id="load-power-3d" class="text-lg sm:text-xl font-black text-emerald-400">--W</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">Tải tiêu thụ</div>
                     </div>
                 </div>
             </div>
@@ -1993,7 +1993,7 @@
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13167" defer></script>
+    <script src="/js/index.js?v=13168" defer></script>
 
 </body>
 </html>
