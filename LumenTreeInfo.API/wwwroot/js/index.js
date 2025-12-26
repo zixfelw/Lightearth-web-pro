@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13175 - 3D Home: Amber gradient background like Pro, smaller PC text
+ * Version: 13176 - 3D Home: Grid EVN shows voltage instead of status
  * 
  * Features:
  * - Real-time data via SignalR
@@ -3186,21 +3186,9 @@ document.addEventListener('DOMContentLoaded', function () {
             batteryPercentIconEl.textContent = batteryPercent;
         }
         
-        // Update Grid EVN status (nhập/xuất điện) - màu tím purple theme
-        const gridVal = parseInt(gridPower.replace(/[^\d-]/g, '')) || 0;
-        const gridStatusEl = document.getElementById('grid-status-3d');
-        if (gridStatusEl) {
-            if (gridVal > 5) {
-                gridStatusEl.textContent = 'Nhập điện';
-                gridStatusEl.className = 'text-[10px] text-purple-400';
-            } else if (gridVal < -5) {
-                gridStatusEl.textContent = 'Xuất điện';
-                gridStatusEl.className = 'text-[10px] text-emerald-400';
-            } else {
-                gridStatusEl.textContent = 'Chờ';
-                gridStatusEl.className = 'text-[10px] text-slate-400';
-            }
-        }
+        // Update Grid EVN voltage - lấy từ Pro view
+        const gridVoltage = document.getElementById('grid-voltage')?.textContent || '--V';
+        update3DValue('grid-voltage-3d', gridVoltage);
         
         // ========================================
         // Sun/Moon Animation Control
