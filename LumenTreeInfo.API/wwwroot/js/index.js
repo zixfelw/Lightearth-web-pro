@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13160 - 3D Home: PV box and Sun overlay on house image, better layout
+ * Version: 13161 - 3D Home: Fix PV1/PV2 data, add voltage, adjust positions
  * 
  * Features:
  * - Real-time data via SignalR
@@ -780,6 +780,9 @@ document.addEventListener('DOMContentLoaded', function () {
             } else {
                 return; // No valid data
             }
+            
+            // Store data for 3D view sync
+            latestRealtimeData = displayData;
             
             // Update displays with realtime data
             updateRealTimeDisplay(displayData);
@@ -3088,6 +3091,9 @@ document.addEventListener('DOMContentLoaded', function () {
     // Main switchEnergyFlowView is defined OUTSIDE DOMContentLoaded for mobile compatibility
     // ========================================
     
+    // Store latest realtime data for 3D view sync
+    let latestRealtimeData = {};
+    
     // Auto-sync data to 3D Home view elements
     // Auto-sync data to 3D Home view - With Sun/Moon animation
     function autoSync3DHomeView() {
@@ -3099,13 +3105,17 @@ document.addEventListener('DOMContentLoaded', function () {
         const loadPower = document.getElementById('load-power')?.textContent || '--W';
         const essentialPower = document.getElementById('essential-power')?.textContent || '--W';
         
-        // Get PV1 and PV2 from pv-desc (format: "PV1: xxxW | PV2: xxxW")
-        const pvDesc = document.getElementById('pv-desc')?.textContent || '';
+        // Get PV1/PV2 power and voltage from stored realtime data
         let pv1Power = '--W', pv2Power = '--W';
-        const pv1Match = pvDesc.match(/PV1[:\s]*(\d+)\s*W/i);
-        const pv2Match = pvDesc.match(/PV2[:\s]*(\d+)\s*W/i);
-        if (pv1Match) pv1Power = pv1Match[1] + 'W';
-        if (pv2Match) pv2Power = pv2Match[1] + 'W';
+        let pv1Voltage = '--V', pv2Voltage = '--V';
+        if (latestRealtimeData.pv1Power) {
+            pv1Power = latestRealtimeData.pv1Power + 'W';
+            pv1Voltage = (latestRealtimeData.pv1Voltage || 0) + 'V';
+        }
+        if (latestRealtimeData.pv2Power) {
+            pv2Power = latestRealtimeData.pv2Power + 'W';
+            pv2Voltage = (latestRealtimeData.pv2Voltage || 0) + 'V';
+        }
         
         // Update 3D Home view elements with blink effect (same as Pro)
         const update3DValue = (id, value) => {
@@ -3126,6 +3136,8 @@ document.addEventListener('DOMContentLoaded', function () {
         update3DValue('pv-power-3d', pvPower);
         update3DValue('pv1-power-3d', pv1Power);
         update3DValue('pv2-power-3d', pv2Power);
+        update3DValue('pv1-voltage-3d', pv1Voltage);
+        update3DValue('pv2-voltage-3d', pv2Voltage);
         update3DValue('grid-power-3d', gridPower);
         update3DValue('load-power-3d', loadPower);
         update3DValue('battery-power-3d', batteryPower);
