@@ -1,37 +1,37 @@
 // Service Worker for Solar Calculator PWA
-// Version 1.0.2 - Clear old cache, fix 3D Home view
+// Version 2.0.0 - NETWORK FIRST strategy for fresh data on F5
+// Fix: Mobile F5 showing old data, PC F5 showing no data
 
-const CACHE_NAME = 'solar-calculator-v1.0.2';
-const RUNTIME_CACHE = 'solar-calculator-runtime';
+const CACHE_NAME = 'solar-calculator-v2.0.0';
+const RUNTIME_CACHE = 'solar-calculator-runtime-v2.0.0';
 
-// Files to cache immediately on install
+// Files to cache for offline fallback only
 const PRECACHE_URLS = [
-  '/',
-  '/index.html',
   '/manifest.json',
-  // Chart.js from CDN will be cached on first request
+  // DO NOT cache index.html - always fetch fresh from network
 ];
 
-// Install event - cache essential files
+// Install event - Skip waiting to activate immediately
 self.addEventListener('install', event => {
-  console.log('[ServiceWorker] Install');
+  console.log('[ServiceWorker v2.0.0] Install - NETWORK FIRST strategy');
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('[ServiceWorker] Pre-caching app shell');
+        console.log('[ServiceWorker] Pre-caching manifest only');
         return cache.addAll(PRECACHE_URLS);
       })
       .then(() => self.skipWaiting())
   );
 });
 
-// Activate event - clean up old caches
+// Activate event - Clean up ALL old caches
 self.addEventListener('activate', event => {
-  console.log('[ServiceWorker] Activate');
+  console.log('[ServiceWorker v2.0.0] Activate - Clearing old caches');
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
+          // Delete ALL old caches
           if (cacheName !== CACHE_NAME && cacheName !== RUNTIME_CACHE) {
             console.log('[ServiceWorker] Removing old cache:', cacheName);
             return caches.delete(cacheName);
@@ -42,17 +42,68 @@ self.addEventListener('activate', event => {
   );
 });
 
-// Fetch event - serve from cache, fallback to network
+// Fetch event - NETWORK FIRST for HTML/JS/CSS, API always network
 self.addEventListener('fetch', event => {
+  const requestUrl = new URL(event.request.url);
+  
   // NEVER cache API requests - always fetch fresh data
-  if (event.request.url.includes('/api/')) {
+  if (requestUrl.pathname.includes('/api/')) {
     event.respondWith(fetch(event.request));
     return;
   }
   
-  // Skip cross-origin requests
-  if (!event.request.url.startsWith(self.location.origin)) {
-    // But cache CDN resources (Chart.js, etc.)
+  // For navigation requests (HTML pages) - ALWAYS NETWORK FIRST
+  if (event.request.mode === 'navigate' || 
+      requestUrl.pathname === '/' || 
+      requestUrl.pathname.endsWith('.html') ||
+      requestUrl.pathname.endsWith('.cshtml')) {
+    event.respondWith(
+      fetch(event.request)
+        .then(networkResponse => {
+          console.log('[ServiceWorker] HTML from network:', requestUrl.pathname);
+          // Cache for offline fallback only
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(RUNTIME_CACHE).then(cache => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          console.log('[ServiceWorker] Network failed, trying cache:', requestUrl.pathname);
+          return caches.match(event.request).then(response => {
+            return response || caches.match('/');
+          });
+        })
+    );
+    return;
+  }
+  
+  // For JS/CSS files with version query - NETWORK FIRST
+  if ((requestUrl.pathname.endsWith('.js') || requestUrl.pathname.endsWith('.css')) && 
+      requestUrl.search.includes('v=')) {
+    event.respondWith(
+      fetch(event.request)
+        .then(networkResponse => {
+          console.log('[ServiceWorker] Versioned asset from network:', requestUrl.pathname);
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(RUNTIME_CACHE).then(cache => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+  
+  // For CDN resources (Chart.js, etc.) - Cache first, network fallback
+  if (!requestUrl.href.startsWith(self.location.origin)) {
     event.respondWith(
       caches.open(RUNTIME_CACHE).then(cache => {
         return cache.match(event.request).then(response => {
@@ -60,14 +111,12 @@ self.addEventListener('fetch', event => {
             return response;
           }
           return fetch(event.request).then(networkResponse => {
-            // Cache CDN resources for offline use
             if (networkResponse && networkResponse.status === 200) {
               cache.put(event.request, networkResponse.clone());
             }
             return networkResponse;
           }).catch(() => {
-            // Return a custom offline page if available
-            return caches.match('/index.html');
+            return caches.match('/');
           });
         });
       })
@@ -75,40 +124,20 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // For same-origin requests
+  // For other static assets - NETWORK FIRST with cache fallback
   event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Return cached version if available
-        if (response) {
-          console.log('[ServiceWorker] Serving from cache:', event.request.url);
-          return response;
-        }
-
-        // Otherwise fetch from network
-        console.log('[ServiceWorker] Fetching from network:', event.request.url);
-        return fetch(event.request).then(networkResponse => {
-          // Don't cache if not a valid response
-          if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
-            return networkResponse;
-          }
-
-          // Clone the response
+    fetch(event.request)
+      .then(networkResponse => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
           const responseToCache = networkResponse.clone();
-
-          // Cache the fetched response
-          caches.open(RUNTIME_CACHE)
-            .then(cache => {
-              cache.put(event.request, responseToCache);
-            });
-
-          return networkResponse;
-        });
+          caches.open(RUNTIME_CACHE).then(cache => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
       })
-      .catch(error => {
-        console.error('[ServiceWorker] Fetch failed:', error);
-        // Return offline page if available
-        return caches.match('/index.html');
+      .catch(() => {
+        return caches.match(event.request);
       })
   );
 });

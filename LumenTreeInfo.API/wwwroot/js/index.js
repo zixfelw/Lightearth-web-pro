@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13197 - Always fetch daily-energy on F5/load for all devices
+ * Version: 13198 - Fix Service Worker: NETWORK FIRST strategy for F5 refresh
  * 
  * Features:
  * - Real-time data via SignalR
@@ -334,16 +334,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     
-    // Initialize cache from localStorage
-    loadCacheFromLocalStorage();
-    
     // Cache for summary data per device (persists until device changes)
-    // IMPORTANT: Must be defined before fetchData() is called
+    // IMPORTANT: Must be defined BEFORE loadCacheFromLocalStorage() is called
     let summaryDataCache = {
         deviceId: null,
         data: null,
         timestamp: 0
     };
+    
+    // Initialize cache from localStorage AFTER summaryDataCache is defined
+    loadCacheFromLocalStorage();
     
     // Default to Local API with LightEarth Cloud
     let currentApiSource = 'local';
