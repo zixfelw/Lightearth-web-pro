@@ -1119,25 +1119,25 @@
                 
                 <!-- Top Row: PV Source (Left) | Sun/Moon (Center) | Grid EVN (Right) - OUTSIDE image -->
                 <div class="grid grid-cols-3 gap-2 items-end mb-0 px-1">
-                    <!-- PV Source Box (Left) - Màu cyan/teal tối giống card Tải cổng load -->
-                    <div class="bg-slate-800/90 backdrop-blur rounded-xl p-2 sm:p-2.5 border border-cyan-500/30 shadow-lg">
+                    <!-- PV Source Box (Left) - Gradient amber/yellow giống Pro view -->
+                    <div class="bg-gradient-to-br from-amber-900/40 to-yellow-900/40 backdrop-blur rounded-xl p-2 sm:p-2.5 border border-amber-500/50 shadow-lg shadow-amber-500/15">
                         <div class="text-center mb-1">
-                            <span class="text-[10px] sm:text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Nguồn PV</span>
+                            <span class="text-[10px] sm:text-[10px] font-bold text-amber-300 uppercase tracking-wider">Nguồn PV</span>
                         </div>
                         <div class="text-center mb-1.5">
-                            <span id="pv-power-3d" class="text-2xl sm:text-2xl font-black text-cyan-400 drop-shadow-lg">--W</span>
+                            <span id="pv-power-3d" class="text-2xl sm:text-2xl font-black text-amber-400 drop-shadow-lg">--W</span>
                         </div>
-                        <!-- PV1/PV2 đơn giản - màu cyan -->
+                        <!-- PV1/PV2 đơn giản - màu amber giống Pro -->
                         <div class="flex justify-center gap-3 sm:gap-4 text-center">
                             <div>
-                                <div class="text-[10px] sm:text-[10px] text-cyan-300/70 font-semibold">PV1</div>
-                                <div id="pv1-power-3d" class="text-sm sm:text-sm font-bold text-cyan-400">--W</div>
-                                <div id="pv1-voltage-3d" class="text-[9px] sm:text-[10px] text-cyan-300/50">--V</div>
+                                <div class="text-[10px] sm:text-[10px] text-amber-200/70 font-semibold">PV1</div>
+                                <div id="pv1-power-3d" class="text-sm sm:text-sm font-bold text-amber-400">--W</div>
+                                <div id="pv1-voltage-3d" class="text-[9px] sm:text-[10px] text-amber-300/60">--V</div>
                             </div>
                             <div>
-                                <div class="text-[10px] sm:text-[10px] text-cyan-300/70 font-semibold">PV2</div>
-                                <div id="pv2-power-3d" class="text-sm sm:text-sm font-bold text-cyan-400">--W</div>
-                                <div id="pv2-voltage-3d" class="text-[9px] sm:text-[10px] text-cyan-300/50">--V</div>
+                                <div class="text-[10px] sm:text-[10px] text-amber-200/70 font-semibold">PV2</div>
+                                <div id="pv2-power-3d" class="text-sm sm:text-sm font-bold text-amber-400">--W</div>
+                                <div id="pv2-voltage-3d" class="text-[9px] sm:text-[10px] text-amber-300/60">--V</div>
                             </div>
                         </div>
                     </div>
@@ -1173,21 +1173,21 @@
                         </div>
                     </div>
                     
-                    <!-- Grid EVN Box (Right) - Màu cyan/teal tối giống card Tải cổng load -->
-                    <div class="bg-slate-800/90 backdrop-blur rounded-xl p-2 sm:p-2.5 border border-cyan-500/30 shadow-lg">
+                    <!-- Grid EVN Box (Right) - Gradient amber/yellow giống Pro view -->
+                    <div class="bg-gradient-to-br from-amber-900/40 to-yellow-900/40 backdrop-blur rounded-xl p-2 sm:p-2.5 border border-amber-500/50 shadow-lg shadow-amber-500/15">
                         <div class="text-center mb-1">
-                            <span class="text-[10px] sm:text-[10px] font-bold text-cyan-400 uppercase tracking-wider">Lưới EVN</span>
+                            <span class="text-[10px] sm:text-[10px] font-bold text-amber-300 uppercase tracking-wider">Lưới EVN</span>
                         </div>
                         <div class="text-center">
-                            <div class="w-7 h-7 sm:w-7 sm:h-7 mx-auto mb-0.5 rounded-lg bg-cyan-500/20 flex items-center justify-center border border-cyan-500/40">
-                                <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div class="w-7 h-7 sm:w-7 sm:h-7 mx-auto mb-0.5 rounded-lg bg-amber-500/20 flex items-center justify-center border border-amber-500/40">
+                                <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                 </svg>
                             </div>
-                            <span id="grid-power-3d" class="text-xl sm:text-xl font-black text-cyan-400 drop-shadow-lg">--W</span>
+                            <span id="grid-power-3d" class="text-xl sm:text-xl font-black text-amber-400 drop-shadow-lg">--W</span>
                         </div>
                         <div class="text-center mt-0.5">
-                            <span id="grid-voltage-3d" class="text-[10px] sm:text-[10px] text-cyan-300/50 font-medium">--V</span>
+                            <span id="grid-voltage-3d" class="text-[10px] sm:text-[10px] text-amber-300/60 font-medium">--V</span>
                         </div>
                     </div>
                 </div>
@@ -1994,7 +1994,7 @@
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13179" defer></script>
+    <script src="/js/index.js?v=13178" defer></script>
 
 </body>
 </html>
