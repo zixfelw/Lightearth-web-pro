@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13173 - 3D Home: Simplified PV1/PV2 display, amber color like Pro
+ * Version: 13174 - 3D Home: Larger PV text, amber color for all PV values
  * 
  * Features:
  * - Real-time data via SignalR
