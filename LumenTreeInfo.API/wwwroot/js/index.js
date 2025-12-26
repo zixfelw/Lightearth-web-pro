@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13154 - Fixed cell data display and debug logging
+ * Version: 13155 - Fix cell data reset on F5/device change
  * 
  * Features:
  * - Real-time data via SignalR
@@ -863,6 +863,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         showLoading(true);
         hideError();
+        
+        // Reset cell data state for new device/refresh
+        hasCellData = false;
+        cellDataReceived = false;
+        previousCellValues = {};
+        console.log('🔄 Reset cell data state for device:', deviceId);
 
         // FAST LOAD: Call realtime API first for instant display
         fetchRealtimeFirst(deviceId, date);
