@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13166 - 3D Home: Top row moved down closer to house image
+ * Version: 13167 - 3D Home: Bottom cards reorder, battery color by state, Pro icons
  * 
  * Features:
  * - Real-time data via SignalR
@@ -3140,9 +3140,51 @@ document.addEventListener('DOMContentLoaded', function () {
         update3DValue('pv2-voltage-3d', pv2Voltage);
         update3DValue('grid-power-3d', gridPower);
         update3DValue('load-power-3d', loadPower);
-        update3DValue('battery-power-3d', batteryPower);
         update3DValue('battery-soc-3d', batteryPercent);
         update3DValue('essential-power-3d', essentialPower);
+        
+        // Update battery card with colors based on charge/discharge
+        const batteryPowerVal = parseInt(batteryPower.replace(/[^\d-]/g, '')) || 0;
+        const batteryPowerEl = document.getElementById('battery-power-3d');
+        const batteryCardEl = document.getElementById('battery-card-3d');
+        const batteryFillEl = document.getElementById('battery-fill-3d');
+        const batteryPercentIconEl = document.getElementById('battery-percent-3d-icon');
+        
+        if (batteryPowerEl) {
+            if (batteryPowerVal > 10) {
+                // Charging: + màu xanh
+                batteryPowerEl.textContent = '+' + Math.abs(batteryPowerVal) + 'W';
+                batteryPowerEl.className = 'text-base sm:text-lg font-black text-emerald-400';
+                if (batteryCardEl) batteryCardEl.className = 'bg-slate-800/80 backdrop-blur rounded-xl p-2 text-center border border-emerald-500/30';
+            } else if (batteryPowerVal < -10) {
+                // Discharging: - màu đỏ
+                batteryPowerEl.textContent = '-' + Math.abs(batteryPowerVal) + 'W';
+                batteryPowerEl.className = 'text-base sm:text-lg font-black text-red-400';
+                if (batteryCardEl) batteryCardEl.className = 'bg-slate-800/80 backdrop-blur rounded-xl p-2 text-center border border-red-500/30';
+            } else {
+                // Idle: màu slate
+                batteryPowerEl.textContent = '0W';
+                batteryPowerEl.className = 'text-base sm:text-lg font-black text-slate-400';
+                if (batteryCardEl) batteryCardEl.className = 'bg-slate-800/80 backdrop-blur rounded-xl p-2 text-center border border-slate-500/30';
+            }
+        }
+        
+        // Update battery fill % in card
+        const batteryPercentNum = parseInt(batteryPercent.replace(/[^\d]/g, '')) || 0;
+        if (batteryFillEl) {
+            batteryFillEl.style.width = batteryPercentNum + '%';
+            // Change fill color based on charge/discharge
+            if (batteryPowerVal > 10) {
+                batteryFillEl.className = 'absolute left-0 top-0 bottom-0 bg-emerald-500 transition-all duration-500';
+            } else if (batteryPowerVal < -10) {
+                batteryFillEl.className = 'absolute left-0 top-0 bottom-0 bg-red-500 transition-all duration-500';
+            } else {
+                batteryFillEl.className = 'absolute left-0 top-0 bottom-0 bg-slate-500 transition-all duration-500';
+            }
+        }
+        if (batteryPercentIconEl) {
+            batteryPercentIconEl.textContent = batteryPercent;
+        }
         
         // Update Grid EVN status (nhập/xuất điện) - màu tím purple theme
         const gridVal = parseInt(gridPower.replace(/[^\d-]/g, '')) || 0;

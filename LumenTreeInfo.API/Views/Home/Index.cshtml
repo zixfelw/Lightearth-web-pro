@@ -1212,39 +1212,40 @@
                     </div>
                 </div>
                 
-                <!-- Bottom Stats Cards - 3 columns - xích lên cao hơn -->
+                <!-- Bottom Stats Cards - 3 columns: Pin sạc/xả | Tải cổng load | Tải tiêu thụ -->
                 <div class="-mt-8 grid grid-cols-3 gap-2 relative z-10 px-1">
-                    <!-- Battery Card -->
-                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2.5 text-center border border-emerald-500/30">
-                        <div class="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/50">
-                            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3h6v2H9zM4 5h16a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z"/>
-                            </svg>
+                    <!-- 1. Battery Card - với % pin và màu sắc theo trạng thái -->
+                    <div id="battery-card-3d" class="bg-slate-800/80 backdrop-blur rounded-xl p-2 text-center border border-emerald-500/30">
+                        <!-- Battery icon với % fill -->
+                        <div class="flex justify-center mb-1">
+                            <div class="battery-icon-3d relative">
+                                <div class="w-10 h-6 rounded-md border-2 border-emerald-500 relative overflow-hidden bg-slate-700">
+                                    <div id="battery-fill-3d" class="absolute left-0 top-0 bottom-0 bg-emerald-500 transition-all duration-500" style="width: 0%"></div>
+                                    <span id="battery-percent-3d-icon" class="absolute inset-0 flex items-center justify-center text-[10px] font-black text-white z-10">--%</span>
+                                </div>
+                                <div class="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-2.5 bg-emerald-500 rounded-r-sm"></div>
+                            </div>
                         </div>
-                        <div id="battery-power-3d" class="text-lg sm:text-xl font-black text-emerald-400">--W</div>
+                        <div id="battery-power-3d" class="text-base sm:text-lg font-black text-emerald-400">--W</div>
                         <div class="text-[10px] text-slate-400 mt-0.5">Pin sạc/xả</div>
                     </div>
                     
-                    <!-- Load Card -->
-                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2.5 text-center border border-cyan-500/30">
-                        <div class="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50">
-                            <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                            </svg>
+                    <!-- 2. Essential Load Card (Tải cổng load) - icon backup.png -->
+                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2 text-center border border-cyan-500/30">
+                        <div class="w-8 h-8 mx-auto mb-1 flex items-center justify-center">
+                            <img src="/icons/backup.png" loading="lazy" alt="Tải cổng load" class="w-7 h-7 object-contain drop-shadow-md">
                         </div>
-                        <div id="load-power-3d" class="text-lg sm:text-xl font-black text-cyan-400">--W</div>
-                        <div class="text-[10px] text-slate-400 mt-0.5">Tải tiêu thụ</div>
+                        <div id="essential-power-3d" class="text-base sm:text-lg font-black text-cyan-400">--W</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Tải cổng load</div>
                     </div>
                     
-                    <!-- Essential Load Card -->
-                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2.5 text-center border border-amber-500/30">
-                        <div class="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-amber-500/20 flex items-center justify-center border border-amber-500/50">
-                            <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
-                            </svg>
+                    <!-- 3. Load Card (Tải tiêu thụ/hòa lưới) - icon grid-export.png -->
+                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2 text-center border border-emerald-500/30">
+                        <div class="w-8 h-8 mx-auto mb-1 flex items-center justify-center">
+                            <img src="/icons/grid-export.png" loading="lazy" alt="Tải tiêu thụ" class="w-7 h-7 object-contain drop-shadow-md">
                         </div>
-                        <div id="essential-power-3d" class="text-lg sm:text-xl font-black text-amber-400">--W</div>
-                        <div class="text-[10px] text-slate-400 mt-0.5">Tải cổng load</div>
+                        <div id="load-power-3d" class="text-base sm:text-lg font-black text-emerald-400">--W</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Tải tiêu thụ</div>
                     </div>
                 </div>
             </div>
@@ -1992,7 +1993,7 @@
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13166" defer></script>
+    <script src="/js/index.js?v=13167" defer></script>
 
 </body>
 </html>
