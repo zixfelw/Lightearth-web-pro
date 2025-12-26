@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13161 - 3D Home: Fix PV1/PV2 data, add voltage, adjust positions
+ * Version: 13162 - 3D Home: New layout - PV left, Sun center, Grid EVN right
  * 
  * Features:
  * - Real-time data via SignalR
@@ -3143,6 +3143,22 @@ document.addEventListener('DOMContentLoaded', function () {
         update3DValue('battery-power-3d', batteryPower);
         update3DValue('battery-soc-3d', batteryPercent);
         update3DValue('essential-power-3d', essentialPower);
+        
+        // Update Grid EVN status (nhập/xuất điện)
+        const gridVal = parseInt(gridPower.replace(/[^\d-]/g, '')) || 0;
+        const gridStatusEl = document.getElementById('grid-status-3d');
+        if (gridStatusEl) {
+            if (gridVal > 5) {
+                gridStatusEl.textContent = 'Nhập điện';
+                gridStatusEl.className = 'text-[10px] text-purple-400';
+            } else if (gridVal < -5) {
+                gridStatusEl.textContent = 'Xuất điện';
+                gridStatusEl.className = 'text-[10px] text-emerald-400';
+            } else {
+                gridStatusEl.textContent = 'Chờ';
+                gridStatusEl.className = 'text-[10px] text-slate-400';
+            }
+        }
         
         // ========================================
         // Sun/Moon Animation Control

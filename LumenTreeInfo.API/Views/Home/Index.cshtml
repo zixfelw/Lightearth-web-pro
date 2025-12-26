@@ -1117,38 +1117,33 @@
         <div id="energyFlow3DHome" class="hidden">
             <div class="relative mx-auto" style="max-width: 500px;">
                 
-                <!-- 3D House Image with overlays -->
-                <div class="relative">
-                    <img src="/images/3dhome/house-3d-dark.png" alt="3D Solar Home" 
-                         class="w-full h-auto object-contain">
-                    
-                    <!-- PV Source Box (Top Left - overlay on roof) -->
-                    <div class="absolute top-[2%] left-[2%] z-20">
-                        <div class="bg-slate-800/90 backdrop-blur rounded-xl p-2.5 border border-emerald-500/50">
-                            <div class="text-center mb-1">
-                                <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wide">Nguồn PV</span>
+                <!-- Top Row: PV Source (Left) | Sun/Moon (Center) | Grid EVN (Right) -->
+                <div class="grid grid-cols-3 gap-2 mb-2">
+                    <!-- PV Source Box (Left) -->
+                    <div class="bg-slate-800/90 backdrop-blur rounded-xl p-3 border border-emerald-500/50">
+                        <div class="text-center mb-2">
+                            <span class="text-xs font-bold text-emerald-400 uppercase tracking-wide">Nguồn PV</span>
+                        </div>
+                        <div class="text-center mb-2">
+                            <span id="pv-power-3d" class="text-2xl sm:text-3xl font-black text-white">--W</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-center">
+                            <div class="bg-slate-700/50 rounded-lg p-1.5">
+                                <div class="text-[9px] text-slate-400 font-medium">PV1</div>
+                                <div id="pv1-power-3d" class="text-sm font-bold text-emerald-300">--W</div>
+                                <div id="pv1-voltage-3d" class="text-[9px] text-slate-400">--V</div>
                             </div>
-                            <div class="text-center mb-1">
-                                <span id="pv-power-3d" class="text-xl sm:text-2xl font-black text-white">--W</span>
-                            </div>
-                            <div class="grid grid-cols-2 gap-1.5 text-center">
-                                <div class="bg-slate-700/50 rounded-lg p-1">
-                                    <div class="text-[8px] text-slate-400">PV1</div>
-                                    <div id="pv1-power-3d" class="text-xs font-bold text-emerald-300">--W</div>
-                                    <div id="pv1-voltage-3d" class="text-[8px] text-slate-500">--V</div>
-                                </div>
-                                <div class="bg-slate-700/50 rounded-lg p-1">
-                                    <div class="text-[8px] text-slate-400">PV2</div>
-                                    <div id="pv2-power-3d" class="text-xs font-bold text-emerald-300">--W</div>
-                                    <div id="pv2-voltage-3d" class="text-[8px] text-slate-500">--V</div>
-                                </div>
+                            <div class="bg-slate-700/50 rounded-lg p-1.5">
+                                <div class="text-[9px] text-slate-400 font-medium">PV2</div>
+                                <div id="pv2-power-3d" class="text-sm font-bold text-emerald-300">--W</div>
+                                <div id="pv2-voltage-3d" class="text-[9px] text-slate-400">--V</div>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- Sun/Moon Animation (Top Right - near solar panels) -->
-                    <div class="absolute top-[0%] right-[15%] z-20">
-                        <div class="relative w-20 h-20 sm:w-24 sm:h-24">
+                    <!-- Sun/Moon Animation (Center) -->
+                    <div class="flex items-center justify-center">
+                        <div class="relative w-24 h-24 sm:w-28 sm:h-28">
                             <!-- Sun (shown when PV > 0) -->
                             <div id="sun-3d" class="absolute inset-0 flex items-center justify-center transition-all duration-500">
                                 <div class="sun-3d-container">
@@ -1177,66 +1172,79 @@
                         </div>
                     </div>
                     
-                    <!-- Battery SOC % (on battery - adjusted position) -->
-                    <div class="absolute left-[5%] top-[48%] z-20">
-                        <div class="flex items-center gap-1">
-                            <div id="battery-status-icon-3d" class="hidden">
-                                <svg id="battery-charging-3d" class="w-4 h-4 text-emerald-400 animate-bounce hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
-                                </svg>
-                                <svg id="battery-discharging-3d" class="w-4 h-4 text-orange-400 animate-bounce hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+                    <!-- Grid EVN Box (Right) -->
+                    <div class="bg-slate-800/90 backdrop-blur rounded-xl p-3 border border-purple-500/50">
+                        <div class="text-center mb-2">
+                            <span class="text-xs font-bold text-purple-400 uppercase tracking-wide">Lưới EVN</span>
+                        </div>
+                        <div class="text-center mb-2">
+                            <div class="w-10 h-10 mx-auto mb-1 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/50">
+                                <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                 </svg>
                             </div>
-                            <span id="battery-soc-3d" class="text-xl sm:text-2xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">--%</span>
+                            <span id="grid-power-3d" class="text-2xl sm:text-3xl font-black text-purple-300">--W</span>
+                        </div>
+                        <div class="text-center">
+                            <span id="grid-status-3d" class="text-[10px] text-slate-400">Nhập điện</span>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Bottom Stats Cards - 4 columns - sát với ảnh hơn -->
-                <div class="-mt-3 grid grid-cols-4 gap-2 relative z-10">
+                <!-- 3D House Image with battery overlay -->
+                <div class="relative">
+                    <img src="/images/3dhome/house-3d-dark.png" alt="3D Solar Home" 
+                         class="w-full h-auto object-contain">
+                    
+                    <!-- Battery SOC % (on battery - adjusted position) -->
+                    <div class="absolute left-[8%] top-[45%] z-20">
+                        <div class="flex items-center gap-1">
+                            <div id="battery-status-icon-3d" class="hidden">
+                                <svg id="battery-charging-3d" class="w-5 h-5 text-emerald-400 animate-bounce hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 10l7-7m0 0l7 7m-7-7v18"/>
+                                </svg>
+                                <svg id="battery-discharging-3d" class="w-5 h-5 text-orange-400 animate-bounce hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 14l-7 7m0 0l-7-7m7 7V3"/>
+                                </svg>
+                            </div>
+                            <span id="battery-soc-3d" class="text-2xl sm:text-3xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">--%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Bottom Stats Cards - 3 columns (Pin, Tải tiêu thụ, Tải cổng load) -->
+                <div class="-mt-4 grid grid-cols-3 gap-2 relative z-10">
                     <!-- Battery Card -->
-                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2.5 text-center border border-slate-700">
+                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2.5 text-center border border-emerald-500/30">
                         <div class="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/50">
                             <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3h6v2H9zM4 5h16a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1z"/>
                             </svg>
                         </div>
-                        <div id="battery-power-3d" class="text-base sm:text-lg font-black text-emerald-400">--W</div>
-                        <div class="text-[9px] text-slate-400 mt-0.5">Pin sạc/xả</div>
-                    </div>
-                    
-                    <!-- Grid EVN Card -->
-                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2.5 text-center border border-slate-700">
-                        <div class="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-purple-500/20 flex items-center justify-center border border-purple-500/50">
-                            <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                            </svg>
-                        </div>
-                        <div id="grid-power-3d" class="text-base sm:text-lg font-black text-purple-400">--W</div>
-                        <div class="text-[9px] text-slate-400 mt-0.5">Lưới EVN</div>
+                        <div id="battery-power-3d" class="text-lg sm:text-xl font-black text-emerald-400">--W</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Pin sạc/xả</div>
                     </div>
                     
                     <!-- Load Card -->
-                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2.5 text-center border border-slate-700">
+                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2.5 text-center border border-cyan-500/30">
                         <div class="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-cyan-500/20 flex items-center justify-center border border-cyan-500/50">
                             <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
                             </svg>
                         </div>
-                        <div id="load-power-3d" class="text-base sm:text-lg font-black text-cyan-400">--W</div>
-                        <div class="text-[9px] text-slate-400 mt-0.5">Tải tiêu thụ</div>
+                        <div id="load-power-3d" class="text-lg sm:text-xl font-black text-cyan-400">--W</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Tải tiêu thụ</div>
                     </div>
                     
-                    <!-- Essential Load Card (NEW) -->
-                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2.5 text-center border border-slate-700">
+                    <!-- Essential Load Card -->
+                    <div class="bg-slate-800/80 backdrop-blur rounded-xl p-2.5 text-center border border-amber-500/30">
                         <div class="w-8 h-8 mx-auto mb-1.5 rounded-lg bg-amber-500/20 flex items-center justify-center border border-amber-500/50">
                             <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
                             </svg>
                         </div>
-                        <div id="essential-power-3d" class="text-base sm:text-lg font-black text-amber-400">--W</div>
-                        <div class="text-[9px] text-slate-400 mt-0.5">Tải cổng load</div>
+                        <div id="essential-power-3d" class="text-lg sm:text-xl font-black text-amber-400">--W</div>
+                        <div class="text-[10px] text-slate-400 mt-0.5">Tải cổng load</div>
                     </div>
                 </div>
             </div>
@@ -1984,7 +1992,7 @@
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13161" defer></script>
+    <script src="/js/index.js?v=13162" defer></script>
 
 </body>
 </html>
