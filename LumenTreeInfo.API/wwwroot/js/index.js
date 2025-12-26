@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13165 - 3D Home: PV box horizontal, top row above image, cards closer
+ * Version: 13166 - 3D Home: Top row moved down closer to house image
  * 
  * Features:
  * - Real-time data via SignalR
