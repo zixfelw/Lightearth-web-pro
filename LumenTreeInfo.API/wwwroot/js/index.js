@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13210 - Fix duplicate function name causing undefined error
+ * Version: 13211 - Sync HTML version tag to force browser refresh
  * 
  * Features:
  * - Real-time data via SignalR
