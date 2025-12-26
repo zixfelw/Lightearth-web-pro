@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13215 - Combined: Energy chart (v13203) + SOC chart fix (v13211)
+ * Version: 13216 - Use v13211 as base (SOC + Energy both working)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1146,10 +1146,20 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // PRIORITY 1: Try Railway Power History API first (most reliable, no region block)
         try {
-            const railwayPowerUrl = `${POWER_HISTORY_API}/${deviceId}?date=${queryDate}`;
+            // Add cache-busting timestamp to force fresh fetch on F5
+            const cacheBuster = Date.now();
+            const railwayPowerUrl = `${POWER_HISTORY_API}/${deviceId}?date=${queryDate}&_t=${cacheBuster}`;
             console.log("📊📊📊 [POWER CHART] Fetching from Railway API:", railwayPowerUrl);
             
-            const railwayResponse = await fetch(railwayPowerUrl);
+            // Force no-cache to ensure fresh data on F5
+            const railwayResponse = await fetch(railwayPowerUrl, {
+                method: 'GET',
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache'
+                }
+            });
             console.log("📊 Railway response status:", railwayResponse.status, railwayResponse.ok);
             
             if (railwayResponse.ok) {
@@ -1502,7 +1512,7 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log("📊 Updating combined energy chart with LightEarth Cloud data");
         updateCharts(chartData);
         
-        // Update peak stats from Cloud data
+        // Update peak stats from Cloud data (timeline format)
         const filteredTimeline = timeline.filter((point, index) => {
             let slotIndex;
             if (point.time && point.time.includes(':') && point.time.length <= 5) {
@@ -1513,11 +1523,12 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             return slotIndex <= maxAllowedSlot;
         });
-        updateEnergyChartPeakStats(filteredTimeline);
+        updateEnergyChartPeakStatsFromTimeline(filteredTimeline);
     }
     
-    // Update peak stats from Cloud Power History
-    function updateEnergyChartPeakStats(timeline) {
+    // Update peak stats from Cloud Power History (timeline array format)
+    // RENAMED to avoid conflict with updateEnergyChartPeakStats(labels, processedData)
+    function updateEnergyChartPeakStatsFromTimeline(timeline) {
         if (!timeline || timeline.length === 0) return;
         
         // Find peak values and times
@@ -1542,29 +1553,35 @@ document.addEventListener('DOMContentLoaded', function () {
         timeline.forEach(point => {
             const timeStr = getTimeStr(point.time);
             
+            // Support both old format (pv, battery, load, grid) and Railway format (pvPower, batteryPower, etc.)
+            const pv = point.pvPower ?? point.pv ?? 0;
+            const battery = point.batteryPower ?? point.battery ?? 0;
+            const load = point.loadPower ?? point.load ?? 0;
+            const grid = point.gridPower ?? point.grid ?? 0;
+            
             // PV
-            if (point.pv > maxPv) {
-                maxPv = point.pv;
+            if (pv > maxPv) {
+                maxPv = pv;
                 maxPvTime = timeStr;
             }
             // Battery charge (positive battery = charging)
-            if (point.battery > 0 && point.battery > maxCharge) {
-                maxCharge = point.battery;
+            if (battery > 0 && battery > maxCharge) {
+                maxCharge = battery;
                 maxChargeTime = timeStr;
             }
             // Battery discharge (negative battery = discharging)
-            if (point.battery < 0 && Math.abs(point.battery) > maxDischarge) {
-                maxDischarge = Math.abs(point.battery);
+            if (battery < 0 && Math.abs(battery) > maxDischarge) {
+                maxDischarge = Math.abs(battery);
                 maxDischargeTime = timeStr;
             }
             // Load
-            if (point.load > maxLoad) {
-                maxLoad = point.load;
+            if (load > maxLoad) {
+                maxLoad = load;
                 maxLoadTime = timeStr;
             }
             // Grid
-            if (point.grid > maxGrid) {
-                maxGrid = point.grid;
+            if (grid > maxGrid) {
+                maxGrid = grid;
                 maxGridTime = timeStr;
             }
         });
