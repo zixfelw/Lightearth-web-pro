@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13198 - Fix Service Worker: NETWORK FIRST strategy for F5 refresh
+ * Version: 13199 - Default to Dark Mode on first visit
  * 
  * Features:
  * - Real-time data via SignalR

@@ -2293,11 +2293,16 @@
         const themeToggle = document.getElementById('themeToggle');
         const html = document.documentElement;
         
-        // Check for saved theme or system preference
-        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            html.classList.add('dark');
-        } else {
+        // DEFAULT: Dark mode (unless explicitly set to light)
+        // Dark mode is default for first visit and all subsequent visits
+        if (localStorage.theme === 'light') {
             html.classList.remove('dark');
+        } else {
+            // Default to dark mode (first visit or saved as dark)
+            html.classList.add('dark');
+            if (!localStorage.theme) {
+                localStorage.theme = 'dark'; // Save default preference
+            }
         }
         
         themeToggle.addEventListener('click', () => {
