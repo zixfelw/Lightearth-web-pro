@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13192 - 3D Home: Sun animation 3 levels with !important CSS overrides
+ * Version: 13193 - 3D Home: Sun animation with orange color (less bright)
  * 
  * Features:
  * - Real-time data via SignalR
