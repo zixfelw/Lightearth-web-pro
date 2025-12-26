@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13152 - Fixed mobile 3D Home button (moved switchEnergyFlowView outside DOMContentLoaded)
+ * Version: 13153 - Added debug logging for cell data
  * 
  * Features:
  * - Real-time data via SignalR
@@ -709,7 +709,10 @@ document.addEventListener('DOMContentLoaded', function () {
             const apiUrl = getRealtimeApiUrl(deviceId);
             console.log(`📡 Fetching from ${API_SOURCES[currentApiSource].name}:`, apiUrl);
             const response = await fetch(apiUrl);
-            if (!response.ok) return;
+            if (!response.ok) {
+                console.error(`❌ API error ${response.status}: ${response.statusText} for ${apiUrl}`);
+                return;
+            }
             
             const data = await response.json();
             if (data.error) return;
@@ -781,6 +784,7 @@ document.addEventListener('DOMContentLoaded', function () {
             updateRealTimeDisplay(displayData);
             
             // Update battery cell voltages
+            console.log('🔋 CellsData received:', cellsData ? 'YES' : 'NO', cellsData);
             if (cellsData && cellsData.cellVoltages) {
                 let cellVoltages = [];
                 const rawVoltages = cellsData.cellVoltages;
