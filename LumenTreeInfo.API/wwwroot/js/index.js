@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13158 - 3D Home: Add Sun/Moon animation, PV box with PV1/PV2, Essential load card
+ * Version: 13159 - 3D Home: Cards closer to house image, clear old cache
  * 
  * Features:
  * - Real-time data via SignalR

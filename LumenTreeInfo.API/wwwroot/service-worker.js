@@ -1,7 +1,7 @@
 // Service Worker for Solar Calculator PWA
-// Version 1.0.1 - Fix: Never cache API requests
+// Version 1.0.2 - Clear old cache, fix 3D Home view
 
-const CACHE_NAME = 'solar-calculator-v1.0.1';
+const CACHE_NAME = 'solar-calculator-v1.0.2';
 const RUNTIME_CACHE = 'solar-calculator-runtime';
 
 // Files to cache immediately on install
