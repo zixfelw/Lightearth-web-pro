@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13181 - 3D Home: Larger battery icon with bigger % text
+ * Version: 13182 - 3D Home: New icons for Essential Load & Grid Load
  * 
  * Features:
  * - Real-time data via SignalR
