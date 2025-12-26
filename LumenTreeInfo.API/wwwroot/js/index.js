@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13194 - 3D Home: New realistic sun style with corona effect
+ * Version: 13195 - 3D Home: 4 sun levels (0-1000W, 1000-2000W, 2000-4000W, 4000W+ VIP PRO)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -3243,14 +3243,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 sun3D.classList.remove('hidden');
                 moon3D.classList.add('hidden');
                 
-                // Set Sun power level based on PV wattage
+                // Set Sun power level based on PV wattage (4 levels)
                 const sunContainer = sun3D.querySelector('.sun-3d-container');
                 if (sunContainer) {
                     // Reset all levels
-                    sunContainer.classList.remove('sun-level-1', 'sun-level-2', 'sun-level-3');
+                    sunContainer.classList.remove('sun-level-1', 'sun-level-2', 'sun-level-3', 'sun-level-4');
                     
-                    if (pvValue >= 2000) {
-                        // Level 3: 2000W+ - Mạnh mẽ, rực rỡ
+                    if (pvValue >= 4000) {
+                        // Level 4: 4000W+ - VIP PRO, cực mạnh
+                        sunContainer.classList.add('sun-level-4');
+                    } else if (pvValue >= 2000) {
+                        // Level 3: 2000-4000W - Rực rỡ
                         sunContainer.classList.add('sun-level-3');
                     } else if (pvValue >= 1000) {
                         // Level 2: 1000-2000W - Trung bình

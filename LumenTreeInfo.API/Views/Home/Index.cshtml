@@ -301,100 +301,168 @@
         
         /* Level 1: 0-1000W - Mặt trời mờ, buổi sáng sớm */
         .sun-3d-container.sun-level-1 .sun-3d-core {
-            width: 30px !important;
-            height: 30px !important;
+            width: 28px !important;
+            height: 28px !important;
             animation: sun-3d-pulse-slow 4s ease-in-out infinite !important;
             background: 
                 radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2) 0%, transparent 30%),
                 linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
             box-shadow: 
-                inset 0 0 10px rgba(255, 255, 255, 0.2),
-                0 0 15px rgba(251, 191, 36, 0.5),
-                0 0 30px rgba(245, 158, 11, 0.3) !important;
+                inset 0 0 8px rgba(255, 255, 255, 0.2),
+                0 0 12px rgba(251, 191, 36, 0.4),
+                0 0 25px rgba(245, 158, 11, 0.2) !important;
         }
         .sun-3d-container.sun-level-1 .sun-3d-rays {
-            animation: sun-3d-rotate 40s linear infinite !important;
-            opacity: 0.3 !important;
-            width: 55px !important;
-            height: 55px !important;
+            animation: sun-3d-rotate 45s linear infinite !important;
+            opacity: 0.25 !important;
+            width: 50px !important;
+            height: 50px !important;
         }
         .sun-3d-container.sun-level-1 .sun-3d-glow {
             animation: sun-3d-glow-slow 5s ease-in-out infinite !important;
-            width: 50px !important;
-            height: 50px !important;
-            opacity: 0.4 !important;
+            width: 45px !important;
+            height: 45px !important;
+            opacity: 0.35 !important;
         }
         
         /* Level 2: 1000-2000W - Mặt trời bình thường */
         .sun-3d-container.sun-level-2 .sun-3d-core {
-            width: 38px !important;
-            height: 38px !important;
-            animation: sun-3d-pulse 2.5s ease-in-out infinite !important;
+            width: 34px !important;
+            height: 34px !important;
+            animation: sun-3d-pulse 3s ease-in-out infinite !important;
             background: 
-                radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3) 0%, transparent 25%),
-                radial-gradient(circle at 70% 60%, rgba(255,229,180,0.3) 0%, transparent 20%),
-                linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #ea580c 100%) !important;
+                radial-gradient(circle at 30% 30%, rgba(255,255,255,0.25) 0%, transparent 25%),
+                linear-gradient(135deg, #fbbf24 0%, #f59e0b 60%, #ea580c 100%) !important;
             box-shadow: 
-                inset 0 0 12px rgba(255, 255, 255, 0.3),
-                0 0 20px rgba(251, 191, 36, 0.7),
-                0 0 40px rgba(245, 158, 11, 0.4) !important;
+                inset 0 0 10px rgba(255, 255, 255, 0.25),
+                0 0 18px rgba(251, 191, 36, 0.6),
+                0 0 35px rgba(245, 158, 11, 0.35) !important;
         }
         .sun-3d-container.sun-level-2 .sun-3d-rays {
-            animation: sun-3d-rotate 20s linear infinite !important;
-            opacity: 0.5 !important;
+            animation: sun-3d-rotate 25s linear infinite !important;
+            opacity: 0.4 !important;
+            width: 65px !important;
+            height: 65px !important;
+        }
+        .sun-3d-container.sun-level-2 .sun-3d-glow {
+            animation: sun-3d-glow 3.5s ease-in-out infinite !important;
+            width: 60px !important;
+            height: 60px !important;
+        }
+        
+        /* Level 3: 2000-4000W - Mặt trời rực rỡ */
+        .sun-3d-container.sun-level-3 .sun-3d-core {
+            width: 40px !important;
+            height: 40px !important;
+            animation: sun-3d-pulse 2s ease-in-out infinite !important;
+            background: 
+                radial-gradient(circle at 25% 25%, rgba(255,255,255,0.4) 0%, transparent 30%),
+                radial-gradient(circle at 70% 60%, rgba(255,235,200,0.3) 0%, transparent 20%),
+                linear-gradient(135deg, #fcd34d 0%, #fbbf24 40%, #f59e0b 70%, #ea580c 100%) !important;
+            box-shadow: 
+                inset 0 0 12px rgba(255, 255, 255, 0.35),
+                0 0 22px rgba(251, 191, 36, 0.8),
+                0 0 45px rgba(245, 158, 11, 0.5),
+                0 0 65px rgba(234, 88, 12, 0.25) !important;
+        }
+        .sun-3d-container.sun-level-3 .sun-3d-rays {
+            animation: sun-3d-rotate 15s linear infinite !important;
+            opacity: 0.6 !important;
+            width: 80px !important;
+            height: 80px !important;
+        }
+        .sun-3d-container.sun-level-3 .sun-3d-glow {
+            animation: sun-3d-glow-intense 2.5s ease-in-out infinite !important;
             width: 75px !important;
             height: 75px !important;
         }
-        .sun-3d-container.sun-level-2 .sun-3d-glow {
-            animation: sun-3d-glow 3s ease-in-out infinite !important;
-            width: 70px !important;
-            height: 70px !important;
-        }
         
-        /* Level 3: 2000W+ - Mặt trời rực rỡ giữa trưa */
-        .sun-3d-container.sun-level-3 .sun-3d-core {
-            width: 42px !important;
-            height: 42px !important;
-            animation: sun-3d-pulse-fast 1.5s ease-in-out infinite !important;
+        /* Level 4: 4000W+ - VIP PRO - Mặt trời cực mạnh với hiệu ứng đặc biệt */
+        .sun-3d-container.sun-level-4 .sun-3d-core {
+            width: 46px !important;
+            height: 46px !important;
+            animation: sun-3d-pulse-fast 1.2s ease-in-out infinite !important;
             background: 
-                radial-gradient(circle at 25% 25%, rgba(255,255,255,0.5) 0%, transparent 30%),
-                radial-gradient(circle at 65% 55%, rgba(255,235,200,0.4) 0%, transparent 25%),
-                linear-gradient(135deg, #fcd34d 0%, #fbbf24 30%, #f59e0b 60%, #ea580c 100%) !important;
+                radial-gradient(circle at 20% 20%, rgba(255,255,255,0.6) 0%, transparent 25%),
+                radial-gradient(circle at 75% 55%, rgba(255,240,220,0.5) 0%, transparent 20%),
+                radial-gradient(circle at 50% 80%, rgba(255,200,150,0.3) 0%, transparent 25%),
+                linear-gradient(135deg, #fef08a 0%, #fcd34d 25%, #fbbf24 50%, #f59e0b 75%, #ea580c 100%) !important;
             box-shadow: 
-                inset 0 0 15px rgba(255, 255, 255, 0.4),
-                0 0 25px rgba(251, 191, 36, 0.9),
-                0 0 50px rgba(245, 158, 11, 0.6),
-                0 0 75px rgba(234, 88, 12, 0.3) !important;
+                inset 0 0 15px rgba(255, 255, 255, 0.5),
+                0 0 30px rgba(254, 240, 138, 0.9),
+                0 0 60px rgba(251, 191, 36, 0.7),
+                0 0 90px rgba(245, 158, 11, 0.5),
+                0 0 120px rgba(234, 88, 12, 0.3) !important;
         }
-        .sun-3d-container.sun-level-3 .sun-3d-rays {
-            animation: sun-3d-rotate-fast 12s linear infinite !important;
-            opacity: 0.7 !important;
-            width: 90px !important;
-            height: 90px !important;
+        .sun-3d-container.sun-level-4 .sun-3d-rays {
+            animation: sun-3d-rotate-fast 8s linear infinite !important;
+            opacity: 0.85 !important;
+            width: 100px !important;
+            height: 100px !important;
+            background: 
+                conic-gradient(
+                    from 0deg,
+                    transparent 0deg, rgba(254, 240, 138, 0.7) 4deg, transparent 8deg,
+                    transparent 45deg, rgba(251, 191, 36, 0.7) 49deg, transparent 53deg,
+                    transparent 90deg, rgba(254, 240, 138, 0.7) 94deg, transparent 98deg,
+                    transparent 135deg, rgba(251, 191, 36, 0.7) 139deg, transparent 143deg,
+                    transparent 180deg, rgba(254, 240, 138, 0.7) 184deg, transparent 188deg,
+                    transparent 225deg, rgba(251, 191, 36, 0.7) 229deg, transparent 233deg,
+                    transparent 270deg, rgba(254, 240, 138, 0.7) 274deg, transparent 278deg,
+                    transparent 315deg, rgba(251, 191, 36, 0.7) 319deg, transparent 323deg
+                ) !important;
         }
-        .sun-3d-container.sun-level-3 .sun-3d-glow {
-            animation: sun-3d-glow-intense 2s ease-in-out infinite !important;
-            width: 85px !important;
-            height: 85px !important;
+        .sun-3d-container.sun-level-4 .sun-3d-glow {
+            animation: sun-3d-glow-ultra 1.5s ease-in-out infinite !important;
+            width: 95px !important;
+            height: 95px !important;
+            background: radial-gradient(circle, 
+                rgba(254, 240, 138, 0.5) 0%, 
+                rgba(251, 191, 36, 0.35) 30%,
+                rgba(245, 158, 11, 0.2) 50%,
+                transparent 70%) !important;
         }
-        /* Vòng corona thứ 2 cho level 3 */
-        .sun-3d-container.sun-level-3::before {
+        /* Vòng corona trong cho level 4 */
+        .sun-3d-container.sun-level-4::before {
             content: '';
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 100px;
-            height: 100px;
+            width: 120px;
+            height: 120px;
             background: radial-gradient(circle,
-                transparent 35%,
-                rgba(251, 191, 36, 0.15) 40%,
-                rgba(245, 158, 11, 0.1) 50%,
-                transparent 60%
+                transparent 30%,
+                rgba(254, 240, 138, 0.2) 35%,
+                rgba(251, 191, 36, 0.15) 45%,
+                transparent 55%
             );
             border-radius: 50%;
-            animation: sun-3d-corona 3s ease-in-out infinite;
-            animation: sun-3d-rotate-reverse 12s linear infinite;
+            animation: sun-3d-corona 2s ease-in-out infinite;
+        }
+        /* Vòng corona ngoài cho level 4 - xoay ngược */
+        .sun-3d-container.sun-level-4::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 140px;
+            height: 140px;
+            background: 
+                conic-gradient(
+                    from 22.5deg,
+                    transparent 0deg, rgba(245, 158, 11, 0.15) 5deg, transparent 10deg,
+                    transparent 45deg, rgba(245, 158, 11, 0.15) 50deg, transparent 55deg,
+                    transparent 90deg, rgba(245, 158, 11, 0.15) 95deg, transparent 100deg,
+                    transparent 135deg, rgba(245, 158, 11, 0.15) 140deg, transparent 145deg,
+                    transparent 180deg, rgba(245, 158, 11, 0.15) 185deg, transparent 190deg,
+                    transparent 225deg, rgba(245, 158, 11, 0.15) 230deg, transparent 235deg,
+                    transparent 270deg, rgba(245, 158, 11, 0.15) 275deg, transparent 280deg,
+                    transparent 315deg, rgba(245, 158, 11, 0.15) 320deg, transparent 325deg
+                );
+            border-radius: 50%;
+            animation: sun-3d-rotate-reverse 15s linear infinite;
         }
         
         @@keyframes sun-3d-pulse {
@@ -439,12 +507,17 @@
         
         @@keyframes sun-3d-glow-intense {
             0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+        }
+        
+        @@keyframes sun-3d-glow-ultra {
+            0%, 100% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
             50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
         }
         
         @@keyframes sun-3d-corona {
             0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
-            50% { opacity: 0.8; transform: translate(-50%, -50%) scale(1.1); }
+            50% { opacity: 0.9; transform: translate(-50%, -50%) scale(1.15); }
         }
         
         /* Moon Container */
