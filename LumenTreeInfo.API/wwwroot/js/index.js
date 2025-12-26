@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13189 - 3D Home: Longer EVN line, dynamic particle count based on power level
+ * Version: 13190 - 3D Home: Shorter PV line on PC (h-24), EVN unchanged
  * 
  * Features:
  * - Real-time data via SignalR
