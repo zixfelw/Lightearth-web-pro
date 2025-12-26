@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13195 - 3D Home: 4 sun levels (0-1000W, 1000-2000W, 2000-4000W, 4000W+ VIP PRO)
+ * Version: 13196 - 3D Home: 4 sun levels - Level 4 ULTRA VIP with inner sun rays
  * 
  * Features:
  * - Real-time data via SignalR

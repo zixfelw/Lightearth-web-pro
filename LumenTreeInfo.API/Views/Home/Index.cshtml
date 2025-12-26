@@ -350,35 +350,8 @@
             height: 60px !important;
         }
         
-        /* Level 3: 2000-4000W - Mặt trời rực rỡ */
+        /* Level 3: 2000-4000W - Mặt trời rực rỡ với corona (chuyển từ Level 4 cũ) */
         .sun-3d-container.sun-level-3 .sun-3d-core {
-            width: 40px !important;
-            height: 40px !important;
-            animation: sun-3d-pulse 2s ease-in-out infinite !important;
-            background: 
-                radial-gradient(circle at 25% 25%, rgba(255,255,255,0.4) 0%, transparent 30%),
-                radial-gradient(circle at 70% 60%, rgba(255,235,200,0.3) 0%, transparent 20%),
-                linear-gradient(135deg, #fcd34d 0%, #fbbf24 40%, #f59e0b 70%, #ea580c 100%) !important;
-            box-shadow: 
-                inset 0 0 12px rgba(255, 255, 255, 0.35),
-                0 0 22px rgba(251, 191, 36, 0.8),
-                0 0 45px rgba(245, 158, 11, 0.5),
-                0 0 65px rgba(234, 88, 12, 0.25) !important;
-        }
-        .sun-3d-container.sun-level-3 .sun-3d-rays {
-            animation: sun-3d-rotate 15s linear infinite !important;
-            opacity: 0.6 !important;
-            width: 80px !important;
-            height: 80px !important;
-        }
-        .sun-3d-container.sun-level-3 .sun-3d-glow {
-            animation: sun-3d-glow-intense 2.5s ease-in-out infinite !important;
-            width: 75px !important;
-            height: 75px !important;
-        }
-        
-        /* Level 4: 4000W+ - VIP PRO - Mặt trời cực mạnh với hiệu ứng đặc biệt */
-        .sun-3d-container.sun-level-4 .sun-3d-core {
             width: 46px !important;
             height: 46px !important;
             animation: sun-3d-pulse-fast 1.2s ease-in-out infinite !important;
@@ -394,7 +367,7 @@
                 0 0 90px rgba(245, 158, 11, 0.5),
                 0 0 120px rgba(234, 88, 12, 0.3) !important;
         }
-        .sun-3d-container.sun-level-4 .sun-3d-rays {
+        .sun-3d-container.sun-level-3 .sun-3d-rays {
             animation: sun-3d-rotate-fast 8s linear infinite !important;
             opacity: 0.85 !important;
             width: 100px !important;
@@ -412,7 +385,7 @@
                     transparent 315deg, rgba(251, 191, 36, 0.7) 319deg, transparent 323deg
                 ) !important;
         }
-        .sun-3d-container.sun-level-4 .sun-3d-glow {
+        .sun-3d-container.sun-level-3 .sun-3d-glow {
             animation: sun-3d-glow-ultra 1.5s ease-in-out infinite !important;
             width: 95px !important;
             height: 95px !important;
@@ -422,8 +395,8 @@
                 rgba(245, 158, 11, 0.2) 50%,
                 transparent 70%) !important;
         }
-        /* Vòng corona trong cho level 4 */
-        .sun-3d-container.sun-level-4::before {
+        /* Corona cho level 3 */
+        .sun-3d-container.sun-level-3::before {
             content: '';
             position: absolute;
             top: 50%;
@@ -440,8 +413,79 @@
             border-radius: 50%;
             animation: sun-3d-corona 2s ease-in-out infinite;
         }
-        /* Vòng corona ngoài cho level 4 - xoay ngược */
-        .sun-3d-container.sun-level-4::after {
+        
+        /* Level 4: 4000W+ - 🔥 ULTRA VIP PRO - Mặt trời SIÊU MẠNH với tia sáng bên trong */
+        .sun-3d-container.sun-level-4 .sun-3d-core {
+            width: 52px !important;
+            height: 52px !important;
+            animation: sun-3d-pulse-ultra 0.8s ease-in-out infinite !important;
+            background: 
+                /* Tia sáng xoay bên trong core */
+                conic-gradient(
+                    from 0deg at 50% 50%,
+                    rgba(255,255,255,0.9) 0deg, transparent 15deg,
+                    rgba(255,255,255,0.7) 45deg, transparent 60deg,
+                    rgba(255,255,255,0.9) 90deg, transparent 105deg,
+                    rgba(255,255,255,0.7) 135deg, transparent 150deg,
+                    rgba(255,255,255,0.9) 180deg, transparent 195deg,
+                    rgba(255,255,255,0.7) 225deg, transparent 240deg,
+                    rgba(255,255,255,0.9) 270deg, transparent 285deg,
+                    rgba(255,255,255,0.7) 315deg, transparent 330deg
+                ),
+                /* Điểm sáng highlight */
+                radial-gradient(circle at 25% 25%, rgba(255,255,255,0.8) 0%, transparent 20%),
+                radial-gradient(circle at 70% 35%, rgba(255,255,255,0.6) 0%, transparent 15%),
+                radial-gradient(circle at 35% 70%, rgba(255,255,255,0.5) 0%, transparent 18%),
+                /* Gradient chính */
+                radial-gradient(circle, #fff7ed 0%, #fef08a 20%, #fcd34d 40%, #fbbf24 60%, #f59e0b 80%, #ea580c 100%) !important;
+            box-shadow: 
+                inset 0 0 20px rgba(255, 255, 255, 0.7),
+                0 0 35px rgba(255, 255, 255, 0.8),
+                0 0 50px rgba(254, 240, 138, 1),
+                0 0 80px rgba(251, 191, 36, 0.8),
+                0 0 110px rgba(245, 158, 11, 0.6),
+                0 0 140px rgba(234, 88, 12, 0.4) !important;
+        }
+        .sun-3d-container.sun-level-4 .sun-3d-rays {
+            animation: sun-3d-rotate-ultra 5s linear infinite !important;
+            opacity: 1 !important;
+            width: 120px !important;
+            height: 120px !important;
+            background: 
+                /* 16 tia sáng mạnh */
+                conic-gradient(
+                    from 0deg,
+                    transparent 0deg, rgba(255, 255, 255, 0.9) 2deg, rgba(254, 240, 138, 0.8) 5deg, transparent 8deg,
+                    transparent 22.5deg, rgba(251, 191, 36, 0.7) 24.5deg, transparent 27deg,
+                    transparent 45deg, rgba(255, 255, 255, 0.9) 47deg, rgba(254, 240, 138, 0.8) 50deg, transparent 53deg,
+                    transparent 67.5deg, rgba(251, 191, 36, 0.7) 69.5deg, transparent 72deg,
+                    transparent 90deg, rgba(255, 255, 255, 0.9) 92deg, rgba(254, 240, 138, 0.8) 95deg, transparent 98deg,
+                    transparent 112.5deg, rgba(251, 191, 36, 0.7) 114.5deg, transparent 117deg,
+                    transparent 135deg, rgba(255, 255, 255, 0.9) 137deg, rgba(254, 240, 138, 0.8) 140deg, transparent 143deg,
+                    transparent 157.5deg, rgba(251, 191, 36, 0.7) 159.5deg, transparent 162deg,
+                    transparent 180deg, rgba(255, 255, 255, 0.9) 182deg, rgba(254, 240, 138, 0.8) 185deg, transparent 188deg,
+                    transparent 202.5deg, rgba(251, 191, 36, 0.7) 204.5deg, transparent 207deg,
+                    transparent 225deg, rgba(255, 255, 255, 0.9) 227deg, rgba(254, 240, 138, 0.8) 230deg, transparent 233deg,
+                    transparent 247.5deg, rgba(251, 191, 36, 0.7) 249.5deg, transparent 252deg,
+                    transparent 270deg, rgba(255, 255, 255, 0.9) 272deg, rgba(254, 240, 138, 0.8) 275deg, transparent 278deg,
+                    transparent 292.5deg, rgba(251, 191, 36, 0.7) 294.5deg, transparent 297deg,
+                    transparent 315deg, rgba(255, 255, 255, 0.9) 317deg, rgba(254, 240, 138, 0.8) 320deg, transparent 323deg,
+                    transparent 337.5deg, rgba(251, 191, 36, 0.7) 339.5deg, transparent 342deg
+                ) !important;
+        }
+        .sun-3d-container.sun-level-4 .sun-3d-glow {
+            animation: sun-3d-glow-ultra 1s ease-in-out infinite !important;
+            width: 110px !important;
+            height: 110px !important;
+            background: radial-gradient(circle, 
+                rgba(255, 255, 255, 0.6) 0%,
+                rgba(254, 240, 138, 0.5) 20%, 
+                rgba(251, 191, 36, 0.4) 40%,
+                rgba(245, 158, 11, 0.25) 60%,
+                transparent 75%) !important;
+        }
+        /* Vòng corona trong - pulse mạnh */
+        .sun-3d-container.sun-level-4::before {
             content: '';
             position: absolute;
             top: 50%;
@@ -449,20 +493,47 @@
             transform: translate(-50%, -50%);
             width: 140px;
             height: 140px;
+            background: radial-gradient(circle,
+                transparent 25%,
+                rgba(255, 255, 255, 0.25) 30%,
+                rgba(254, 240, 138, 0.2) 40%,
+                rgba(251, 191, 36, 0.15) 50%,
+                transparent 60%
+            );
+            border-radius: 50%;
+            animation: sun-3d-corona-ultra 1.5s ease-in-out infinite;
+        }
+        /* Vòng corona ngoài - 16 tia xoay ngược */
+        .sun-3d-container.sun-level-4::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 160px;
+            height: 160px;
             background: 
                 conic-gradient(
-                    from 22.5deg,
-                    transparent 0deg, rgba(245, 158, 11, 0.15) 5deg, transparent 10deg,
-                    transparent 45deg, rgba(245, 158, 11, 0.15) 50deg, transparent 55deg,
-                    transparent 90deg, rgba(245, 158, 11, 0.15) 95deg, transparent 100deg,
-                    transparent 135deg, rgba(245, 158, 11, 0.15) 140deg, transparent 145deg,
-                    transparent 180deg, rgba(245, 158, 11, 0.15) 185deg, transparent 190deg,
-                    transparent 225deg, rgba(245, 158, 11, 0.15) 230deg, transparent 235deg,
-                    transparent 270deg, rgba(245, 158, 11, 0.15) 275deg, transparent 280deg,
-                    transparent 315deg, rgba(245, 158, 11, 0.15) 320deg, transparent 325deg
+                    from 11.25deg,
+                    transparent 0deg, rgba(255, 255, 255, 0.3) 3deg, rgba(251, 191, 36, 0.2) 6deg, transparent 9deg,
+                    transparent 22.5deg, rgba(254, 240, 138, 0.25) 25.5deg, transparent 28.5deg,
+                    transparent 45deg, rgba(255, 255, 255, 0.3) 48deg, rgba(251, 191, 36, 0.2) 51deg, transparent 54deg,
+                    transparent 67.5deg, rgba(254, 240, 138, 0.25) 70.5deg, transparent 73.5deg,
+                    transparent 90deg, rgba(255, 255, 255, 0.3) 93deg, rgba(251, 191, 36, 0.2) 96deg, transparent 99deg,
+                    transparent 112.5deg, rgba(254, 240, 138, 0.25) 115.5deg, transparent 118.5deg,
+                    transparent 135deg, rgba(255, 255, 255, 0.3) 138deg, rgba(251, 191, 36, 0.2) 141deg, transparent 144deg,
+                    transparent 157.5deg, rgba(254, 240, 138, 0.25) 160.5deg, transparent 163.5deg,
+                    transparent 180deg, rgba(255, 255, 255, 0.3) 183deg, rgba(251, 191, 36, 0.2) 186deg, transparent 189deg,
+                    transparent 202.5deg, rgba(254, 240, 138, 0.25) 205.5deg, transparent 208.5deg,
+                    transparent 225deg, rgba(255, 255, 255, 0.3) 228deg, rgba(251, 191, 36, 0.2) 231deg, transparent 234deg,
+                    transparent 247.5deg, rgba(254, 240, 138, 0.25) 250.5deg, transparent 253.5deg,
+                    transparent 270deg, rgba(255, 255, 255, 0.3) 273deg, rgba(251, 191, 36, 0.2) 276deg, transparent 279deg,
+                    transparent 292.5deg, rgba(254, 240, 138, 0.25) 295.5deg, transparent 298.5deg,
+                    transparent 315deg, rgba(255, 255, 255, 0.3) 318deg, rgba(251, 191, 36, 0.2) 321deg, transparent 324deg,
+                    transparent 337.5deg, rgba(254, 240, 138, 0.25) 340.5deg, transparent 343.5deg
                 );
             border-radius: 50%;
-            animation: sun-3d-rotate-reverse 15s linear infinite;
+            animation: sun-3d-rotate-reverse 10s linear infinite;
         }
         
         @@keyframes sun-3d-pulse {
@@ -508,6 +579,23 @@
         @@keyframes sun-3d-glow-intense {
             0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
             50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+        }
+        
+        @@keyframes sun-3d-pulse-ultra {
+            0%, 100% { transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+            25% { transform: translate(-50%, -50%) scale(1.08) rotate(5deg); }
+            50% { transform: translate(-50%, -50%) scale(1.15) rotate(0deg); }
+            75% { transform: translate(-50%, -50%) scale(1.08) rotate(-5deg); }
+        }
+        
+        @@keyframes sun-3d-rotate-ultra {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        
+        @@keyframes sun-3d-corona-ultra {
+            0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
         }
         
         @@keyframes sun-3d-glow-ultra {
