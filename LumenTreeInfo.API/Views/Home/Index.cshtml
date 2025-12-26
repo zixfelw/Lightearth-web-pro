@@ -389,6 +389,110 @@
             0%, 100% { opacity: 0.3; transform: scale(1); }
             50% { opacity: 1; transform: scale(1.5); }
         }
+        
+        /* ========================================
+           PV Energy Flow Line - Nguồn PV → Solar Panel
+           Soft, gentle animation
+           ======================================== */
+        
+        /* Container for the energy flow line */
+        .pv-energy-line {
+            position: absolute;
+            width: 2px;
+            background: linear-gradient(to bottom, 
+                rgba(251, 191, 36, 0.8) 0%,
+                rgba(245, 158, 11, 0.6) 50%,
+                rgba(217, 119, 6, 0.4) 100%);
+            border-radius: 2px;
+            box-shadow: 0 0 8px rgba(251, 191, 36, 0.5),
+                        0 0 16px rgba(251, 191, 36, 0.3);
+        }
+        
+        /* Energy flow particles - gentle animation */
+        .energy-particle {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 6px;
+            height: 6px;
+            background: radial-gradient(circle, #fef3c7 0%, #fbbf24 50%, #f59e0b 100%);
+            border-radius: 50%;
+            box-shadow: 0 0 6px #fbbf24, 0 0 12px rgba(251, 191, 36, 0.6);
+            animation: energyFlowDown 2.5s ease-in-out infinite;
+            opacity: 0;
+        }
+        
+        .energy-particle:nth-child(2) {
+            animation-delay: 0.8s;
+            width: 5px;
+            height: 5px;
+        }
+        
+        .energy-particle:nth-child(3) {
+            animation-delay: 1.6s;
+            width: 4px;
+            height: 4px;
+        }
+        
+        @@keyframes energyFlowDown {
+            0% {
+                top: 0%;
+                opacity: 0;
+                transform: translateX(-50%) scale(0.8);
+            }
+            10% {
+                opacity: 0.9;
+                transform: translateX(-50%) scale(1);
+            }
+            80% {
+                opacity: 0.9;
+                transform: translateX(-50%) scale(1);
+            }
+            100% {
+                top: 100%;
+                opacity: 0;
+                transform: translateX(-50%) scale(0.8);
+            }
+        }
+        
+        /* Glow pulse effect on the line */
+        .pv-energy-line::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: inherit;
+            border-radius: inherit;
+            animation: linePulse 3s ease-in-out infinite;
+        }
+        
+        @@keyframes linePulse {
+            0%, 100% {
+                opacity: 0.6;
+                box-shadow: 0 0 4px rgba(251, 191, 36, 0.4);
+            }
+            50% {
+                opacity: 1;
+                box-shadow: 0 0 12px rgba(251, 191, 36, 0.7);
+            }
+        }
+        
+        /* Hide flow when PV = 0 */
+        .pv-energy-line.hidden-flow {
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        
+        /* Reduced motion preference */
+        @@media (prefers-reduced-motion: reduce) {
+            .energy-particle {
+                animation: none;
+                opacity: 0.7;
+                top: 50%;
+            }
+            .pv-energy-line::before {
+                animation: none;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 min-h-screen">
@@ -1192,8 +1296,19 @@
                     </div>
                 </div>
                 
+                <!-- Energy Flow Line: Nguồn PV → Solar Panel -->
+                <!-- Positioned from bottom of PV box to top of solar panel on roof -->
+                <div class="relative h-8 sm:h-10">
+                    <div id="pv-energy-line" class="pv-energy-line absolute left-[16.5%] top-0 bottom-0">
+                        <!-- Energy particles flowing down -->
+                        <div class="energy-particle"></div>
+                        <div class="energy-particle"></div>
+                        <div class="energy-particle"></div>
+                    </div>
+                </div>
+                
                 <!-- 3D House Image with battery overlay -->
-                <div class="relative -mt-24 sm:-mt-28">
+                <div class="relative -mt-32 sm:-mt-38">
                     <img src="/images/3dhome/house-3d-dark.png" alt="3D Solar Home" 
                          class="w-full h-auto object-contain">
                     
@@ -2004,7 +2119,7 @@
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13184" defer></script>
+    <script src="/js/index.js?v=13185" defer></script>
 
 </body>
 </html>

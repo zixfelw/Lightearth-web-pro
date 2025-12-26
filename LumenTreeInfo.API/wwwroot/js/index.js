@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13184 - 3D Home: Balanced card heights, mobile-optimized icons (srcset)
+ * Version: 13185 - 3D Home: Add gentle PV energy flow line (Nguồn PV → Solar Panel)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -3246,6 +3246,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Nighttime - show Moon
                 sun3D.classList.add('hidden');
                 moon3D.classList.remove('hidden');
+            }
+        }
+        
+        // PV Energy Flow Line - show/hide based on PV power
+        const pvEnergyLine = document.getElementById('pv-energy-line');
+        if (pvEnergyLine) {
+            if (pvValue > 0) {
+                pvEnergyLine.classList.remove('hidden-flow');
+            } else {
+                pvEnergyLine.classList.add('hidden-flow');
             }
         }
         
