@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13196 - 3D Home: 4 sun levels - Level 4 ULTRA VIP with inner sun rays
+ * Version: 13197 - Always fetch daily-energy on F5/load for all devices
  * 
  * Features:
  * - Real-time data via SignalR
@@ -898,12 +898,12 @@ document.addEventListener('DOMContentLoaded', function () {
         showCompactSearchBar(deviceId, date);
         showLoading(false);
         
-        // Check if we have cached summary data for this device
+        // Check if we have cached summary data for this device (for instant display)
         const hasCachedData = summaryDataCache.deviceId === deviceId && summaryDataCache.data;
         
         if (hasCachedData) {
-            // Use cached data immediately - no "Đang tải..."
-            console.log('📦 Using cached summary data for', deviceId);
+            // Use cached data immediately for instant display - no "Đang tải..."
+            console.log('📦 Using cached summary data for instant display:', deviceId);
             applySummaryData(summaryDataCache.data);
         } else {
             // Only show "Đang tải..." if no cache
@@ -914,6 +914,10 @@ document.addEventListener('DOMContentLoaded', function () {
             updateValue('grid-total', 'Đang tải...');
             updateValue('essential-total', 'Đang tải...');
         }
+        
+        // ALWAYS fetch fresh daily-energy data on page load/F5
+        // This ensures data is always up-to-date for ALL devices
+        console.log('🔄 F5/Load: Always fetching fresh daily-energy for', deviceId);
         
         // Initialize cells waiting state
         if (!hasCellData) {
@@ -988,15 +992,18 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // Fetch summary data for the 3 cards (fast path - single API call)
+    // ALWAYS fetches fresh data from /api/realtime/daily-energy/{deviceId}
+    // This ensures Năng Lượng, Pin Lưu Trữ, Nguồn Điện are always updated
     async function fetchRealtimeDataForSummary(deviceId) {
         try {
             const haEnergyUrl = `${currentOrigin}/api/realtime/daily-energy/${deviceId}`;
-            console.log('⚡ Fetching summary from:', haEnergyUrl);
+            console.log('⚡ [Daily Energy] Fetching from:', haEnergyUrl);
             
             const response = await fetch(haEnergyUrl);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
             
             const data = await response.json();
+            console.log('📥 [Daily Energy] Response:', data);
             
             if (data.success && data.summary) {
                 const summary = data.summary;
@@ -1017,12 +1024,23 @@ document.addEventListener('DOMContentLoaded', function () {
                 };
                 saveSummaryCacheToLocalStorage(); // Persist to localStorage
                 
-                // Update UI immediately
+                // ALWAYS update UI with fresh data
                 applySummaryData(cacheData);
-                console.log('✅ Summary loaded:', cacheData);
+                console.log('✅ [Daily Energy] Updated UI for', deviceId, ':', cacheData);
+            } else {
+                console.warn('⚠️ [Daily Energy] No data in response for', deviceId);
             }
         } catch (error) {
-            console.warn('⚠️ Summary fetch failed:', error.message);
+            console.warn('⚠️ [Daily Energy] Fetch failed for', deviceId, ':', error.message);
+            // If fetch fails and no cache, show error state
+            if (!summaryDataCache.data || summaryDataCache.deviceId !== deviceId) {
+                updateValue('pv-total', '-- kWh');
+                updateValue('bat-charge', '-- kWh');
+                updateValue('bat-discharge', '-- kWh');
+                updateValue('load-total', '-- kWh');
+                updateValue('grid-total', '-- kWh');
+                updateValue('essential-total', '-- kWh');
+            }
         }
     }
     
