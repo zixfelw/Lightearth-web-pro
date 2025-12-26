@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13209 - Fix TypeError in updateEnergyChartPeakStats (support Railway API format)
+ * Version: 13210 - Fix duplicate function name causing undefined error
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1512,7 +1512,7 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log("📊 Updating combined energy chart with LightEarth Cloud data");
         updateCharts(chartData);
         
-        // Update peak stats from Cloud data
+        // Update peak stats from Cloud data (timeline format)
         const filteredTimeline = timeline.filter((point, index) => {
             let slotIndex;
             if (point.time && point.time.includes(':') && point.time.length <= 5) {
@@ -1523,11 +1523,12 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             return slotIndex <= maxAllowedSlot;
         });
-        updateEnergyChartPeakStats(filteredTimeline);
+        updateEnergyChartPeakStatsFromTimeline(filteredTimeline);
     }
     
-    // Update peak stats from Cloud Power History
-    function updateEnergyChartPeakStats(timeline) {
+    // Update peak stats from Cloud Power History (timeline array format)
+    // RENAMED to avoid conflict with updateEnergyChartPeakStats(labels, processedData)
+    function updateEnergyChartPeakStatsFromTimeline(timeline) {
         if (!timeline || timeline.length === 0) return;
         
         // Find peak values and times
