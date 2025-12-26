@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13156 - Fix Service Worker caching API requests (PC cell data issue)
+ * Version: 13157 - Fix updateElement not defined error in autoSync3DHomeView
  * 
  * Features:
  * - Real-time data via SignalR
@@ -3173,9 +3173,9 @@ document.addEventListener('DOMContentLoaded', function () {
         const todayGrid = (gridValue * hoursFactor / 1000).toFixed(1);
         const todayConsumption = (loadValue * hoursFactor / 1000).toFixed(1);
         
-        updateElement('battery-today-3d', todayBattery + ' kWh');
-        updateElement('grid-today-3d', todayGrid + ' kWh');
-        updateElement('consumption-today-3d', todayConsumption + ' kWh');
+        update3DValue('battery-today-3d', todayBattery + ' kWh');
+        update3DValue('grid-today-3d', todayGrid + ' kWh');
+        update3DValue('consumption-today-3d', todayConsumption + ' kWh');
     }
     
     // Auto-sync data to Basic view elements
