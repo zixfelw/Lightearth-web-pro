@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13204 - Fix SOC chart not loading on F5 (mobile/PC same-origin check)
+ * Version: 13205 - Fix SOC chart not rendering after F5 (canvas visibility + retry)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -951,8 +951,11 @@ document.addEventListener('DOMContentLoaded', function () {
         
         // ALWAYS fetch SOC data (for SOC chart) - even if we have cache
         // This ensures SOC chart is always displayed
+        // Use small delay to ensure chart-section is fully visible before rendering
         console.log('📊 Fetching SOC data for chart...');
-        fetchSOCData().catch(err => console.warn('SOC fetch error:', err));
+        setTimeout(() => {
+            fetchSOCData().catch(err => console.warn('SOC fetch error:', err));
+        }, 100);
         
         // ALWAYS fetch temperature min/max - even if we have cache
         console.log('🌡️ Fetching temperature data...');
@@ -1893,11 +1896,31 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Render SOC Chart with Chart.js and external tooltip
     function renderSOCChart() {
+        console.log('🎨🎨🎨 renderSOCChart CALLED, socData length:', socData.length);
+        
         const canvas = document.getElementById('socChart');
-        if (!canvas || socData.length === 0) return;
+        if (!canvas) {
+            console.error('❌ [SOC] Canvas element not found!');
+            return;
+        }
+        if (socData.length === 0) {
+            console.warn('⚠️ [SOC] No data to render');
+            return;
+        }
+        
+        // Check if canvas is visible - if not, retry after short delay
+        const rect = canvas.getBoundingClientRect();
+        console.log('📐 [SOC] Canvas rect:', rect.width, 'x', rect.height);
+        
+        if (rect.width === 0 || rect.height === 0) {
+            console.warn('⚠️ [SOC] Canvas not visible, retrying in 200ms...');
+            setTimeout(() => renderSOCChart(), 200);
+            return;
+        }
         
         // Destroy existing chart
         if (socChartInstance) {
+            console.log('🗑️ [SOC] Destroying existing chart instance');
             socChartInstance.destroy();
             socChartInstance = null;
         }
