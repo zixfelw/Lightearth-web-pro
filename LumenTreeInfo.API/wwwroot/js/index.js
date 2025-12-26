@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13211 - Sync HTML version tag to force browser refresh
+ * Version: 13212 - Add debug logs for energy chart not rendering
  * 
  * Features:
  * - Real-time data via SignalR
@@ -2833,7 +2833,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     function updateCharts(data) {
+        console.log('📊📊📊 updateCharts() CALLED with data:', data);
+        
+        if (!data || !data.pv || !data.bat || !data.load || !data.grid) {
+            console.error('❌ updateCharts: Invalid data structure', data);
+            return;
+        }
+        
         const timeLabels = generateTimeLabels();
+        console.log('📊 Generated', timeLabels.length, 'time labels');
 
         const processedData = {
             pv: processChartData(data.pv.tableValueInfo),
@@ -2843,6 +2851,12 @@ document.addEventListener('DOMContentLoaded', function () {
             grid: processChartData(data.grid.tableValueInfo),
             essentialLoad: processChartData(data.essentialLoad.tableValueInfo)
         };
+        
+        // Log sample processed data
+        const pvNonZero = processedData.pv.filter(v => v !== null && v > 0).length;
+        const loadNonZero = processedData.load.filter(v => v !== null && v > 0).length;
+        const batDischargeNonZero = processedData.batDischarge.filter(v => v !== null && v > 0).length;
+        console.log(`📊 Processed data - PV non-zero: ${pvNonZero}, Load non-zero: ${loadNonZero}, BatDischarge non-zero: ${batDischargeNonZero}`);
 
         const commonOptions = getCommonChartOptions();
 
@@ -2852,14 +2866,29 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Combined Energy Chart - All 6 datasets in one chart - ENHANCED V2.0
     function updateCombinedEnergyChart(labels, processedData, options) {
+        console.log('📈📈📈 updateCombinedEnergyChart() CALLED');
+        
         const ctx = document.getElementById('combinedEnergyChart');
         if (!ctx) {
             console.error("❌ Canvas 'combinedEnergyChart' not found!");
             return;
         }
         
+        // Check canvas visibility and size
+        const canvasRect = ctx.getBoundingClientRect();
+        const computedStyle = window.getComputedStyle(ctx);
+        console.log("📈 Canvas state:", {
+            width: canvasRect.width,
+            height: canvasRect.height,
+            display: computedStyle.display,
+            visibility: computedStyle.visibility,
+            offsetParent: ctx.offsetParent ? 'visible' : 'hidden'
+        });
+        
         console.log("📈 Creating combined chart with", labels.length, "labels");
         console.log("📈 PV data points:", processedData.pv?.length || 0);
+        console.log("📈 Load data points:", processedData.load?.length || 0);
+        console.log("📈 BatDischarge data points:", processedData.batDischarge?.length || 0);
 
         // Calculate and update peak stats
         updateEnergyChartPeakStats(labels, processedData);
