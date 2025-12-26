@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13180 - 3D Home: Redesign bottom cards, phone-style battery icon
+ * Version: 13181 - 3D Home: Larger battery icon with bigger % text
  * 
  * Features:
  * - Real-time data via SignalR
@@ -3195,18 +3195,18 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
         
-        // Update battery icon colors based on % level
+        // Update battery icon colors based on % level - BIGGER SIZE
         if (batteryBodyEl) {
-            batteryBodyEl.className = `w-10 h-5 sm:w-12 sm:h-6 rounded-[4px] border-2 ${batteryBorderColor} relative overflow-hidden bg-slate-900/80`;
+            batteryBodyEl.className = `w-16 h-7 sm:w-20 sm:h-8 rounded-[5px] border-2 ${batteryBorderColor} relative overflow-hidden bg-slate-900/80`;
         }
         if (batteryCapEl) {
-            batteryCapEl.className = `absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-2.5 sm:h-3 ${batteryCapColor} rounded-r-sm`;
+            batteryCapEl.className = `absolute -right-1.5 top-1/2 -translate-y-1/2 w-1.5 h-4 sm:h-5 ${batteryCapColor} rounded-r-sm`;
         }
         
         // Update battery fill bar
         if (batteryFillEl) {
-            batteryFillEl.style.width = Math.max(batteryPercentNum - 5, 0) + '%'; // -5% for padding
-            batteryFillEl.className = `absolute left-0.5 top-0.5 bottom-0.5 rounded-[2px] ${batteryFillColor} transition-all duration-500`;
+            batteryFillEl.style.width = Math.max(batteryPercentNum - 3, 0) + '%'; // -3% for padding
+            batteryFillEl.className = `absolute left-0.5 top-0.5 bottom-0.5 rounded-[3px] ${batteryFillColor} transition-all duration-500`;
         }
         if (batteryPercentIconEl) {
             batteryPercentIconEl.textContent = batteryPercent;
