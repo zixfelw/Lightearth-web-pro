@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13216 - Use v13211 as base (SOC + Energy both working)
+ * Version: 13217 - Fallback to Cloudflare if Railway has < 5 data points
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1166,8 +1166,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 const railwayData = await railwayResponse.json();
                 console.log("📊 Railway API response:", railwayData);
                 
-                if (railwayData.success && railwayData.timeline && railwayData.timeline.length > 0) {
-                    console.log(`✅ [Priority 1] Railway API SUCCESS: ${railwayData.timeline.length} data points`);
+                // Only use Railway data if it has enough points (at least 5)
+                // Otherwise fallback to Cloudflare which may have more historical data
+                const MIN_DATA_POINTS = 5;
+                if (railwayData.success && railwayData.timeline && railwayData.timeline.length >= MIN_DATA_POINTS) {
+                    console.log(`✅ [Priority 1] Railway API SUCCESS: ${railwayData.timeline.length} data points (>= ${MIN_DATA_POINTS})`);
                     
                     // Cache the Railway data
                     lightearthCache = {
@@ -1183,6 +1186,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     updateChartFromCloudData(railwayData);
                     chartDataLoaded = true;
                     return; // Success!
+                } else if (railwayData.timeline && railwayData.timeline.length > 0) {
+                    console.warn(`⚠️ [Priority 1] Railway API has only ${railwayData.timeline.length} points (< ${MIN_DATA_POINTS}), trying Cloudflare...`);
                 } else {
                     console.warn("⚠️ [Priority 1] Railway API returned no data");
                 }
