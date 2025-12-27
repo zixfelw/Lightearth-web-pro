@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13244 - Battery Cells DEBUG v2 + ZERO Railway egress
+ * Version: 13245 - Battery Cells DEBUG v3 + ZERO Railway egress
  * 
  * Features:
  * - Real-time data via SignalR
@@ -692,6 +692,8 @@ document.addEventListener('DOMContentLoaded', function () {
             if (isNewFormat) {
                 // New format from Cloud API (Cloudflare Worker v3.7)
                 const dd = data.deviceData || {};
+                console.log('🔍 [v13245] dd.battery:', dd.battery);
+                console.log('🔍 [v13245] dd.battery?.cells:', dd.battery?.cells);
                 displayData = {
                     pvTotalPower: dd.pv?.totalPower || 0,
                     pv1Power: dd.pv?.pv1Power || 0,
@@ -711,8 +713,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 };
                 // Battery cells data from Worker v3.7: deviceData.battery.cells
                 cellsData = dd.battery?.cells || data.batteryCells;
-                console.log('📊 Using Cloud format (Worker v3.7)', displayData);
-                console.log('🔋 batteryCells from API:', cellsData);
+                console.log('📊 [v13245] Using Cloud format (Worker v3.7)', displayData);
+                console.log('🔋 [v13245] batteryCells from API:', cellsData);
             } else if (data.data) {
                 // Legacy format from API
                 displayData = {
