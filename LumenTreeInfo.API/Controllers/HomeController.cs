@@ -947,9 +947,9 @@ public class HomeController : Controller
             if (!DateTime.TryParse(date, out var queryDate))
                 return Json(new { success = false, error = "Invalid date format" });
 
-            var token = await _client.LoginAsync(deviceId);
+            var token = await _client.GenerateToken(deviceId);
             if (string.IsNullOrEmpty(token))
-                return Json(new { success = false, error = "Login failed" });
+                return Json(new { success = false, error = "Token generation failed" });
 
             var data = await _client.GetBatDayDataAsync(deviceId, queryDate, token);
             return Json(new { success = true, data });
@@ -972,9 +972,9 @@ public class HomeController : Controller
             if (!DateTime.TryParse(date, out var queryDate))
                 return Json(new { success = false, error = "Invalid date format" });
 
-            var token = await _client.LoginAsync(deviceId);
+            var token = await _client.GenerateToken(deviceId);
             if (string.IsNullOrEmpty(token))
-                return Json(new { success = false, error = "Login failed" });
+                return Json(new { success = false, error = "Token generation failed" });
 
             var data = await _client.GetPvDayDataAsync(deviceId, queryDate, token);
             return Json(new { success = true, data });
@@ -997,9 +997,9 @@ public class HomeController : Controller
             if (!DateTime.TryParse(date, out var queryDate))
                 return Json(new { success = false, error = "Invalid date format" });
 
-            var token = await _client.LoginAsync(deviceId);
+            var token = await _client.GenerateToken(deviceId);
             if (string.IsNullOrEmpty(token))
-                return Json(new { success = false, error = "Login failed" });
+                return Json(new { success = false, error = "Token generation failed" });
 
             var data = await _client.GetOtherDayDataAsync(deviceId, queryDate, token);
             return Json(new { success = true, data });
