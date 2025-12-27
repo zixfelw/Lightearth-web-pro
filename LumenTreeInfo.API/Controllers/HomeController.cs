@@ -36,16 +36,6 @@ public class HomeController : Controller
     }
 
     /// <summary>
-    /// Returns the V2 page with simplified 3D Home view
-    /// </summary>
-    [Route("/ver2")]
-    public IActionResult Ver2()
-    {
-        Log.Information("Rendering Ver2 page");
-        return View("Ver2View");
-    }
-
-    /// <summary>
     /// Returns the calculator page
     /// </summary>
     [Route("/calculator")]
