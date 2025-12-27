@@ -636,15 +636,15 @@ document.addEventListener('DOMContentLoaded', function () {
             clearInterval(realtimePollingInterval);
         }
         
-        console.log(`🔄 Starting realtime polling for device: ${deviceId} (every 3 seconds)`);
+        console.log(`🔄 Starting realtime polling for device: ${deviceId} (every 5 seconds)`);
         
         // Fetch immediately
         fetchRealtimeData(deviceId);
         
-        // Then poll every 3 seconds as requested
+        // Then poll every 5 seconds (reduced from 3s to prevent tunnel flooding)
         realtimePollingInterval = setInterval(() => {
             fetchRealtimeData(deviceId);
-        }, 3000);
+        }, 5000);
     }
     
     function stopRealtimePolling() {
@@ -903,36 +903,43 @@ document.addEventListener('DOMContentLoaded', function () {
             showLoadingChart();
         }
         
-        // Fetch summary data (updates 3 cards: Năng Lượng, Pin Lưu Trữ, Nguồn Điện)
+        // STAGGERED API CALLS - Prevent flooding Cloudflare Tunnel
+        // Each call is delayed to avoid overwhelming HA
+        console.log('🚦 Starting staggered API calls to prevent tunnel flooding...');
+        
+        // 1. Fetch summary data first (most important)
         fetchRealtimeDataForSummary(deviceId);
         
-        // ALWAYS fetch SOC data (for SOC chart) - even if we have cache
-        // This ensures SOC chart is always displayed
-        // Call immediately - no delay needed
-        console.log('🔋🔋🔋 [F5/LOAD] About to call fetchSOCData() for device:', deviceId);
-        fetchSOCData().catch(err => {
-            console.error('❌❌❌ SOC fetch error:', err);
-        });
+        // 2. SOC data - delay 500ms
+        setTimeout(() => {
+            console.log('🔋 [Staggered] Fetching SOC data...');
+            fetchSOCData().catch(err => console.error('❌ SOC fetch error:', err));
+        }, 500);
         
-        // ALWAYS fetch temperature min/max - even if we have cache
-        console.log('🌡️ Fetching temperature data...');
-        fetchTemperatureMinMax(deviceId, queryDate);
+        // 3. Temperature - delay 1000ms
+        setTimeout(() => {
+            console.log('🌡️ [Staggered] Fetching temperature data...');
+            fetchTemperatureMinMax(deviceId, queryDate);
+        }, 1000);
         
-        // Fetch device info (inverter model)
-        fetchDeviceInfo(deviceId);
+        // 4. Device info - delay 1500ms
+        setTimeout(() => {
+            fetchDeviceInfo(deviceId);
+        }, 1500);
         
-        // Load Solar Project Summary (Tổng Quát Dự Án Solar)
-        if (typeof window.loadSolarProjectSummary === 'function') {
-            console.log('📊 Loading solar project summary for', deviceId);
-            window.loadSolarProjectSummary(deviceId);
-        }
+        // 5. Solar Project Summary - delay 2000ms
+        setTimeout(() => {
+            if (typeof window.loadSolarProjectSummary === 'function') {
+                console.log('📊 [Staggered] Loading solar project summary...');
+                window.loadSolarProjectSummary(deviceId);
+            }
+        }, 2000);
         
-        // ALWAYS fetch fresh chart data on F5/page load
-        // This ensures charts are always up-to-date
-        // If we have cache, it was already displayed above for instant UX
-        // Now fetch fresh data to update the chart
-        console.log('📊 F5/Load: Fetching fresh chart data (forceRefresh=true)...');
-        fetchDayDataInBackground(deviceId, queryDate, true).catch(err => console.warn('Day data error:', err));
+        // 6. Chart/Peak stats data - delay 2500ms
+        setTimeout(() => {
+            console.log('📊 [Staggered] Fetching peak stats data...');
+            fetchDayDataInBackground(deviceId, queryDate, true).catch(err => console.warn('Day data error:', err));
+        }, 2500);
     }
     
     // Helper to apply summary data to UI
