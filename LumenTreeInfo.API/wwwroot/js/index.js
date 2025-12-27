@@ -13,9 +13,9 @@
  */
 
 // Global constants - defined outside DOMContentLoaded to avoid TDZ issues
-// Railway APIs (LightEarth Cloud data) - Primary source, always available
-const SOC_API_PRIMARY = window.location.origin + '/api/realtime/soc-history';
-const POWER_HISTORY_API = window.location.origin + '/api/realtime/power-history';
+// Cloud APIs (synced from HA via PowerShell script) - Primary source
+const SOC_API_PRIMARY = window.location.origin + '/api/cloud/soc-history';
+const POWER_HISTORY_API = window.location.origin + '/api/cloud/energy-history';
 
 // ========================================
 // GLOBAL FUNCTIONS - Available immediately for onclick handlers
@@ -1086,7 +1086,7 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             // Add cache-busting timestamp to force fresh fetch on F5
             const cacheBuster = Date.now();
-            const railwayPowerUrl = `${POWER_HISTORY_API}/${deviceId}?date=${queryDate}&_t=${cacheBuster}`;
+            const railwayPowerUrl = `${POWER_HISTORY_API}/${deviceId}/${queryDate}?_t=${cacheBuster}`;
             console.log("📊📊📊 [POWER CHART] Fetching from Railway API:", railwayPowerUrl);
             
             // Force no-cache to ensure fresh data on F5
@@ -1817,10 +1817,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const dateInput = document.getElementById('dateInput')?.value;
         const date = dateInput || new Date().toISOString().split('T')[0];
         
-        // Railway SOC History API (LightEarth Cloud data)
+        // Cloud SOC History API (synced from HA)
         // Add cache-busting timestamp to force fresh fetch on F5
         const cacheBuster = Date.now();
-        const railwayUrl = `${SOC_API_PRIMARY}/${deviceId}?date=${date}&_t=${cacheBuster}`;
+        const railwayUrl = `${SOC_API_PRIMARY}/${deviceId}/${date}?_t=${cacheBuster}`;
         
         let data = null;
         
