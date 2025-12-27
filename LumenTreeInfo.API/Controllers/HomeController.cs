@@ -1123,6 +1123,8 @@ public class HomeController : Controller
                             loadPower = d.LoadPower,
                             gridPower = d.GridPower,
                             temperature = d.Temperature,
+                            temperatureMin = d.TemperatureMin,
+                            temperatureMax = d.TemperatureMax,
                             batteryStatus = d.BatteryStatus,
                             gridStatus = d.GridStatus
                         },
@@ -1317,6 +1319,8 @@ public class HomeController : Controller
         
         // Additional info
         public double Temperature { get; set; }
+        public double TemperatureMin { get; set; }  // Min temperature today
+        public double TemperatureMax { get; set; }  // Max temperature today
         public string BatteryStatus { get; set; } = "";  // charging/discharging/idle
         public string GridStatus { get; set; } = "";     // importing/exporting/idle
         
@@ -1420,6 +1424,8 @@ public class HomeController : Controller
                     gridPower = d.GridPower,
                     loadPower = d.LoadPower,
                     temperature = d.Temperature,
+                    temperatureMin = d.TemperatureMin,
+                    temperatureMax = d.TemperatureMax,
                     batteryStatus = d.BatteryStatus,
                     gridStatus = d.GridStatus
                 },
@@ -1475,6 +1481,8 @@ public class HomeController : Controller
                     gridPower = device.GridPower,
                     loadPower = device.LoadPower,
                     temperature = device.Temperature,
+                    temperatureMin = device.TemperatureMin,
+                    temperatureMax = device.TemperatureMax,
                     batteryStatus = device.BatteryStatus,
                     gridStatus = device.GridStatus
                 },
