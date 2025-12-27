@@ -850,6 +850,8 @@ document.addEventListener('DOMContentLoaded', function () {
         showLoading(false);
         
         // Check if we have cached summary data for this device (for instant display)
+        // NOTE: On F5/page load, we still show cached data for instant UX,
+        // but we ALWAYS fetch fresh data below to update it
         const hasCachedData = summaryDataCache.deviceId === deviceId && summaryDataCache.data;
         
         if (hasCachedData) {
@@ -865,6 +867,11 @@ document.addEventListener('DOMContentLoaded', function () {
             updateValue('grid-total', 'Đang tải...');
             updateValue('essential-total', 'Đang tải...');
         }
+        
+        // ALWAYS clear chart cache on F5 to force fresh fetch
+        // This ensures charts are always up-to-date after page reload
+        console.log('🔄 F5 detected: Clearing chart cache to force fresh fetch');
+        lightearthCache = { data: null, deviceId: null, date: null, timestamp: 0 };
         
         // ALWAYS fetch fresh daily-energy data on page load/F5
         // This ensures data is always up-to-date for ALL devices
@@ -931,12 +938,14 @@ document.addEventListener('DOMContentLoaded', function () {
     // Helper to apply summary data to UI
     function applySummaryData(data) {
         if (!data) return;
+        console.log('📊 [applySummaryData] Updating UI with:', data);
         updateValue('pv-total', (data.pvDay || 0).toFixed(1) + ' kWh');
         updateValue('bat-charge', (data.chargeDay || 0).toFixed(1) + ' kWh');
         updateValue('bat-discharge', (data.dischargeDay || 0).toFixed(1) + ' kWh');
         updateValue('load-total', (data.loadDay || 0).toFixed(1) + ' kWh');
         updateValue('grid-total', (data.gridDay || 0).toFixed(1) + ' kWh');
         updateValue('essential-total', (data.essentialDay || 0).toFixed(1) + ' kWh');
+        console.log('✅ [applySummaryData] UI updated - discharge:', (data.dischargeDay || 0).toFixed(1), 'kWh');
     }
     
     // Fetch summary data for the 3 cards (fast path - single API call)
