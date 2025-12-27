@@ -827,7 +827,6 @@ public class HomeController : Controller
                                 deviceId, haHistory.Count);
                             
                             return Json(new {
-                                success = true,
                                 deviceId = deviceId.ToUpper(),
                                 date = queryDate,
                                 dataSource = "LightEarthCloud",
@@ -869,7 +868,6 @@ public class HomeController : Controller
                         
                         Log.Information("Successfully fetched SOC data from LEHT API for device {DeviceId}", deviceId);
                         return Json(new {
-                            success = true,
                             deviceId = deviceId,
                             date = queryDate,
                             dataSource = "lehtapi.suntcn.com",
@@ -894,32 +892,14 @@ public class HomeController : Controller
             {
                 Log.Warning("Lumentree SOC API returned {StatusCode} for device {DeviceId}", 
                     response.StatusCode, deviceId);
-                return Json(new { success = false, error = "Failed to fetch SOC data", deviceId = deviceId });
+                return StatusCode((int)response.StatusCode, "Failed to fetch SOC data");
             }
             
             var content = await response.Content.ReadAsStringAsync();
+            var data = System.Text.Json.JsonSerializer.Deserialize<object>(content);
             
-            // Parse and wrap with success field
-            try
-            {
-                using var doc = System.Text.Json.JsonDocument.Parse(content);
-                var timeline = doc.RootElement.Clone();
-                
-                Log.Information("Successfully fetched SOC data from lumentree.net for device {DeviceId}", deviceId);
-                return Json(new {
-                    success = true,
-                    deviceId = deviceId,
-                    date = queryDate,
-                    dataSource = "lumentree.net",
-                    timeline = timeline
-                });
-            }
-            catch
-            {
-                // If parsing fails, return raw data
-                var data = System.Text.Json.JsonSerializer.Deserialize<object>(content);
-                return Json(data);
-            }
+            Log.Information("Successfully fetched SOC data from lumentree.net for device {DeviceId}", deviceId);
+            return Json(data);
         }
         catch (HttpRequestException ex)
         {
@@ -951,157 +931,6 @@ public class HomeController : Controller
         return await GetSOCData(deviceId, date);
     }
 
-    // ========================================
-    // LEGACY LIGHTEARTH API ENDPOINTS
-    // Proxy to official LightEarth API (lehtapi.suntcn.com)
-    // ========================================
-
-    /// <summary>
-    /// Get battery day data from LightEarth API
-    /// </summary>
-    [Route("/api/bat/{deviceId}/{date}")]
-    public async Task<IActionResult> GetBatData(string deviceId, string date)
-    {
-        try
-        {
-            if (!DateTime.TryParse(date, out var queryDate))
-                return Json(new { success = false, error = "Invalid date format" });
-
-            var token = await _client.GenerateToken(deviceId);
-            if (string.IsNullOrEmpty(token))
-                return Json(new { success = false, error = "Token generation failed" });
-
-            var data = await _client.GetBatDayDataAsync(deviceId, queryDate, token);
-            return Json(new { success = true, data });
-        }
-        catch (Exception ex)
-        {
-            Log.Warning($"GetBatData error: {ex.Message}");
-            return Json(new { success = false, error = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// Get PV day data from LightEarth API
-    /// </summary>
-    [Route("/api/pv/{deviceId}/{date}")]
-    public async Task<IActionResult> GetPvData(string deviceId, string date)
-    {
-        try
-        {
-            if (!DateTime.TryParse(date, out var queryDate))
-                return Json(new { success = false, error = "Invalid date format" });
-
-            var token = await _client.GenerateToken(deviceId);
-            if (string.IsNullOrEmpty(token))
-                return Json(new { success = false, error = "Token generation failed" });
-
-            var data = await _client.GetPvDayDataAsync(deviceId, queryDate, token);
-            return Json(new { success = true, data });
-        }
-        catch (Exception ex)
-        {
-            Log.Warning($"GetPvData error: {ex.Message}");
-            return Json(new { success = false, error = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// Get other day data from LightEarth API (grid, load, etc.)
-    /// </summary>
-    [Route("/api/other/{deviceId}/{date}")]
-    public async Task<IActionResult> GetOtherData(string deviceId, string date)
-    {
-        try
-        {
-            if (!DateTime.TryParse(date, out var queryDate))
-                return Json(new { success = false, error = "Invalid date format" });
-
-            var token = await _client.GenerateToken(deviceId);
-            if (string.IsNullOrEmpty(token))
-                return Json(new { success = false, error = "Token generation failed" });
-
-            var data = await _client.GetOtherDayDataAsync(deviceId, queryDate, token);
-            return Json(new { success = true, data });
-        }
-        catch (Exception ex)
-        {
-            Log.Warning($"GetOtherData error: {ex.Message}");
-            return Json(new { success = false, error = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// Get monthly energy data - returns synced data from HA
-    /// </summary>
-    [Route("/api/month/{deviceId}")]
-    public IActionResult GetMonthData(string deviceId)
-    {
-        // Load synced data
-        LoadSyncedDataFromFile();
-        
-        if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
-        {
-            // Return current month data from synced device
-            return Json(new { 
-                success = true, 
-                deviceId = deviceId,
-                source = "synced",
-                message = "Monthly data from synced realtime - use /device/{deviceId} for full monthly charts"
-            });
-        }
-        
-        return Json(new { success = false, error = $"Device {deviceId} not found" });
-    }
-
-    /// <summary>
-    /// Get yearly energy data - returns synced data from HA
-    /// </summary>
-    [Route("/api/year/{deviceId}")]
-    public IActionResult GetYearData(string deviceId)
-    {
-        // Load synced data
-        LoadSyncedDataFromFile();
-        
-        if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
-        {
-            return Json(new { 
-                success = true, 
-                deviceId = deviceId,
-                source = "synced",
-                message = "Yearly data from synced realtime - use /device/{deviceId} for full yearly charts"
-            });
-        }
-        
-        return Json(new { success = false, error = $"Device {deviceId} not found" });
-    }
-
-    /// <summary>
-    /// Get historical yearly data
-    /// </summary>
-    [Route("/api/history-year/{deviceId}")]
-    public IActionResult GetHistoryYearData(string deviceId)
-    {
-        // Load synced data
-        LoadSyncedDataFromFile();
-        
-        if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
-        {
-            return Json(new { 
-                success = true, 
-                deviceId = deviceId,
-                source = "synced",
-                message = "History year data - use /device/{deviceId} for full historical charts"
-            });
-        }
-        
-        return Json(new { success = false, error = $"Device {deviceId} not found" });
-    }
-
-    // ========================================
-    // CLOUD DEVICE MANAGEMENT ENDPOINTS
-    // ========================================
-
     /// <summary>
     /// Gets all devices registered in LightEarth Cloud
     /// Returns list of device IDs with their current status
@@ -1111,70 +940,81 @@ public class HomeController : Controller
     {
         try
         {
-            // Load from file if not loaded yet (after restart)
-            LoadSyncedDataFromFile();
-            
-            // First, try to use synced realtime data (has online status + power data)
-            if (_syncedRealtimeData != null && _syncedRealtimeData.Count > 0)
-            {
-                var onlineCount = _syncedRealtimeData.Values.Count(d => d.IsOnline);
-                var totalPv = _syncedRealtimeData.Values.Where(d => d.IsOnline).Sum(d => d.PvPower);
-                var totalLoad = _syncedRealtimeData.Values.Where(d => d.IsOnline).Sum(d => d.LoadPower);
-                var avgSoc = _syncedRealtimeData.Values.Where(d => d.IsOnline && d.Soc > 0).Select(d => (double)d.Soc).DefaultIfEmpty(0).Average();
+            var haUrl = Environment.GetEnvironmentVariable("HomeAssistant__Url");
+            var haToken = Environment.GetEnvironmentVariable("HomeAssistant__Token");
 
-                Log.Information($"Using {_syncedRealtimeData.Count} synced devices ({onlineCount} online)");
-                return Json(new {
-                    success = true,
-                    count = _syncedRealtimeData.Count,
-                    onlineCount = onlineCount,
-                    totalPvPower = totalPv,
-                    totalLoadPower = totalLoad,
-                    averageSoc = Math.Round(avgSoc, 1),
-                    devices = _syncedRealtimeData.Values.OrderBy(d => d.DeviceId).Select(d => new { 
-                        deviceId = d.DeviceId, 
-                        isOnline = d.IsOnline,
-                        inverterModel = d.InverterModel,
-                        lastUpdate = d.LastUpdate,
-                        source = "synced",
-                        // Nested realtime data (for frontend compatibility)
-                        realtime = new {
-                            batterySoc = d.Soc,
-                            pvPower = d.PvPower,
-                            batteryPower = d.BatteryPower,
-                            loadPower = d.LoadPower,
-                            gridPower = d.GridPower,
-                            temperature = d.Temperature,
-                            temperatureMin = d.TemperatureMin,
-                            temperatureMax = d.TemperatureMax,
-                            temperatureMinTime = d.TemperatureMinTime,
-                            temperatureMaxTime = d.TemperatureMaxTime,
-                            batteryStatus = d.BatteryStatus,
-                            gridStatus = d.GridStatus
-                        },
-                        // Nested daily energy data
-                        dailyEnergy = new {
-                            pvDay = d.PvDay,
-                            chargeDay = d.ChargeDay,
-                            dischargeDay = d.DischargeDay,
-                            loadDay = d.LoadDay,
-                            gridDay = d.GridDay,
-                            exportDay = d.ExportDay
-                        }
-                    }),
-                    lastSyncTime = _lastRealtimeSyncTime,
-                    source = "local_sync"
+            if (string.IsNullOrEmpty(haUrl) || string.IsNullOrEmpty(haToken))
+            {
+                Log.Debug("Cloud not configured");
+                return Json(new { 
+                    success = false, 
+                    error = "Cloud not configured",
+                    devices = new List<object>()
                 });
             }
 
-            // No synced data available - return empty with instructions
-            // NOTE: HA direct connection disabled to prevent tunnel spam
-            // Use PowerShell script to sync data from local HA
-            Log.Information("No synced data available. Run sync-realtime script.");
-            return Json(new { 
-                success = false, 
-                error = "No synced data. Please run sync-realtime PowerShell script from local network.",
-                devices = new List<object>(),
-                instructions = "Run the PowerShell sync script on a machine that can access HA locally (192.168.1.41:8123)"
+            var haClient = new MultiDeviceHomeAssistantClient(haUrl, haToken);
+            
+            if (!await haClient.CheckAvailabilityAsync())
+            {
+                Log.Debug("Cloud is not available");
+                return Json(new { 
+                    success = false, 
+                    error = "Cloud is not available",
+                    devices = new List<object>()
+                });
+            }
+
+            var deviceIds = await haClient.ScanDevicesAsync();
+            var devices = new List<object>();
+
+            foreach (var deviceId in deviceIds)
+            {
+                try
+                {
+                    var deviceData = await haClient.GetDeviceDataAsync(deviceId);
+                    var dailyEnergy = await haClient.GetDailyEnergyAsync(deviceId);
+                    
+                    devices.Add(new {
+                        deviceId = deviceId,
+                        isOnline = deviceData != null,
+                        lastUpdate = deviceData?.Timestamp,
+                        realtime = deviceData != null ? new {
+                            pvPower = deviceData.TotalPvPower ?? 0,
+                            batteryPower = deviceData.BatteryPower ?? 0,
+                            batterySoc = deviceData.BatteryChargePercentage ?? 0,
+                            gridPower = deviceData.GridPower ?? 0,
+                            loadPower = deviceData.HomeLoad ?? 0,
+                            temperature = deviceData.TemperatureCelsius ?? 0,
+                            batteryStatus = deviceData.BatteryStatus ?? "--",
+                            gridStatus = deviceData.GridStatus ?? "--"
+                        } : null,
+                        dailyEnergy = dailyEnergy != null ? new {
+                            pvDay = Math.Round(dailyEnergy.PvDay, 2),
+                            chargeDay = Math.Round(dailyEnergy.ChargeDay, 2),
+                            dischargeDay = Math.Round(dailyEnergy.DischargeDay, 2),
+                            gridDay = Math.Round(dailyEnergy.GridDay, 2),
+                            loadDay = Math.Round(dailyEnergy.TotalLoadDay, 2)
+                        } : null
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning($"Error getting data for device {deviceId}: {ex.Message}");
+                    devices.Add(new {
+                        deviceId = deviceId,
+                        isOnline = false,
+                        error = ex.Message
+                    });
+                }
+            }
+
+            Log.Information($"Found {devices.Count} devices in Cloud");
+            return Json(new {
+                success = true,
+                count = devices.Count,
+                devices = devices,
+                timestamp = DateTime.Now
             });
         }
         catch (Exception ex)
@@ -1185,610 +1025,6 @@ public class HomeController : Controller
                 error = ex.Message,
                 devices = new List<object>()
             });
-        }
-    }
-
-    /// <summary>
-    /// Sync devices from local HA to Railway (called from local script)
-    /// This allows Railway to know about all devices without connecting to HA directly
-    /// </summary>
-    [HttpPost]
-    [Route("/api/cloud/sync-devices")]
-    public IActionResult SyncDevicesFromLocal([FromBody] SyncDevicesRequest request)
-    {
-        try
-        {
-            if (request?.Devices == null || request.Devices.Count == 0)
-            {
-                return Json(new { success = false, error = "No devices provided" });
-            }
-
-            // Store devices in static list for later use
-            _syncedDevices = request.Devices.ToList();
-            _lastSyncTime = DateTime.UtcNow;
-
-            Log.Information($"Synced {_syncedDevices.Count} devices from local HA");
-            
-            return Json(new { 
-                success = true, 
-                message = $"Synced {_syncedDevices.Count} devices",
-                devices = _syncedDevices,
-                syncedAt = _lastSyncTime
-            });
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error syncing devices");
-            return Json(new { success = false, error = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// Get list of synced devices (from local HA sync)
-    /// </summary>
-    [Route("/api/cloud/synced-devices")]
-    public IActionResult GetSyncedDevices()
-    {
-        return Json(new {
-            success = true,
-            count = _syncedDevices?.Count ?? 0,
-            devices = _syncedDevices ?? new List<string>(),
-            lastSyncTime = _lastSyncTime
-        });
-    }
-
-    // Static storage for synced devices
-    private static List<string> _syncedDevices = new List<string>();
-    private static DateTime? _lastSyncTime = null;
-    private static Dictionary<string, SyncedDeviceData> _syncedRealtimeData = new Dictionary<string, SyncedDeviceData>();
-    private static DateTime? _lastRealtimeSyncTime = null;
-    private static bool _dataLoaded = false;
-    private static readonly object _fileLock = new object();
-    private const string SYNC_DATA_FILE = "synced_realtime_data.json";
-    
-    // Static storage for chart data (keyed by deviceId_date)
-    private static Dictionary<string, SyncedChartData> _syncedChartData = new Dictionary<string, SyncedChartData>();
-    private const string CHART_DATA_FILE = "synced_chart_data.json";
-
-    /// <summary>
-    /// Persist synced data to file for recovery after restart
-    /// </summary>
-    private static void SaveSyncedDataToFile()
-    {
-        try
-        {
-            lock (_fileLock)
-            {
-                var data = new {
-                    devices = _syncedRealtimeData,
-                    lastSyncTime = _lastRealtimeSyncTime,
-                    savedAt = DateTime.UtcNow
-                };
-                var json = System.Text.Json.JsonSerializer.Serialize(data);
-                System.IO.File.WriteAllText(SYNC_DATA_FILE, json);
-                Log.Debug($"Saved {_syncedRealtimeData.Count} devices to {SYNC_DATA_FILE}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Warning($"Failed to save synced data to file: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Load synced data from file on startup
-    /// </summary>
-    private static void LoadSyncedDataFromFile()
-    {
-        if (_dataLoaded) return;
-        
-        try
-        {
-            lock (_fileLock)
-            {
-                if (_dataLoaded) return;
-                
-                if (System.IO.File.Exists(SYNC_DATA_FILE))
-                {
-                    var json = System.IO.File.ReadAllText(SYNC_DATA_FILE);
-                    var doc = System.Text.Json.JsonDocument.Parse(json);
-                    
-                    if (doc.RootElement.TryGetProperty("devices", out var devicesElement))
-                    {
-                        var devices = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, SyncedDeviceData>>(devicesElement.GetRawText());
-                        if (devices != null && devices.Count > 0)
-                        {
-                            _syncedRealtimeData = devices;
-                            Log.Information($"Loaded {devices.Count} devices from {SYNC_DATA_FILE}");
-                        }
-                    }
-                    
-                    if (doc.RootElement.TryGetProperty("lastSyncTime", out var syncTimeElement))
-                    {
-                        _lastRealtimeSyncTime = syncTimeElement.GetDateTime();
-                    }
-                }
-                
-                _dataLoaded = true;
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Warning($"Failed to load synced data from file: {ex.Message}");
-            _dataLoaded = true;
-        }
-    }
-
-    public class SyncDevicesRequest
-    {
-        public List<string> Devices { get; set; } = new List<string>();
-    }
-
-    public class SyncedDeviceData
-    {
-        public string DeviceId { get; set; } = "";
-        public bool IsOnline { get; set; }
-        
-        // Realtime Power (W)
-        public int Soc { get; set; }
-        public int PvPower { get; set; }
-        public int BatteryPower { get; set; }  // Positive=charging, Negative=discharging
-        public int LoadPower { get; set; }
-        public int GridPower { get; set; }     // Positive=import, Negative=export
-        
-        // Daily Energy (kWh)
-        public double PvDay { get; set; }       // PV production today
-        public double ChargeDay { get; set; }   // Battery charge today
-        public double DischargeDay { get; set; } // Battery discharge today
-        public double LoadDay { get; set; }     // Load consumption today
-        public double GridDay { get; set; }     // Grid import today
-        public double ExportDay { get; set; }   // Grid export today
-        
-        // Additional info
-        public double Temperature { get; set; }
-        public double TemperatureMin { get; set; }  // Min temperature today
-        public double TemperatureMax { get; set; }  // Max temperature today
-        public string TemperatureMinTime { get; set; } = "--:--";  // Time of min temp (HH:mm)
-        public string TemperatureMaxTime { get; set; } = "--:--";  // Time of max temp (HH:mm)
-        public string BatteryStatus { get; set; } = "";  // charging/discharging/idle
-        public string GridStatus { get; set; } = "";     // importing/exporting/idle
-        public string InverterModel { get; set; } = "";  // e.g. "SUNT-8.0kW-HP"
-        
-        public DateTime LastUpdate { get; set; }
-    }
-
-    public class SyncRealtimeRequest
-    {
-        public List<SyncedDeviceData> Devices { get; set; } = new List<SyncedDeviceData>();
-    }
-
-    // Chart data models for SOC and Energy history
-    public class ChartDataPoint
-    {
-        public string Time { get; set; } = "";  // HH:mm format
-        public double Value { get; set; }
-    }
-
-    public class EnergyChartDataPoint
-    {
-        public string Time { get; set; } = "";  // HH:mm format
-        public double Pv { get; set; }
-        public double Load { get; set; }
-        public double Grid { get; set; }
-        public double Battery { get; set; }
-    }
-
-    public class SyncedChartData
-    {
-        public string DeviceId { get; set; } = "";
-        public string Date { get; set; } = "";  // YYYY-MM-DD
-        public List<ChartDataPoint> SocTimeline { get; set; } = new List<ChartDataPoint>();
-        public List<EnergyChartDataPoint> EnergyTimeline { get; set; } = new List<EnergyChartDataPoint>();
-        public DateTime LastUpdate { get; set; }
-    }
-
-    public class SyncChartDataRequest
-    {
-        public string DeviceId { get; set; } = "";
-        public string Date { get; set; } = "";
-        public List<ChartDataPoint>? SocTimeline { get; set; }
-        public List<EnergyChartDataPoint>? EnergyTimeline { get; set; }
-    }
-
-    /// <summary>
-    /// Sync realtime data from local HA script (push every 5 minutes)
-    /// Endpoint: POST /api/cloud/sync-realtime
-    /// </summary>
-    [HttpPost]
-    [Route("/api/cloud/sync-realtime")]
-    public IActionResult SyncRealtimeFromLocal([FromBody] SyncRealtimeRequest request)
-    {
-        try
-        {
-            if (request?.Devices == null || request.Devices.Count == 0)
-            {
-                return Json(new { success = false, error = "No devices data provided" });
-            }
-
-            foreach (var device in request.Devices)
-            {
-                device.LastUpdate = DateTime.UtcNow;
-                _syncedRealtimeData[device.DeviceId] = device;
-            }
-            
-            _lastRealtimeSyncTime = DateTime.UtcNow;
-
-            // Save to file for persistence across restarts
-            SaveSyncedDataToFile();
-
-            var onlineCount = _syncedRealtimeData.Values.Count(d => d.IsOnline);
-            var totalPv = _syncedRealtimeData.Values.Where(d => d.IsOnline).Sum(d => d.PvPower);
-            var totalLoad = _syncedRealtimeData.Values.Where(d => d.IsOnline).Sum(d => d.LoadPower);
-
-            Log.Information($"Synced realtime: {request.Devices.Count} devices, {onlineCount} online, PV={totalPv}W, Load={totalLoad}W");
-            
-            return Json(new { 
-                success = true, 
-                message = $"Synced {request.Devices.Count} devices",
-                onlineCount = onlineCount,
-                totalPvPower = totalPv,
-                totalLoadPower = totalLoad,
-                syncedAt = _lastRealtimeSyncTime
-            });
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error syncing realtime data");
-            return Json(new { success = false, error = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// Get synced realtime data for all devices
-    /// </summary>
-    [Route("/api/cloud/synced-realtime")]
-    public IActionResult GetSyncedRealtimeData()
-    {
-        // Load from file if not loaded yet (after restart)
-        LoadSyncedDataFromFile();
-        
-        var onlineCount = _syncedRealtimeData.Values.Count(d => d.IsOnline);
-        return Json(new {
-            success = true,
-            count = _syncedRealtimeData.Count,
-            onlineCount = onlineCount,
-            devices = _syncedRealtimeData.Values.OrderBy(d => d.DeviceId).ToList(),
-            lastSyncTime = _lastRealtimeSyncTime
-        });
-    }
-
-    /// <summary>
-    /// Get realtime data for all devices (used by frontend dashboard)
-    /// Returns data from synced realtime (pushed by local HA script)
-    /// Endpoint: /api/realtime/all
-    /// </summary>
-    [Route("/api/realtime/all")]
-    public IActionResult GetRealtimeAll()
-    {
-        // Load from file if not loaded yet (after restart)
-        LoadSyncedDataFromFile();
-        
-        // Return synced data from local HA push
-        var devices = _syncedRealtimeData.Values
-            .OrderBy(d => d.DeviceId)
-            .Select(d => new {
-                deviceId = d.DeviceId,
-                isOnline = d.IsOnline,
-                lastUpdate = d.LastUpdate,
-                realtime = new {
-                    pvPower = d.PvPower,
-                    batteryPower = d.BatteryPower,
-                    batterySoc = d.Soc,
-                    gridPower = d.GridPower,
-                    loadPower = d.LoadPower,
-                    temperature = d.Temperature,
-                    temperatureMin = d.TemperatureMin,
-                    temperatureMax = d.TemperatureMax,
-                    batteryStatus = d.BatteryStatus,
-                    gridStatus = d.GridStatus
-                },
-                daily = new {
-                    pvDay = d.PvDay,
-                    chargeDay = d.ChargeDay,
-                    dischargeDay = d.DischargeDay,
-                    loadDay = d.LoadDay,
-                    gridDay = d.GridDay,
-                    exportDay = d.ExportDay
-                }
-            })
-            .ToList();
-
-        var onlineDevices = _syncedRealtimeData.Values.Where(d => d.IsOnline);
-        
-        return Json(new {
-            success = true,
-            count = devices.Count,
-            onlineCount = onlineDevices.Count(),
-            totalPvPower = onlineDevices.Sum(d => d.PvPower),
-            totalLoadPower = onlineDevices.Sum(d => d.LoadPower),
-            totalBatteryPower = onlineDevices.Sum(d => d.BatteryPower),
-            totalGridPower = onlineDevices.Sum(d => d.GridPower),
-            avgSoc = onlineDevices.Any() ? Math.Round(onlineDevices.Average(d => d.Soc), 1) : 0,
-            devices = devices,
-            lastSyncTime = _lastRealtimeSyncTime,
-            timestamp = DateTime.Now
-        });
-    }
-
-    /// <summary>
-    /// Get realtime data for a specific device
-    /// Endpoint: /api/realtime/device/{deviceId}
-    /// </summary>
-    [Route("/api/realtime/device/{deviceId}")]
-    public IActionResult GetRealtimeDevice(string deviceId)
-    {
-        // Load from file if not loaded yet (after restart)
-        LoadSyncedDataFromFile();
-        
-        if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
-        {
-            return Json(new {
-                success = true,
-                deviceId = device.DeviceId,
-                isOnline = device.IsOnline,
-                lastUpdate = device.LastUpdate,
-                realtime = new {
-                    pvPower = device.PvPower,
-                    batteryPower = device.BatteryPower,
-                    batterySoc = device.Soc,
-                    gridPower = device.GridPower,
-                    loadPower = device.LoadPower,
-                    temperature = device.Temperature,
-                    temperatureMin = device.TemperatureMin,
-                    temperatureMax = device.TemperatureMax,
-                    batteryStatus = device.BatteryStatus,
-                    gridStatus = device.GridStatus
-                },
-                daily = new {
-                    pvDay = device.PvDay,
-                    chargeDay = device.ChargeDay,
-                    dischargeDay = device.DischargeDay,
-                    loadDay = device.LoadDay,
-                    gridDay = device.GridDay,
-                    exportDay = device.ExportDay
-                }
-            });
-        }
-
-        return Json(new {
-            success = false,
-            error = $"Device {deviceId} not found in synced data",
-            deviceId = deviceId
-        });
-    }
-
-    /// <summary>
-    /// Get temperature history (min/max) for a device on a specific date
-    /// Returns data from synced realtime (pushed by local HA script)
-    /// Endpoint: /api/cloud/temperature/{deviceId}/{date}
-    /// </summary>
-    [Route("/api/cloud/temperature/{deviceId}/{date}")]
-    public IActionResult GetCloudTemperature(string deviceId, string date)
-    {
-        // Load from file if not loaded yet
-        LoadSyncedDataFromFile();
-        
-        if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
-        {
-            return Json(new {
-                success = true,
-                deviceId = device.DeviceId,
-                date = date,
-                min = device.TemperatureMin,
-                max = device.TemperatureMax,
-                current = device.Temperature,
-                minTime = device.TemperatureMinTime ?? "--:--",
-                maxTime = device.TemperatureMaxTime ?? "--:--",
-                count = 1,
-                source = "synced"
-            });
-        }
-
-        return Json(new {
-            success = false,
-            error = $"Device {deviceId} not found in synced data",
-            deviceId = deviceId
-        });
-    }
-
-    /// <summary>
-    /// Gets device info (inverter model) from synced data
-    /// Endpoint: /api/cloud/device-info/{deviceId}
-    /// </summary>
-    [Route("/api/cloud/device-info/{deviceId}")]
-    public IActionResult GetCloudDeviceInfo(string deviceId)
-    {
-        // Load from file if not loaded yet
-        LoadSyncedDataFromFile();
-        
-        if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
-        {
-            return Json(new {
-                success = true,
-                deviceId = device.DeviceId,
-                model = device.InverterModel,
-                friendly_name = !string.IsNullOrEmpty(device.InverterModel) 
-                    ? $"{device.InverterModel} Device Temperature" 
-                    : null,
-                source = "synced"
-            });
-        }
-
-        return Json(new {
-            success = false,
-            error = $"Device {deviceId} not found in synced data",
-            deviceId = deviceId
-        });
-    }
-
-    /// <summary>
-    /// Sync chart data (SOC + Energy) from local HA script
-    /// Endpoint: POST /api/cloud/sync-chart
-    /// </summary>
-    [HttpPost]
-    [Route("/api/cloud/sync-chart")]
-    public IActionResult SyncChartData([FromBody] SyncChartDataRequest request)
-    {
-        try
-        {
-            if (string.IsNullOrEmpty(request?.DeviceId) || string.IsNullOrEmpty(request?.Date))
-            {
-                return Json(new { success = false, error = "DeviceId and Date are required" });
-            }
-
-            var key = $"{request.DeviceId.ToUpper()}_{request.Date}";
-            
-            var chartData = new SyncedChartData
-            {
-                DeviceId = request.DeviceId.ToUpper(),
-                Date = request.Date,
-                SocTimeline = request.SocTimeline ?? new List<ChartDataPoint>(),
-                EnergyTimeline = request.EnergyTimeline ?? new List<EnergyChartDataPoint>(),
-                LastUpdate = DateTime.UtcNow
-            };
-
-            _syncedChartData[key] = chartData;
-            SaveChartDataToFile();
-
-            Log.Information($"Synced chart data for {request.DeviceId} on {request.Date}: SOC={chartData.SocTimeline.Count} points, Energy={chartData.EnergyTimeline.Count} points");
-
-            return Json(new {
-                success = true,
-                deviceId = request.DeviceId,
-                date = request.Date,
-                socPoints = chartData.SocTimeline.Count,
-                energyPoints = chartData.EnergyTimeline.Count
-            });
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error syncing chart data");
-            return Json(new { success = false, error = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// Get SOC history chart data from synced HA data
-    /// Endpoint: /api/cloud/soc-history/{deviceId}/{date}
-    /// </summary>
-    [Route("/api/cloud/soc-history/{deviceId}/{date}")]
-    public IActionResult GetCloudSocHistory(string deviceId, string date)
-    {
-        LoadChartDataFromFile();
-        
-        var key = $"{deviceId.ToUpper()}_{date}";
-        
-        if (_syncedChartData.TryGetValue(key, out var chartData) && chartData.SocTimeline.Count > 0)
-        {
-            return Json(new {
-                success = true,
-                deviceId = chartData.DeviceId,
-                date = chartData.Date,
-                timeline = chartData.SocTimeline.Select(p => new { time = p.Time, soc = p.Value }),
-                count = chartData.SocTimeline.Count,
-                source = "synced"
-            });
-        }
-
-        return Json(new {
-            success = false,
-            error = $"No SOC data for device {deviceId} on {date}",
-            deviceId = deviceId,
-            date = date
-        });
-    }
-
-    /// <summary>
-    /// Get Energy history chart data from synced HA data
-    /// Endpoint: /api/cloud/energy-history/{deviceId}/{date}
-    /// Alias: /api/cloud/power-history/{deviceId}/{date}
-    /// </summary>
-    [Route("/api/cloud/energy-history/{deviceId}/{date}")]
-    [Route("/api/cloud/power-history/{deviceId}/{date}")]
-    public IActionResult GetCloudEnergyHistory(string deviceId, string date)
-    {
-        LoadChartDataFromFile();
-        
-        var key = $"{deviceId.ToUpper()}_{date}";
-        
-        if (_syncedChartData.TryGetValue(key, out var chartData) && chartData.EnergyTimeline.Count > 0)
-        {
-            return Json(new {
-                success = true,
-                deviceId = chartData.DeviceId,
-                date = chartData.Date,
-                timeline = chartData.EnergyTimeline.Select(p => new { 
-                    time = p.Time, 
-                    pv = p.Pv, 
-                    load = p.Load, 
-                    grid = p.Grid, 
-                    battery = p.Battery 
-                }),
-                count = chartData.EnergyTimeline.Count,
-                source = "synced"
-            });
-        }
-
-        return Json(new {
-            success = false,
-            error = $"No energy data for device {deviceId} on {date}",
-            deviceId = deviceId,
-            date = date
-        });
-    }
-
-    /// <summary>
-    /// Save chart data to file for persistence
-    /// </summary>
-    private static void SaveChartDataToFile()
-    {
-        try
-        {
-            lock (_fileLock)
-            {
-                var json = System.Text.Json.JsonSerializer.Serialize(_syncedChartData);
-                System.IO.File.WriteAllText(CHART_DATA_FILE, json);
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error saving chart data to file");
-        }
-    }
-
-    /// <summary>
-    /// Load chart data from file
-    /// </summary>
-    private static void LoadChartDataFromFile()
-    {
-        try
-        {
-            lock (_fileLock)
-            {
-                if (System.IO.File.Exists(CHART_DATA_FILE))
-                {
-                    var json = System.IO.File.ReadAllText(CHART_DATA_FILE);
-                    var loaded = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, SyncedChartData>>(json);
-                    if (loaded != null)
-                    {
-                        _syncedChartData = loaded;
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Error loading chart data from file");
         }
     }
 
