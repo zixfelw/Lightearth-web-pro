@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Get current origin for local proxy API
     const currentOrigin = window.location.origin;
     
-    // API Configuration - Local Railway API only (simplified)
+    // API Configuration - ALL APIs use Railway (no Cloudflare Worker)
     const API_SOURCES = {
         local: {
             name: 'Local API (LightEarth Cloud)',
@@ -159,104 +159,42 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
     
-    // LightEarth API endpoints with fallback support
-    const LIGHTEARTH_PROXIES = [
-        'https://lightearth.applike098.workers.dev',
-        'https://lightearth-proxy.minhlongt358.workers.dev'
-    ];
-    
-    // Track which endpoint is currently working (persist across requests)
-    let currentProxyIndex = 0;
-    const PROXY_INDEX_KEY = 'solar_endpoint_index';
-    
-    // Load saved endpoint index from localStorage
-    try {
-        const savedIndex = localStorage.getItem(PROXY_INDEX_KEY);
-        if (savedIndex !== null) {
-            currentProxyIndex = parseInt(savedIndex, 10) || 0;
-            if (currentProxyIndex >= LIGHTEARTH_PROXIES.length) currentProxyIndex = 0;
-        }
-    } catch (e) { /* ignore */ }
-    
-    // Get current endpoint base URL
-    function getCurrentProxy() {
-        return LIGHTEARTH_PROXIES[currentProxyIndex];
-    }
-    
-    // Switch to fallback endpoint
-    function switchToFallbackProxy() {
-        const oldEndpoint = getCurrentProxy();
-        currentProxyIndex = (currentProxyIndex + 1) % LIGHTEARTH_PROXIES.length;
-        localStorage.setItem(PROXY_INDEX_KEY, String(currentProxyIndex));
-        console.log(`🔄 Switching endpoint`);
-        return getCurrentProxy();
-    }
-    
-    // Reset to primary endpoint (call when primary works again)
-    function resetToPrimaryProxy() {
-        if (currentProxyIndex !== 0) {
-            currentProxyIndex = 0;
-            localStorage.setItem(PROXY_INDEX_KEY, '0');
-        }
-    }
-    
-    // Dynamic LIGHTEARTH_API that uses current endpoint
+    // ALL APIs now use Railway - NO Cloudflare Worker
+    // This prevents tunnel spam and HA overload
     const LIGHTEARTH_API = {
-        get base() { return getCurrentProxy(); },
-        bat: (deviceId, date) => `${getCurrentProxy()}/api/bat/${deviceId}/${date}`,
-        pv: (deviceId, date) => `${getCurrentProxy()}/api/pv/${deviceId}/${date}`,
-        other: (deviceId, date) => `${getCurrentProxy()}/api/other/${deviceId}/${date}`,
-        month: (deviceId) => `${getCurrentProxy()}/api/month/${deviceId}`,
-        year: (deviceId) => `${getCurrentProxy()}/api/year/${deviceId}`,
-        historyYear: (deviceId) => `${getCurrentProxy()}/api/history-year/${deviceId}`,
-        // LightEarth Cloud endpoints for chart data
-        cloudPowerHistory: (deviceId, date) => `${getCurrentProxy()}/api/cloud/power-history/${deviceId}/${date}`,
-        cloudSocHistory: (deviceId, date) => `${getCurrentProxy()}/api/cloud/soc-history/${deviceId}/${date}`,
-        cloudStates: (deviceId) => `${getCurrentProxy()}/api/cloud/states/${deviceId}`,
-        cloudDeviceInfo: (deviceId) => `${getCurrentProxy()}/api/cloud/device-info/${deviceId}`,
-        cloudTemperature: (deviceId, date) => `${getCurrentProxy()}/api/cloud/temperature/${deviceId}/${date}`
+        get base() { return currentOrigin; },
+        // Legacy LightEarth API endpoints (proxied through Railway)
+        bat: (deviceId, date) => `${currentOrigin}/api/bat/${deviceId}/${date}`,
+        pv: (deviceId, date) => `${currentOrigin}/api/pv/${deviceId}/${date}`,
+        other: (deviceId, date) => `${currentOrigin}/api/other/${deviceId}/${date}`,
+        month: (deviceId) => `${currentOrigin}/api/month/${deviceId}`,
+        year: (deviceId) => `${currentOrigin}/api/year/${deviceId}`,
+        historyYear: (deviceId) => `${currentOrigin}/api/history-year/${deviceId}`,
+        // Cloud endpoints (all on Railway now)
+        cloudPowerHistory: (deviceId, date) => `${currentOrigin}/api/cloud/power-history/${deviceId}/${date}`,
+        cloudSocHistory: (deviceId, date) => `${currentOrigin}/api/cloud/soc-history/${deviceId}/${date}`,
+        cloudStates: (deviceId) => `${currentOrigin}/api/cloud/states/${deviceId}`,
+        cloudDeviceInfo: (deviceId) => `${currentOrigin}/api/cloud/device-info/${deviceId}`,
+        cloudTemperature: (deviceId, date) => `${currentOrigin}/api/cloud/temperature/${deviceId}/${date}`
     };
     
-    // Fetch with automatic endpoint fallback
+    // Simplified - no more proxy switching needed
+    function getCurrentProxy() { return currentOrigin; }
+    function switchToFallbackProxy() { return currentOrigin; }
+    function resetToPrimaryProxy() { }
+    
+    // Simplified fetch - all APIs on Railway now (no proxy fallback needed)
     async function fetchWithProxyFallback(urlBuilder, options = {}) {
-        const maxRetries = LIGHTEARTH_PROXIES.length;
-        let lastError = null;
+        const url = typeof urlBuilder === 'function' ? urlBuilder() : urlBuilder;
+        console.log(`📡 [Railway API] Fetching: ${url}`);
         
-        for (let retry = 0; retry < maxRetries; retry++) {
-            const url = typeof urlBuilder === 'function' ? urlBuilder() : urlBuilder;
-            console.log(`📡 [Proxy ${currentProxyIndex + 1}/${LIGHTEARTH_PROXIES.length}] Fetching: ${url}`);
-            
-            try {
-                const response = await fetch(url, options);
-                
-                // Check for rate limit or server error
-                if (response.status === 429 || response.status >= 500) {
-                    console.warn(`⚠️ Proxy error (${response.status}), trying fallback...`);
-                    switchToFallbackProxy();
-                    lastError = new Error(`HTTP ${response.status}`);
-                    continue;
-                }
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                
-                // Success! If we're on primary and it worked, great
-                // If we're on fallback and primary might be back, we'll try primary next time
-                if (currentProxyIndex === 0) {
-                    // Primary is working, keep using it
-                }
-                
-                return response;
-            } catch (error) {
-                console.warn(`❌ Proxy ${currentProxyIndex + 1} failed:`, error.message);
-                lastError = error;
-                switchToFallbackProxy();
-            }
+        const response = await fetch(url, options);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
         }
         
-        // All proxies failed
-        throw lastError || new Error('All proxies failed');
+        return response;
     }
     
     // Lightearth API cache - refresh every 10 minutes
@@ -705,10 +643,10 @@ document.addEventListener('DOMContentLoaded', function () {
         // Fetch immediately
         fetchRealtimeData(deviceId);
         
-        // Then poll every 3 seconds
+        // Then poll every 30 seconds (reduced from 3s to prevent server overload)
         realtimePollingInterval = setInterval(() => {
             fetchRealtimeData(deviceId);
-        }, 3000);
+        }, 30000);
     }
     
     function stopRealtimePolling() {

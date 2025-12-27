@@ -931,6 +931,157 @@ public class HomeController : Controller
         return await GetSOCData(deviceId, date);
     }
 
+    // ========================================
+    // LEGACY LIGHTEARTH API ENDPOINTS
+    // Proxy to official LightEarth API (lehtapi.suntcn.com)
+    // ========================================
+
+    /// <summary>
+    /// Get battery day data from LightEarth API
+    /// </summary>
+    [Route("/api/bat/{deviceId}/{date}")]
+    public async Task<IActionResult> GetBatData(string deviceId, string date)
+    {
+        try
+        {
+            if (!DateTime.TryParse(date, out var queryDate))
+                return Json(new { success = false, error = "Invalid date format" });
+
+            var token = await _client.LoginAsync(deviceId);
+            if (string.IsNullOrEmpty(token))
+                return Json(new { success = false, error = "Login failed" });
+
+            var data = await _client.GetBatDayDataAsync(deviceId, queryDate, token);
+            return Json(new { success = true, data });
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"GetBatData error: {ex.Message}");
+            return Json(new { success = false, error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get PV day data from LightEarth API
+    /// </summary>
+    [Route("/api/pv/{deviceId}/{date}")]
+    public async Task<IActionResult> GetPvData(string deviceId, string date)
+    {
+        try
+        {
+            if (!DateTime.TryParse(date, out var queryDate))
+                return Json(new { success = false, error = "Invalid date format" });
+
+            var token = await _client.LoginAsync(deviceId);
+            if (string.IsNullOrEmpty(token))
+                return Json(new { success = false, error = "Login failed" });
+
+            var data = await _client.GetPvDayDataAsync(deviceId, queryDate, token);
+            return Json(new { success = true, data });
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"GetPvData error: {ex.Message}");
+            return Json(new { success = false, error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get other day data from LightEarth API (grid, load, etc.)
+    /// </summary>
+    [Route("/api/other/{deviceId}/{date}")]
+    public async Task<IActionResult> GetOtherData(string deviceId, string date)
+    {
+        try
+        {
+            if (!DateTime.TryParse(date, out var queryDate))
+                return Json(new { success = false, error = "Invalid date format" });
+
+            var token = await _client.LoginAsync(deviceId);
+            if (string.IsNullOrEmpty(token))
+                return Json(new { success = false, error = "Login failed" });
+
+            var data = await _client.GetOtherDayDataAsync(deviceId, queryDate, token);
+            return Json(new { success = true, data });
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"GetOtherData error: {ex.Message}");
+            return Json(new { success = false, error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get monthly energy data - returns synced data from HA
+    /// </summary>
+    [Route("/api/month/{deviceId}")]
+    public IActionResult GetMonthData(string deviceId)
+    {
+        // Load synced data
+        LoadSyncedDataFromFile();
+        
+        if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
+        {
+            // Return current month data from synced device
+            return Json(new { 
+                success = true, 
+                deviceId = deviceId,
+                source = "synced",
+                message = "Monthly data from synced realtime - use /device/{deviceId} for full monthly charts"
+            });
+        }
+        
+        return Json(new { success = false, error = $"Device {deviceId} not found" });
+    }
+
+    /// <summary>
+    /// Get yearly energy data - returns synced data from HA
+    /// </summary>
+    [Route("/api/year/{deviceId}")]
+    public IActionResult GetYearData(string deviceId)
+    {
+        // Load synced data
+        LoadSyncedDataFromFile();
+        
+        if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
+        {
+            return Json(new { 
+                success = true, 
+                deviceId = deviceId,
+                source = "synced",
+                message = "Yearly data from synced realtime - use /device/{deviceId} for full yearly charts"
+            });
+        }
+        
+        return Json(new { success = false, error = $"Device {deviceId} not found" });
+    }
+
+    /// <summary>
+    /// Get historical yearly data
+    /// </summary>
+    [Route("/api/history-year/{deviceId}")]
+    public IActionResult GetHistoryYearData(string deviceId)
+    {
+        // Load synced data
+        LoadSyncedDataFromFile();
+        
+        if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
+        {
+            return Json(new { 
+                success = true, 
+                deviceId = deviceId,
+                source = "synced",
+                message = "History year data - use /device/{deviceId} for full historical charts"
+            });
+        }
+        
+        return Json(new { success = false, error = $"Device {deviceId} not found" });
+    }
+
+    // ========================================
+    // CLOUD DEVICE MANAGEMENT ENDPOINTS
+    // ========================================
+
     /// <summary>
     /// Gets all devices registered in LightEarth Cloud
     /// Returns list of device IDs with their current status
