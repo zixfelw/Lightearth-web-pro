@@ -940,15 +940,29 @@ public class HomeController : Controller
     {
         try
         {
+            // First, try to use synced devices (from local script)
+            if (_syncedDevices != null && _syncedDevices.Count > 0)
+            {
+                Log.Information($"Using {_syncedDevices.Count} synced devices (last sync: {_lastSyncTime})");
+                return Json(new {
+                    success = true,
+                    count = _syncedDevices.Count,
+                    devices = _syncedDevices.Select(d => new { deviceId = d, source = "synced" }),
+                    lastSyncTime = _lastSyncTime,
+                    source = "local_sync"
+                });
+            }
+
+            // Fallback: Try HA direct connection
             var haUrl = Environment.GetEnvironmentVariable("HomeAssistant__Url");
             var haToken = Environment.GetEnvironmentVariable("HomeAssistant__Token");
 
             if (string.IsNullOrEmpty(haUrl) || string.IsNullOrEmpty(haToken))
             {
-                Log.Debug("Cloud not configured");
+                Log.Debug("Cloud not configured and no synced devices");
                 return Json(new { 
                     success = false, 
-                    error = "Cloud not configured",
+                    error = "Cloud not configured. Use /api/cloud/sync-devices to sync from local.",
                     devices = new List<object>()
                 });
             }
@@ -960,7 +974,7 @@ public class HomeController : Controller
                 Log.Debug("Cloud is not available");
                 return Json(new { 
                     success = false, 
-                    error = "Cloud is not available",
+                    error = "Cloud is not available. Use /api/cloud/sync-devices to sync from local.",
                     devices = new List<object>()
                 });
             }
@@ -1026,6 +1040,64 @@ public class HomeController : Controller
                 devices = new List<object>()
             });
         }
+    }
+
+    /// <summary>
+    /// Sync devices from local HA to Railway (called from local script)
+    /// This allows Railway to know about all devices without connecting to HA directly
+    /// </summary>
+    [HttpPost]
+    [Route("/api/cloud/sync-devices")]
+    public IActionResult SyncDevicesFromLocal([FromBody] SyncDevicesRequest request)
+    {
+        try
+        {
+            if (request?.Devices == null || request.Devices.Count == 0)
+            {
+                return Json(new { success = false, error = "No devices provided" });
+            }
+
+            // Store devices in static list for later use
+            _syncedDevices = request.Devices.ToList();
+            _lastSyncTime = DateTime.UtcNow;
+
+            Log.Information($"Synced {_syncedDevices.Count} devices from local HA");
+            
+            return Json(new { 
+                success = true, 
+                message = $"Synced {_syncedDevices.Count} devices",
+                devices = _syncedDevices,
+                syncedAt = _lastSyncTime
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error syncing devices");
+            return Json(new { success = false, error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get list of synced devices (from local HA sync)
+    /// </summary>
+    [Route("/api/cloud/synced-devices")]
+    public IActionResult GetSyncedDevices()
+    {
+        return Json(new {
+            success = true,
+            count = _syncedDevices?.Count ?? 0,
+            devices = _syncedDevices ?? new List<string>(),
+            lastSyncTime = _lastSyncTime
+        });
+    }
+
+    // Static storage for synced devices
+    private static List<string> _syncedDevices = new List<string>();
+    private static DateTime? _lastSyncTime = null;
+
+    public class SyncDevicesRequest
+    {
+        public List<string> Devices { get; set; } = new List<string>();
     }
 
     /// <summary>
