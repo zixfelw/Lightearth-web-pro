@@ -962,13 +962,28 @@ public class HomeController : Controller
                     devices = _syncedRealtimeData.Values.OrderBy(d => d.DeviceId).Select(d => new { 
                         deviceId = d.DeviceId, 
                         isOnline = d.IsOnline,
-                        soc = d.Soc,
-                        pvPower = d.PvPower,
-                        batteryPower = d.BatteryPower,
-                        loadPower = d.LoadPower,
-                        gridPower = d.GridPower,
                         lastUpdate = d.LastUpdate,
-                        source = "synced" 
+                        source = "synced",
+                        // Nested realtime data (for frontend compatibility)
+                        realtime = new {
+                            batterySoc = d.Soc,
+                            pvPower = d.PvPower,
+                            batteryPower = d.BatteryPower,
+                            loadPower = d.LoadPower,
+                            gridPower = d.GridPower,
+                            temperature = d.Temperature,
+                            batteryStatus = d.BatteryStatus,
+                            gridStatus = d.GridStatus
+                        },
+                        // Nested daily energy data
+                        dailyEnergy = new {
+                            pvDay = d.PvDay,
+                            chargeDay = d.ChargeDay,
+                            dischargeDay = d.DischargeDay,
+                            loadDay = d.LoadDay,
+                            gridDay = d.GridDay,
+                            exportDay = d.ExportDay
+                        }
                     }),
                     lastSyncTime = _lastRealtimeSyncTime,
                     source = "local_sync"
