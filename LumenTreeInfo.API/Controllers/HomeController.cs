@@ -990,96 +990,15 @@ public class HomeController : Controller
                 });
             }
 
-            // Fallback: Use device list only (no realtime data)
-            if (_syncedDevices != null && _syncedDevices.Count > 0)
-            {
-                Log.Information($"Using {_syncedDevices.Count} synced devices (no realtime)");
-                return Json(new {
-                    success = true,
-                    count = _syncedDevices.Count,
-                    devices = _syncedDevices.Select(d => new { deviceId = d, isOnline = false, source = "synced_list" }),
-                    lastSyncTime = _lastSyncTime,
-                    source = "local_sync_list_only",
-                    note = "Run sync-realtime script for online status"
-                });
-            }
-
-            // Fallback: Try HA direct connection
-            var haUrl = Environment.GetEnvironmentVariable("HomeAssistant__Url");
-            var haToken = Environment.GetEnvironmentVariable("HomeAssistant__Token");
-
-            if (string.IsNullOrEmpty(haUrl) || string.IsNullOrEmpty(haToken))
-            {
-                Log.Debug("Cloud not configured and no synced devices");
-                return Json(new { 
-                    success = false, 
-                    error = "Cloud not configured. Use /api/cloud/sync-devices to sync from local.",
-                    devices = new List<object>()
-                });
-            }
-
-            var haClient = new MultiDeviceHomeAssistantClient(haUrl, haToken);
-            
-            if (!await haClient.CheckAvailabilityAsync())
-            {
-                Log.Debug("Cloud is not available");
-                return Json(new { 
-                    success = false, 
-                    error = "Cloud is not available. Use /api/cloud/sync-devices to sync from local.",
-                    devices = new List<object>()
-                });
-            }
-
-            var deviceIds = await haClient.ScanDevicesAsync();
-            var devices = new List<object>();
-
-            foreach (var deviceId in deviceIds)
-            {
-                try
-                {
-                    var deviceData = await haClient.GetDeviceDataAsync(deviceId);
-                    var dailyEnergy = await haClient.GetDailyEnergyAsync(deviceId);
-                    
-                    devices.Add(new {
-                        deviceId = deviceId,
-                        isOnline = deviceData != null,
-                        lastUpdate = deviceData?.Timestamp,
-                        realtime = deviceData != null ? new {
-                            pvPower = deviceData.TotalPvPower ?? 0,
-                            batteryPower = deviceData.BatteryPower ?? 0,
-                            batterySoc = deviceData.BatteryChargePercentage ?? 0,
-                            gridPower = deviceData.GridPower ?? 0,
-                            loadPower = deviceData.HomeLoad ?? 0,
-                            temperature = deviceData.TemperatureCelsius ?? 0,
-                            batteryStatus = deviceData.BatteryStatus ?? "--",
-                            gridStatus = deviceData.GridStatus ?? "--"
-                        } : null,
-                        dailyEnergy = dailyEnergy != null ? new {
-                            pvDay = Math.Round(dailyEnergy.PvDay, 2),
-                            chargeDay = Math.Round(dailyEnergy.ChargeDay, 2),
-                            dischargeDay = Math.Round(dailyEnergy.DischargeDay, 2),
-                            gridDay = Math.Round(dailyEnergy.GridDay, 2),
-                            loadDay = Math.Round(dailyEnergy.TotalLoadDay, 2)
-                        } : null
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Log.Warning($"Error getting data for device {deviceId}: {ex.Message}");
-                    devices.Add(new {
-                        deviceId = deviceId,
-                        isOnline = false,
-                        error = ex.Message
-                    });
-                }
-            }
-
-            Log.Information($"Found {devices.Count} devices in Cloud");
-            return Json(new {
-                success = true,
-                count = devices.Count,
-                devices = devices,
-                timestamp = DateTime.Now
+            // No synced data available - return empty with instructions
+            // NOTE: HA direct connection disabled to prevent tunnel spam
+            // Use PowerShell script to sync data from local HA
+            Log.Information("No synced data available. Run sync-realtime script.");
+            return Json(new { 
+                success = false, 
+                error = "No synced data. Please run sync-realtime PowerShell script from local network.",
+                devices = new List<object>(),
+                instructions = "Run the PowerShell sync script on a machine that can access HA locally (192.168.1.41:8123)"
             });
         }
         catch (Exception ex)
