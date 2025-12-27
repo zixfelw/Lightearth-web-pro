@@ -636,15 +636,16 @@ document.addEventListener('DOMContentLoaded', function () {
             clearInterval(realtimePollingInterval);
         }
         
-        console.log(`🔄 Starting realtime polling for device: ${deviceId} (every 5 seconds)`);
+        console.log(`🔄 Starting realtime polling for device: ${deviceId} (every 10 seconds)`);
         
         // Fetch immediately
         fetchRealtimeData(deviceId);
         
-        // Then poll every 5 seconds (reduced from 3s to prevent tunnel flooding)
+        // Poll every 10 seconds (reduced from 5s to lower Railway Egress costs)
+        // This reduces bandwidth by 50% while still providing near-realtime updates
         realtimePollingInterval = setInterval(() => {
             fetchRealtimeData(deviceId);
-        }, 5000);
+        }, 10000);
     }
     
     function stopRealtimePolling() {
