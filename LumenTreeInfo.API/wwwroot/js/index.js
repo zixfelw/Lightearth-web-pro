@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13217 - Fallback to Cloudflare if Railway has < 5 data points
+ * Version: 13235 - Use Railway APIs only (removed timeout-prone lesvr.suntcn.com fallback)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -13,9 +13,9 @@
  */
 
 // Global constants - defined outside DOMContentLoaded to avoid TDZ issues
-// Railway APIs - Primary source, always available
-const SOC_API_PRIMARY = window.location.origin + '/api/soc';  // Proxy to lumentree.net
-const POWER_HISTORY_API = window.location.origin + '/api/realtime/power-history';  // Local collector
+// Railway APIs - Primary source, data from HA via synced/collector
+const SOC_API_PRIMARY = window.location.origin + '/api/realtime/soc-history';  // From HA via Cloudflare Tunnel
+const POWER_HISTORY_API = window.location.origin + '/api/realtime/power-history';  // PowerHistoryCollector
 
 // ========================================
 // GLOBAL FUNCTIONS - Available immediately for onclick handlers
@@ -163,16 +163,14 @@ document.addEventListener('DOMContentLoaded', function () {
     // This prevents tunnel spam and HA overload
     const LIGHTEARTH_API = {
         get base() { return currentOrigin; },
-        // Legacy LightEarth API endpoints (proxied through Railway)
-        bat: (deviceId, date) => `${currentOrigin}/api/bat/${deviceId}/${date}`,
-        pv: (deviceId, date) => `${currentOrigin}/api/pv/${deviceId}/${date}`,
-        other: (deviceId, date) => `${currentOrigin}/api/other/${deviceId}/${date}`,
+        // REMOVED: bat, pv, other - these timeout because Railway cannot reach lesvr.suntcn.com
+        // Monthly/Yearly data (still needed for statistics)
         month: (deviceId) => `${currentOrigin}/api/month/${deviceId}`,
         year: (deviceId) => `${currentOrigin}/api/year/${deviceId}`,
         historyYear: (deviceId) => `${currentOrigin}/api/history-year/${deviceId}`,
         // Cloud endpoints (all on Railway now)
-        cloudPowerHistory: (deviceId, date) => `${currentOrigin}/api/cloud/power-history/${deviceId}/${date}`,
-        cloudSocHistory: (deviceId, date) => `${currentOrigin}/api/cloud/soc-history/${deviceId}/${date}`,
+        cloudPowerHistory: (deviceId, date) => `${currentOrigin}/api/realtime/power-history/${deviceId}?date=${date}`,
+        cloudSocHistory: (deviceId, date) => `${currentOrigin}/api/realtime/soc-history/${deviceId}?date=${date}`,
         cloudStates: (deviceId) => `${currentOrigin}/api/cloud/states/${deviceId}`,
         cloudDeviceInfo: (deviceId) => `${currentOrigin}/api/cloud/device-info/${deviceId}`,
         cloudTemperature: (deviceId, date) => `${currentOrigin}/api/cloud/temperature/${deviceId}/${date}`
@@ -311,9 +309,9 @@ document.addEventListener('DOMContentLoaded', function () {
         return `${source.realtime}/${deviceId}`;
     }
     
-    // SOC API URL - Use Railway API (proxy to lumentree.net)
+    // SOC API URL - Use Railway API (from HA via Cloudflare Tunnel)
     function getSocApiUrl(deviceId, date) {
-        return `${SOC_API_PRIMARY}/${deviceId}/${date}`;
+        return `${SOC_API_PRIMARY}/${deviceId}?date=${date}`;
     }
     
     // Store previous values for blink detection
@@ -1104,15 +1102,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 const railwayData = await railwayResponse.json();
                 console.log("📊 Railway API response:", railwayData);
                 
-                // Only use Railway data if it has enough points (at least 5)
-                // Otherwise fallback to Cloudflare which may have more historical data
-                const MIN_DATA_POINTS = 5;
-                if (railwayData.success && railwayData.timeline && railwayData.timeline.length >= MIN_DATA_POINTS) {
-                    console.log(`✅ [Priority 1] Railway API SUCCESS: ${railwayData.timeline.length} data points (>= ${MIN_DATA_POINTS})`);
+                // Use Railway data if available (even 1 point is valid - data grows over time)
+                if (railwayData.success && railwayData.timeline && railwayData.timeline.length > 0) {
+                    console.log(`✅ Railway API SUCCESS: ${railwayData.timeline.length} data points`);
                     
                     // Cache the Railway data
                     lightearthCache = {
-                        data: { ...railwayData, dataSource: 'LightEarthCloud' },
+                        data: { ...railwayData, dataSource: 'PowerHistoryCollector' },
                         deviceId: deviceId,
                         date: queryDate,
                         timestamp: now
@@ -1124,127 +1120,20 @@ document.addEventListener('DOMContentLoaded', function () {
                     updateChartFromCloudData(railwayData);
                     chartDataLoaded = true;
                     return; // Success!
-                } else if (railwayData.timeline && railwayData.timeline.length > 0) {
-                    console.warn(`⚠️ [Priority 1] Railway API has only ${railwayData.timeline.length} points (< ${MIN_DATA_POINTS}), trying Cloudflare...`);
                 } else {
-                    console.warn("⚠️ [Priority 1] Railway API returned no data");
+                    console.warn("⚠️ Railway API returned no data - collector may still be gathering data");
                 }
             } else {
                 console.warn(`⚠️ [Priority 1] Railway API failed: HTTP ${railwayResponse.status}`);
             }
         } catch (railwayError) {
-            console.warn("⚠️ [Priority 1] Railway API error:", railwayError.message);
+            console.warn("⚠️ Railway API error:", railwayError.message);
         }
         
-        // PRIORITY 2: Fallback to Cloudflare Proxy (may be blocked in some regions)
-        try {
-            console.log("📊 [Priority 2] Fetching chart data from Cloudflare Proxy...");
-            
-            // Use fetchWithProxyFallback to automatically try fallback if primary fails
-            const haResponse = await fetchWithProxyFallback(
-                () => LIGHTEARTH_API.cloudPowerHistory(deviceId, queryDate)
-            );
-            
-            const cloudChartData = await haResponse.json();
-            console.log("📊 Cloud API response:", cloudChartData);
-            
-            if (cloudChartData.success && cloudChartData.timeline && cloudChartData.timeline.length > 0) {
-                console.log(`✅ [Priority 2] Cloud API SUCCESS: ${cloudChartData.timeline.length} data points`);
-                
-                // Cache the Cloud data
-                lightearthCache = {
-                    data: { ...cloudChartData, dataSource: 'LightEarthCloud' },
-                    deviceId: deviceId,
-                    date: queryDate,
-                    timestamp: now
-                };
-                console.log("💾 Chart data cached (TTL: 30 minutes)");
-                saveCacheToLocalStorage(); // Persist to localStorage
-                
-                // Update chart with Cloud data
-                updateChartFromCloudData(cloudChartData);
-                chartDataLoaded = true;
-                return; // Success - no need to try Lightearth API
-            } else {
-                console.warn("⚠️ [Priority 2] Cloud API returned no data");
-            }
-        } catch (haError) {
-            console.warn("⚠️ [Priority 2] Cloud API failed:", haError.message);
-            // fetchWithProxyFallback already tried all endpoints, show rate limit warning
-            if (haError.message.includes('429')) {
-                showRateLimitWarning();
-                return;
-            }
-        }
-        
-        // STEP 3: Fallback to Lightearth API for chart data
-        // Skip if we recently got rate limited (within last 5 minutes)
-        const rateLimitKey = 'solar_rate_limit_until';
-        const rateLimitUntil = parseInt(localStorage.getItem(rateLimitKey) || '0');
-        if (Date.now() < rateLimitUntil) {
-            console.warn("⏳ Skipping Lightearth API - rate limit cooldown active");
-            return;
-        }
-        
-        try {
-            // Use Lightearth API with fallback - fetch all 3 endpoints in parallel
-            console.log(`📊 [Priority 3] Fetching chart data from Lightearth API...`);
-            
-            const [batResponse, pvResponse, otherResponse] = await Promise.all([
-                fetchWithProxyFallback(() => LIGHTEARTH_API.bat(deviceId, queryDate)),
-                fetchWithProxyFallback(() => LIGHTEARTH_API.pv(deviceId, queryDate)),
-                fetchWithProxyFallback(() => LIGHTEARTH_API.other(deviceId, queryDate))
-            ]);
-            
-            const [batData, pvData, otherData] = await Promise.all([
-                batResponse.json(),
-                pvResponse.json(),
-                otherResponse.json()
-            ]);
-            
-            console.log(`✅ Lightearth data received:`, { batData, pvData, otherData });
-            
-            // Check if data is valid (returnValue === 1)
-            if (batData.returnValue !== 1 || pvData.returnValue !== 1 || otherData.returnValue !== 1) {
-                throw new Error(`Lightearth API returned invalid data (returnValue: ${batData.returnValue}, ${pvData.returnValue}, ${otherData.returnValue})`);
-            }
-            
-            // Cache the data (mark as Lightearth source)
-            lightearthCache = {
-                data: { batData, pvData, otherData, dataSource: 'Lightearth' },
-                deviceId: deviceId,
-                date: queryDate,
-                timestamp: now
-            };
-            console.log("💾 Lightearth data cached (TTL: 30 minutes)");
-            saveCacheToLocalStorage(); // Persist to localStorage
-            
-            // Update UI with chart data (this also updates summary, overwriting Railway data if available)
-            updateSummaryFromLightearthData(lightearthCache.data);
-            
-        } catch (error) {
-            console.warn("⚠️ Lightearth API failed (all proxies tried):", error.message);
-            
-            // All proxies failed, set rate limit cooldown
-            if (error.message.includes('429') || error.message.includes('All proxies failed')) {
-                localStorage.setItem(rateLimitKey, String(Date.now() + 5 * 60 * 1000)); // 5 min cooldown
-                showRateLimitWarning();
-            }
-            
-            // If Railway API already loaded summary data, we're done (just no chart data)
-            if (railwayDataLoaded) {
-                console.log("ℹ️ Railway API already loaded summary data - chart data unavailable for this device");
-                return;
-            }
-            
-            // All APIs failed - show N/A
-            console.error("❌ All data sources failed for device:", deviceId);
-            updateValue('pv-total', 'N/A');
-            updateValue('bat-charge', 'N/A');
-            updateValue('bat-discharge', 'N/A');
-            updateValue('load-total', 'N/A');
-            updateValue('grid-total', 'N/A');
-            updateValue('essential-total', 'N/A');
+        // No fallback needed - Railway PowerHistoryCollector is the only source
+        // Data will be available after collector runs (every 5 minutes)
+        if (!chartDataLoaded) {
+            console.log("ℹ️ No chart data yet - PowerHistoryCollector is gathering data every 5 minutes");
         }
     }
     
@@ -1817,10 +1706,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const dateInput = document.getElementById('dateInput')?.value;
         const date = dateInput || new Date().toISOString().split('T')[0];
         
-        // Railway SOC API (proxy to lumentree.net)
+        // Railway SOC API (from HA via Cloudflare Tunnel)
         // Add cache-busting timestamp to force fresh fetch on F5
         const cacheBuster = Date.now();
-        const railwayUrl = `${SOC_API_PRIMARY}/${deviceId}/${date}?_t=${cacheBuster}`;
+        const railwayUrl = `${SOC_API_PRIMARY}/${deviceId}?date=${date}&_t=${cacheBuster}`;
         
         let data = null;
         
