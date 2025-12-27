@@ -636,16 +636,16 @@ document.addEventListener('DOMContentLoaded', function () {
             clearInterval(realtimePollingInterval);
         }
         
-        console.log(`🔄 Starting realtime polling for device: ${deviceId} (every 10 seconds)`);
+        console.log(`🔄 Starting realtime polling for device: ${deviceId} (every 3 seconds)`);
         
         // Fetch immediately
         fetchRealtimeData(deviceId);
         
-        // Poll every 10 seconds (reduced from 5s to lower Railway Egress costs)
-        // This reduces bandwidth by 50% while still providing near-realtime updates
+        // Poll every 3 seconds for real-time updates
+        // Static files moved to Cloudflare CDN - Egress cost optimized
         realtimePollingInterval = setInterval(() => {
             fetchRealtimeData(deviceId);
-        }, 10000);
+        }, 3000);
     }
     
     function stopRealtimePolling() {
