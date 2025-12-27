@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13235 - Use Railway APIs only (removed timeout-prone lesvr.suntcn.com fallback)
+ * Version: 13236 - Use Cloudflare Workers for FREE (ZERO Railway egress)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -13,11 +13,12 @@
  */
 
 // Global constants - defined outside DOMContentLoaded to avoid TDZ issues
-// Cloudflare Worker API - FREE, direct to HA (no Railway egress cost)
+// Cloudflare Worker APIs - FREE, direct to HA (ZERO Railway egress cost)
 const CLOUDFLARE_WORKER_API = 'https://lightearth.applike098.workers.dev';
-// Railway APIs - for endpoints not yet on Worker
-const SOC_API_PRIMARY = window.location.origin + '/api/realtime/soc-history';  // From HA via Cloudflare Tunnel
-const POWER_HISTORY_API = window.location.origin + '/api/realtime/power-history';  // PowerHistoryCollector
+const CLOUDFLARE_WORKER_TSP = 'https://temperature-soc-power.applike098.workers.dev';  // Temperature, SOC, Power history
+// Railway APIs - fallback only
+const SOC_API_PRIMARY = CLOUDFLARE_WORKER_TSP + '/api/realtime/soc-history';  // FREE via Cloudflare Worker
+const POWER_HISTORY_API = CLOUDFLARE_WORKER_TSP + '/api/realtime/power-history';  // FREE via Cloudflare Worker
 
 // ========================================
 // GLOBAL FUNCTIONS - Available immediately for onclick handlers
@@ -161,21 +162,23 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
     
-    // ALL APIs now use Railway - NO Cloudflare Worker
-    // This prevents tunnel spam and HA overload
+    // APIs use Cloudflare Workers for FREE (ZERO Railway egress)
+    // Temperature, SOC, Power history -> temperature-soc-power Worker -> HA direct
+    // Realtime device data -> lightearth Worker -> HA direct
     const LIGHTEARTH_API = {
         get base() { return currentOrigin; },
         // REMOVED: bat, pv, other - these timeout because Railway cannot reach lesvr.suntcn.com
-        // Monthly/Yearly data (still needed for statistics)
+        // Monthly/Yearly data (still on Railway - low frequency)
         month: (deviceId) => `${currentOrigin}/api/month/${deviceId}`,
         year: (deviceId) => `${currentOrigin}/api/year/${deviceId}`,
         historyYear: (deviceId) => `${currentOrigin}/api/history-year/${deviceId}`,
-        // Cloud endpoints (all on Railway now)
-        cloudPowerHistory: (deviceId, date) => `${currentOrigin}/api/realtime/power-history/${deviceId}?date=${date}`,
-        cloudSocHistory: (deviceId, date) => `${currentOrigin}/api/realtime/soc-history/${deviceId}?date=${date}`,
+        // Cloud endpoints - FREE via Cloudflare Workers (ZERO Railway egress)
+        cloudPowerHistory: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/realtime/power-history/${deviceId}?date=${date}`,
+        cloudSocHistory: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/realtime/soc-history/${deviceId}?date=${date}`,
+        cloudTemperature: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/cloud/temperature/${deviceId}/${date}`,
+        // These still use Railway (low frequency, not worth separate worker)
         cloudStates: (deviceId) => `${currentOrigin}/api/cloud/states/${deviceId}`,
-        cloudDeviceInfo: (deviceId) => `${currentOrigin}/api/cloud/device-info/${deviceId}`,
-        cloudTemperature: (deviceId, date) => `${currentOrigin}/api/cloud/temperature/${deviceId}/${date}`
+        cloudDeviceInfo: (deviceId) => `${currentOrigin}/api/cloud/device-info/${deviceId}`
     };
     
     // Simplified - no more proxy switching needed
