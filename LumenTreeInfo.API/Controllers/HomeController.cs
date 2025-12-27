@@ -827,6 +827,7 @@ public class HomeController : Controller
                                 deviceId, haHistory.Count);
                             
                             return Json(new {
+                                success = true,
                                 deviceId = deviceId.ToUpper(),
                                 date = queryDate,
                                 dataSource = "LightEarthCloud",
@@ -868,6 +869,7 @@ public class HomeController : Controller
                         
                         Log.Information("Successfully fetched SOC data from LEHT API for device {DeviceId}", deviceId);
                         return Json(new {
+                            success = true,
                             deviceId = deviceId,
                             date = queryDate,
                             dataSource = "lehtapi.suntcn.com",
@@ -892,14 +894,32 @@ public class HomeController : Controller
             {
                 Log.Warning("Lumentree SOC API returned {StatusCode} for device {DeviceId}", 
                     response.StatusCode, deviceId);
-                return StatusCode((int)response.StatusCode, "Failed to fetch SOC data");
+                return Json(new { success = false, error = "Failed to fetch SOC data", deviceId = deviceId });
             }
             
             var content = await response.Content.ReadAsStringAsync();
-            var data = System.Text.Json.JsonSerializer.Deserialize<object>(content);
             
-            Log.Information("Successfully fetched SOC data from lumentree.net for device {DeviceId}", deviceId);
-            return Json(data);
+            // Parse and wrap with success field
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(content);
+                var timeline = doc.RootElement.Clone();
+                
+                Log.Information("Successfully fetched SOC data from lumentree.net for device {DeviceId}", deviceId);
+                return Json(new {
+                    success = true,
+                    deviceId = deviceId,
+                    date = queryDate,
+                    dataSource = "lumentree.net",
+                    timeline = timeline
+                });
+            }
+            catch
+            {
+                // If parsing fails, return raw data
+                var data = System.Text.Json.JsonSerializer.Deserialize<object>(content);
+                return Json(data);
+            }
         }
         catch (HttpRequestException ex)
         {
@@ -1691,8 +1711,10 @@ public class HomeController : Controller
     /// <summary>
     /// Get Energy history chart data from synced HA data
     /// Endpoint: /api/cloud/energy-history/{deviceId}/{date}
+    /// Alias: /api/cloud/power-history/{deviceId}/{date}
     /// </summary>
     [Route("/api/cloud/energy-history/{deviceId}/{date}")]
+    [Route("/api/cloud/power-history/{deviceId}/{date}")]
     public IActionResult GetCloudEnergyHistory(string deviceId, string date)
     {
         LoadChartDataFromFile();

@@ -13,9 +13,9 @@
  */
 
 // Global constants - defined outside DOMContentLoaded to avoid TDZ issues
-// Cloud APIs (synced from HA via PowerShell script) - Primary source
-const SOC_API_PRIMARY = window.location.origin + '/api/cloud/soc-history';
-const POWER_HISTORY_API = window.location.origin + '/api/cloud/energy-history';
+// Railway APIs - Primary source, always available
+const SOC_API_PRIMARY = window.location.origin + '/api/soc';  // Proxy to lumentree.net
+const POWER_HISTORY_API = window.location.origin + '/api/realtime/power-history';  // Local collector
 
 // ========================================
 // GLOBAL FUNCTIONS - Available immediately for onclick handlers
@@ -311,9 +311,9 @@ document.addEventListener('DOMContentLoaded', function () {
         return `${source.realtime}/${deviceId}`;
     }
     
-    // SOC API URL - Use Railway API (simplified, no external fallback)
+    // SOC API URL - Use Railway API (proxy to lumentree.net)
     function getSocApiUrl(deviceId, date) {
-        return `${SOC_API_PRIMARY}/${deviceId}?date=${date}`;
+        return `${SOC_API_PRIMARY}/${deviceId}/${date}`;
     }
     
     // Store previous values for blink detection
@@ -1086,7 +1086,7 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             // Add cache-busting timestamp to force fresh fetch on F5
             const cacheBuster = Date.now();
-            const railwayPowerUrl = `${POWER_HISTORY_API}/${deviceId}/${queryDate}?_t=${cacheBuster}`;
+            const railwayPowerUrl = `${POWER_HISTORY_API}/${deviceId}?date=${queryDate}&_t=${cacheBuster}`;
             console.log("📊📊📊 [POWER CHART] Fetching from Railway API:", railwayPowerUrl);
             
             // Force no-cache to ensure fresh data on F5
@@ -1817,7 +1817,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const dateInput = document.getElementById('dateInput')?.value;
         const date = dateInput || new Date().toISOString().split('T')[0];
         
-        // Cloud SOC History API (synced from HA)
+        // Railway SOC API (proxy to lumentree.net)
         // Add cache-busting timestamp to force fresh fetch on F5
         const cacheBuster = Date.now();
         const railwayUrl = `${SOC_API_PRIMARY}/${deviceId}/${date}?_t=${cacheBuster}`;
