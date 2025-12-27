@@ -1113,6 +1113,7 @@ public class HomeController : Controller
                     devices = _syncedRealtimeData.Values.OrderBy(d => d.DeviceId).Select(d => new { 
                         deviceId = d.DeviceId, 
                         isOnline = d.IsOnline,
+                        inverterModel = d.InverterModel,
                         lastUpdate = d.LastUpdate,
                         source = "synced",
                         // Nested realtime data (for frontend compatibility)
@@ -1125,6 +1126,8 @@ public class HomeController : Controller
                             temperature = d.Temperature,
                             temperatureMin = d.TemperatureMin,
                             temperatureMax = d.TemperatureMax,
+                            temperatureMinTime = d.TemperatureMinTime,
+                            temperatureMaxTime = d.TemperatureMaxTime,
                             batteryStatus = d.BatteryStatus,
                             gridStatus = d.GridStatus
                         },
@@ -1325,6 +1328,7 @@ public class HomeController : Controller
         public string TemperatureMaxTime { get; set; } = "--:--";  // Time of max temp (HH:mm)
         public string BatteryStatus { get; set; } = "";  // charging/discharging/idle
         public string GridStatus { get; set; } = "";     // importing/exporting/idle
+        public string InverterModel { get; set; } = "";  // e.g. "SUNT-8.0kW-HP"
         
         public DateTime LastUpdate { get; set; }
     }
