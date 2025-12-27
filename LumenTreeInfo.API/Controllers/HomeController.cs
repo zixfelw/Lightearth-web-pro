@@ -1321,6 +1321,8 @@ public class HomeController : Controller
         public double Temperature { get; set; }
         public double TemperatureMin { get; set; }  // Min temperature today
         public double TemperatureMax { get; set; }  // Max temperature today
+        public string TemperatureMinTime { get; set; } = "--:--";  // Time of min temp (HH:mm)
+        public string TemperatureMaxTime { get; set; } = "--:--";  // Time of max temp (HH:mm)
         public string BatteryStatus { get; set; } = "";  // charging/discharging/idle
         public string GridStatus { get; set; } = "";     // importing/exporting/idle
         
@@ -1524,8 +1526,8 @@ public class HomeController : Controller
                 min = device.TemperatureMin,
                 max = device.TemperatureMax,
                 current = device.Temperature,
-                minTime = "--:--",  // Will be tracked by PowerShell script in future
-                maxTime = "--:--",
+                minTime = device.TemperatureMinTime ?? "--:--",
+                maxTime = device.TemperatureMaxTime ?? "--:--",
                 count = 1,
                 source = "synced"
             });
