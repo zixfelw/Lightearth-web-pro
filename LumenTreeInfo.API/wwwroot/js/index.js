@@ -1532,6 +1532,9 @@ document.addEventListener('DOMContentLoaded', function () {
             const minEl = document.getElementById('temp-min-value');
             const maxEl = document.getElementById('temp-max-value');
             
+            console.log('🌡️ [DEBUG] badge:', !!badge, 'minEl:', !!minEl, 'maxEl:', !!maxEl);
+            console.log('🌡️ [DEBUG] data.success:', data.success, 'min:', data.min, 'max:', data.max);
+            
             if (badge && data.success && data.min !== null && data.max !== null) {
                 minEl.textContent = `${data.min}°C`;
                 maxEl.textContent = `${data.max}°C`;
