@@ -1518,12 +1518,35 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log("📊 Day data loaded - Realtime display will show empty until system data arrives");
     }
     
+    // Temperature cache - 5 minute TTL to reduce API calls
+    const TEMPERATURE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+    let temperatureCache = {
+        deviceId: null,
+        date: null,
+        data: null,
+        timestamp: 0
+    };
+    
     // Fetch Temperature Min/Max for the day from Cloud API
+    // Uses 5-minute cache to prevent excessive API calls
     async function fetchTemperatureMinMax(deviceId, date) {
         const queryDate = date || document.getElementById('dateInput')?.value || new Date().toISOString().split('T')[0];
+        const now = Date.now();
         
-        // Fetch temperature data
-        console.log(`🌡️ Fetching temperature data...`);
+        // Check cache - use cached data if valid (same device, same date, not expired)
+        if (temperatureCache.deviceId === deviceId && 
+            temperatureCache.date === queryDate &&
+            temperatureCache.data &&
+            (now - temperatureCache.timestamp) < TEMPERATURE_CACHE_TTL) {
+            
+            const cacheAge = Math.round((now - temperatureCache.timestamp) / 1000);
+            console.log(`🌡️ Using cached temperature data (age: ${cacheAge}s, TTL: 5min)`);
+            applyTemperatureData(temperatureCache.data);
+            return;
+        }
+        
+        // Fetch fresh data
+        console.log(`🌡️ Fetching fresh temperature data...`);
         
         try {
             const response = await fetchWithProxyFallback(
@@ -1532,38 +1555,51 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await response.json();
             console.log("🌡️ Temperature min/max data received:", data);
             
-            // Update UI with min/max temperature
-            const badge = document.getElementById('tempMinMaxBadge');
-            const minEl = document.getElementById('temp-min-value');
-            const maxEl = document.getElementById('temp-max-value');
-            
-            console.log('🌡️ [DEBUG] badge:', !!badge, 'minEl:', !!minEl, 'maxEl:', !!maxEl);
-            console.log('🌡️ [DEBUG] data.success:', data.success, 'min:', data.min, 'max:', data.max);
-            
-            if (badge && data.success && data.min !== null && data.max !== null) {
-                minEl.textContent = `${data.min}°C`;
-                maxEl.textContent = `${data.max}°C`;
-                // Add time tooltips if available
-                if (data.minTime) minEl.title = `Thấp nhất lúc ${data.minTime}`;
-                if (data.maxTime) maxEl.title = `Cao nhất lúc ${data.maxTime}`;
-                badge.classList.remove('hidden');
-                badge.classList.add('flex');
-                console.log(`✅ Temperature badge updated: ${data.min}°C (${data.minTime}) - ${data.max}°C (${data.maxTime})`);
-                
-                // Also update current temperature from synced data (HA)
-                if (data.current !== null && data.current !== undefined) {
-                    updateValue('device-temp', `${data.current}°C`);
-                    updateValue('device-temp-info', `${data.current}°C`);
-                    console.log(`✅ Current temperature updated from HA: ${data.current}°C`);
-                }
-            } else {
-                console.warn("⚠️ Temperature data not available or invalid");
-                if (badge) badge.classList.add('hidden');
+            // Cache the data
+            if (data.success) {
+                temperatureCache = {
+                    deviceId: deviceId,
+                    date: queryDate,
+                    data: data,
+                    timestamp: now
+                };
+                console.log('💾 Temperature data cached (TTL: 5 minutes)');
             }
+            
+            applyTemperatureData(data);
         } catch (error) {
             console.warn("🌡️ Temperature API unavailable:", error.message);
-            // Hide the badge if API fails
-            const badge = document.getElementById('tempMinMaxBadge');
+            // Hide the badge if API fails and no cache
+            if (!temperatureCache.data) {
+                const badge = document.getElementById('tempMinMaxBadge');
+                if (badge) badge.classList.add('hidden');
+            }
+        }
+    }
+    
+    // Apply temperature data to UI
+    function applyTemperatureData(data) {
+        const badge = document.getElementById('tempMinMaxBadge');
+        const minEl = document.getElementById('temp-min-value');
+        const maxEl = document.getElementById('temp-max-value');
+        
+        if (badge && data && data.success && data.min !== null && data.max !== null) {
+            minEl.textContent = `${data.min}°C`;
+            maxEl.textContent = `${data.max}°C`;
+            // Add time tooltips if available
+            if (data.minTime) minEl.title = `Thấp nhất lúc ${data.minTime}`;
+            if (data.maxTime) maxEl.title = `Cao nhất lúc ${data.maxTime}`;
+            badge.classList.remove('hidden');
+            badge.classList.add('flex');
+            console.log(`✅ Temperature: ${data.min}°C (${data.minTime}) - ${data.max}°C (${data.maxTime})`);
+            
+            // Also update current temperature from synced data
+            if (data.current !== null && data.current !== undefined) {
+                updateValue('device-temp', `${data.current}°C`);
+                updateValue('device-temp-info', `${data.current}°C`);
+            }
+        } else {
+            console.warn("⚠️ Temperature data not available or invalid");
             if (badge) badge.classList.add('hidden');
         }
     }
@@ -1692,40 +1728,61 @@ document.addEventListener('DOMContentLoaded', function () {
     let socData = [];
     let socAutoReloadInterval = null;
     
+    // SOC data cache - 5 minute TTL to reduce API calls
+    const SOC_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+    let socCache = {
+        deviceId: null,
+        date: null,
+        data: null,
+        timestamp: 0
+    };
+    
     // Fetch SOC data from Railway API (LightEarth Cloud data only)
-    // This MUST be called on every F5/page load
+    // Uses 5-minute cache to prevent excessive API calls
     async function fetchSOCData() {
-        console.log('%c🔋🔋🔋 fetchSOCData() EXECUTING 🔋🔋🔋', 'background: #22c55e; color: white; font-size: 14px; padding: 4px;');
-        console.log('Timestamp:', new Date().toISOString());
+        console.log('🔋 fetchSOCData() called');
         
         // Get deviceId from input or URL parameter
         const inputDeviceId = document.getElementById('deviceId')?.value?.trim();
         const urlDeviceId = new URLSearchParams(window.location.search).get('deviceId');
         const deviceId = inputDeviceId || urlDeviceId;
         
-        console.log('📱 DeviceId sources:', { inputDeviceId, urlDeviceId, using: deviceId });
-        
         if (!deviceId) {
-            console.error('❌❌❌ SOC fetch ABORTED: No deviceId available');
+            console.error('❌ SOC fetch ABORTED: No deviceId');
             return;
         }
         
         // Get date from dateInput (format: YYYY-MM-DD), default to today
         const dateInput = document.getElementById('dateInput')?.value;
         const date = dateInput || new Date().toISOString().split('T')[0];
+        const now = Date.now();
         
-        // Railway SOC API (from HA via Cloudflare Tunnel)
-        // Add cache-busting timestamp to force fresh fetch on F5
-        const cacheBuster = Date.now();
-        const railwayUrl = `${SOC_API_PRIMARY}/${deviceId}?date=${date}&_t=${cacheBuster}`;
+        // Check cache - use cached data if valid (same device, same date, not expired)
+        if (socCache.deviceId === deviceId && 
+            socCache.date === date &&
+            socCache.data &&
+            (now - socCache.timestamp) < SOC_CACHE_TTL) {
+            
+            const cacheAge = Math.round((now - socCache.timestamp) / 1000);
+            console.log(`🔋 Using cached SOC data (age: ${cacheAge}s, TTL: 5min, points: ${socCache.data.timeline?.length || 0})`);
+            
+            // Apply cached data
+            if (socCache.data.timeline && socCache.data.timeline.length > 0) {
+                socData = socCache.data.timeline;
+                renderSOCChart();
+                updateLastFetchTime();
+                startSOCAutoReload();
+            }
+            return;
+        }
+        
+        // Fetch fresh data
+        const railwayUrl = `${SOC_API_PRIMARY}/${deviceId}?date=${date}&_t=${now}`;
         
         let data = null;
-        
-        console.log('%c📡 SOC API REQUEST', 'background: #3b82f6; color: white; padding: 2px 6px;');
-        console.log('URL:', railwayUrl);
+        console.log('🔋 Fetching fresh SOC data from:', railwayUrl);
         
         try {
-            // Force no-cache to ensure fresh data on F5
             const response = await fetch(railwayUrl, {
                 method: 'GET',
                 cache: 'no-store',
@@ -1734,26 +1791,33 @@ document.addEventListener('DOMContentLoaded', function () {
                     'Pragma': 'no-cache'
                 }
             });
-            console.log(`📡 [SOC] Response status: ${response.status}, ok: ${response.ok}`);
             
             if (response.ok) {
                 data = await response.json();
-                console.log(`📡 [SOC] Response data:`, data);
                 
                 if (data.success && data.timeline && data.timeline.length > 0) {
-                    console.log(`✅ [SOC] Railway API success: ${data.timeline.length} points`);
+                    console.log(`✅ SOC API success: ${data.timeline.length} points`);
+                    
+                    // Cache the data
+                    socCache = {
+                        deviceId: deviceId,
+                        date: date,
+                        data: data,
+                        timestamp: now
+                    };
+                    console.log('💾 SOC data cached (TTL: 5 minutes)');
                 } else if (data.error) {
-                    console.warn(`⚠️ [SOC] API returned error: ${data.error} - ${data.message}`);
+                    console.warn(`⚠️ SOC API error: ${data.error}`);
                     data = null;
                 } else {
+                    console.warn(`⚠️ SOC API: no data for ${deviceId}`);
                     data = null;
-                    console.warn(`⚠️ [SOC] Railway API returned no data for ${deviceId}`);
                 }
             } else {
-                console.warn(`⚠️ [SOC] Railway API HTTP error: ${response.status}`);
+                console.warn(`⚠️ SOC API HTTP error: ${response.status}`);
             }
         } catch (error) {
-            console.warn(`⚠️ [SOC] Railway API failed: ${error.message}`);
+            console.warn(`⚠️ SOC API failed: ${error.message}`);
         }
         
         // Process data
