@@ -940,16 +940,49 @@ public class HomeController : Controller
     {
         try
         {
-            // First, try to use synced devices (from local script)
+            // First, try to use synced realtime data (has online status + power data)
+            if (_syncedRealtimeData != null && _syncedRealtimeData.Count > 0)
+            {
+                var onlineCount = _syncedRealtimeData.Values.Count(d => d.IsOnline);
+                var totalPv = _syncedRealtimeData.Values.Where(d => d.IsOnline).Sum(d => d.PvPower);
+                var totalLoad = _syncedRealtimeData.Values.Where(d => d.IsOnline).Sum(d => d.LoadPower);
+                var avgSoc = _syncedRealtimeData.Values.Where(d => d.IsOnline && d.Soc > 0).Select(d => (double)d.Soc).DefaultIfEmpty(0).Average();
+
+                Log.Information($"Using {_syncedRealtimeData.Count} synced devices ({onlineCount} online)");
+                return Json(new {
+                    success = true,
+                    count = _syncedRealtimeData.Count,
+                    onlineCount = onlineCount,
+                    totalPvPower = totalPv,
+                    totalLoadPower = totalLoad,
+                    averageSoc = Math.Round(avgSoc, 1),
+                    devices = _syncedRealtimeData.Values.OrderBy(d => d.DeviceId).Select(d => new { 
+                        deviceId = d.DeviceId, 
+                        isOnline = d.IsOnline,
+                        soc = d.Soc,
+                        pvPower = d.PvPower,
+                        batteryPower = d.BatteryPower,
+                        loadPower = d.LoadPower,
+                        gridPower = d.GridPower,
+                        lastUpdate = d.LastUpdate,
+                        source = "synced" 
+                    }),
+                    lastSyncTime = _lastRealtimeSyncTime,
+                    source = "local_sync"
+                });
+            }
+
+            // Fallback: Use device list only (no realtime data)
             if (_syncedDevices != null && _syncedDevices.Count > 0)
             {
-                Log.Information($"Using {_syncedDevices.Count} synced devices (last sync: {_lastSyncTime})");
+                Log.Information($"Using {_syncedDevices.Count} synced devices (no realtime)");
                 return Json(new {
                     success = true,
                     count = _syncedDevices.Count,
-                    devices = _syncedDevices.Select(d => new { deviceId = d, source = "synced" }),
+                    devices = _syncedDevices.Select(d => new { deviceId = d, isOnline = false, source = "synced_list" }),
                     lastSyncTime = _lastSyncTime,
-                    source = "local_sync"
+                    source = "local_sync_list_only",
+                    note = "Run sync-realtime script for online status"
                 });
             }
 
@@ -1094,10 +1127,90 @@ public class HomeController : Controller
     // Static storage for synced devices
     private static List<string> _syncedDevices = new List<string>();
     private static DateTime? _lastSyncTime = null;
+    private static Dictionary<string, SyncedDeviceData> _syncedRealtimeData = new Dictionary<string, SyncedDeviceData>();
+    private static DateTime? _lastRealtimeSyncTime = null;
 
     public class SyncDevicesRequest
     {
         public List<string> Devices { get; set; } = new List<string>();
+    }
+
+    public class SyncedDeviceData
+    {
+        public string DeviceId { get; set; } = "";
+        public bool IsOnline { get; set; }
+        public int Soc { get; set; }
+        public int PvPower { get; set; }
+        public int BatteryPower { get; set; }
+        public int LoadPower { get; set; }
+        public int GridPower { get; set; }
+        public DateTime LastUpdate { get; set; }
+    }
+
+    public class SyncRealtimeRequest
+    {
+        public List<SyncedDeviceData> Devices { get; set; } = new List<SyncedDeviceData>();
+    }
+
+    /// <summary>
+    /// Sync realtime data from local HA script (push every 5 minutes)
+    /// Endpoint: POST /api/cloud/sync-realtime
+    /// </summary>
+    [HttpPost]
+    [Route("/api/cloud/sync-realtime")]
+    public IActionResult SyncRealtimeFromLocal([FromBody] SyncRealtimeRequest request)
+    {
+        try
+        {
+            if (request?.Devices == null || request.Devices.Count == 0)
+            {
+                return Json(new { success = false, error = "No devices data provided" });
+            }
+
+            foreach (var device in request.Devices)
+            {
+                device.LastUpdate = DateTime.UtcNow;
+                _syncedRealtimeData[device.DeviceId] = device;
+            }
+            
+            _lastRealtimeSyncTime = DateTime.UtcNow;
+
+            var onlineCount = _syncedRealtimeData.Values.Count(d => d.IsOnline);
+            var totalPv = _syncedRealtimeData.Values.Where(d => d.IsOnline).Sum(d => d.PvPower);
+            var totalLoad = _syncedRealtimeData.Values.Where(d => d.IsOnline).Sum(d => d.LoadPower);
+
+            Log.Information($"Synced realtime: {request.Devices.Count} devices, {onlineCount} online, PV={totalPv}W, Load={totalLoad}W");
+            
+            return Json(new { 
+                success = true, 
+                message = $"Synced {request.Devices.Count} devices",
+                onlineCount = onlineCount,
+                totalPvPower = totalPv,
+                totalLoadPower = totalLoad,
+                syncedAt = _lastRealtimeSyncTime
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error syncing realtime data");
+            return Json(new { success = false, error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get synced realtime data for all devices
+    /// </summary>
+    [Route("/api/cloud/synced-realtime")]
+    public IActionResult GetSyncedRealtimeData()
+    {
+        var onlineCount = _syncedRealtimeData.Values.Count(d => d.IsOnline);
+        return Json(new {
+            success = true,
+            count = _syncedRealtimeData.Count,
+            onlineCount = onlineCount,
+            devices = _syncedRealtimeData.Values.OrderBy(d => d.DeviceId).ToList(),
+            lastSyncTime = _lastRealtimeSyncTime
+        });
     }
 
     /// <summary>
