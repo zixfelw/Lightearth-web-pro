@@ -1104,11 +1104,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 const railwayData = await railwayResponse.json();
                 console.log("📊 Railway API response:", railwayData);
                 
-                // Only use Railway data if it has enough points (at least 5)
-                // Otherwise fallback to Cloudflare which may have more historical data
-                const MIN_DATA_POINTS = 5;
+                // Use Railway data if it has at least 1 point - collector data is reliable
+                // Data will grow as collector runs every 5 minutes
+                const MIN_DATA_POINTS = 1;
                 if (railwayData.success && railwayData.timeline && railwayData.timeline.length >= MIN_DATA_POINTS) {
-                    console.log(`✅ [Priority 1] Railway API SUCCESS: ${railwayData.timeline.length} data points (>= ${MIN_DATA_POINTS})`);
+                    console.log(`✅ [Priority 1] Railway API SUCCESS: ${railwayData.timeline.length} data points`);
                     
                     // Cache the Railway data
                     lightearthCache = {
@@ -1124,8 +1124,6 @@ document.addEventListener('DOMContentLoaded', function () {
                     updateChartFromCloudData(railwayData);
                     chartDataLoaded = true;
                     return; // Success!
-                } else if (railwayData.timeline && railwayData.timeline.length > 0) {
-                    console.warn(`⚠️ [Priority 1] Railway API has only ${railwayData.timeline.length} points (< ${MIN_DATA_POINTS}), trying Cloudflare...`);
                 } else {
                     console.warn("⚠️ [Priority 1] Railway API returned no data");
                 }
