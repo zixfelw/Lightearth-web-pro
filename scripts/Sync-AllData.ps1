@@ -2,12 +2,12 @@
 # Sync-AllData.ps1 - Complete Data Sync from HA to Railway
 # =============================================================================
 # 
-# This is the MASTER script that syncs ALL data types:
+# Syncs data from Home Assistant to Railway:
 # 1. Realtime device data (power, battery, temperature)
 # 2. Daily energy summary (charge, discharge, pv, grid, load)
-# 3. Chart data (SOC timeline, Energy timeline)
+# 3. Peak power stats (max PV, max charge, max discharge, max load, max grid)
 #
-# Run this every 3-5 minutes via Task Scheduler for complete sync.
+# Run this every 3-5 minutes via Task Scheduler.
 #
 # Usage:
 #   .\Sync-AllData.ps1 -HaUrl "http://your-ha:8123" -HaToken "token" -RailwayUrl "https://lightearth2.up.railway.app" -ApiKey "key" -DeviceIds "P250801055,P250617024"
@@ -28,10 +28,7 @@ param(
     [string]$ApiKey,
     
     [Parameter(Mandatory=$true)]
-    [string]$DeviceIds,  # Comma-separated: "P250801055,P250617024"
-    
-    [switch]$SyncChart = $true,  # Include chart data sync (default: yes)
-    [switch]$Verbose = $false
+    [string]$DeviceIds  # Comma-separated: "P250801055,P250617024"
 )
 
 $ErrorActionPreference = "Continue"
@@ -55,7 +52,6 @@ function Write-Log {
         "SUCCESS" { "Green" }
         "WARNING" { "Yellow" }
         "ERROR" { "Red" }
-        "DEBUG" { "Gray" }
         default { "White" }
     }
     Write-Host "[$timestamp] $Message" -ForegroundColor $color
@@ -179,68 +175,7 @@ function Get-TemperatureMinMax {
     return $null
 }
 
-function Sync-RealtimeData {
-    param([string]$DeviceId)
-    
-    $realtime = Get-DeviceRealtimeData -DeviceId $DeviceId
-    $daily = Get-DeviceDailyEnergy -DeviceId $DeviceId
-    $cells = Get-BatteryCells -DeviceId $DeviceId
-    $tempMinMax = Get-TemperatureMinMax -DeviceId $DeviceId -Date (Get-Date).ToString("yyyy-MM-dd")
-    
-    $body = @{
-        deviceId = $DeviceId.ToUpper()
-        realtime = $realtime
-        dailyEnergy = $daily
-        batteryCells = $cells
-        temperatureMin = $tempMinMax.min
-        temperatureMax = $tempMinMax.max
-        temperatureMinTime = $tempMinMax.minTime
-        temperatureMaxTime = $tempMinMax.maxTime
-    } | ConvertTo-Json -Depth 5 -Compress
-    
-    try {
-        $url = "$RailwayUrl/api/cloud/sync-realtime"
-        $response = Invoke-RestMethod -Uri $url -Headers $railwayHeaders -Method Post -Body $body -TimeoutSec 15
-        return $response.success
-    } catch {
-        Write-Log "  Realtime sync error: $_" "ERROR"
-        return $false
-    }
-}
-
-function Get-SocHistory {
-    param([string]$DeviceId, [string]$Date)
-    
-    $d = $DeviceId.ToLower()
-    $entity = "sensor.device_${d}_battery_soc"
-    
-    try {
-        $startTime = "${Date}T00:00:00"
-        $endTime = "${Date}T23:59:59"
-        $url = "$HaUrl/api/history/period/$startTime`?end_time=$endTime&filter_entity_id=$entity&minimal_response=true&no_attributes=true"
-        $response = Invoke-RestMethod -Uri $url -Headers $haHeaders -Method Get -TimeoutSec 30
-        
-        if ($response -and $response[0]) {
-            $timeline = @()
-            foreach ($point in $response[0]) {
-                if ($point.state -ne "unavailable" -and $point.state -ne "unknown") {
-                    $time = ([DateTime]::Parse($point.last_changed)).ToLocalTime()
-                    if ($time.ToString("yyyy-MM-dd") -eq $Date) {
-                        $timeline += @{
-                            Time = $time.ToString("HH:mm")
-                            Value = [double]$point.state
-                        }
-                    }
-                }
-            }
-            # Dedupe by time
-            return $timeline | Sort-Object { $_.Time } | Group-Object { $_.Time } | ForEach-Object { $_.Group[-1] }
-        }
-    } catch {}
-    return @()
-}
-
-function Get-EnergyHistory {
+function Get-PeakPowerStats {
     param([string]$DeviceId, [string]$Date)
     
     $d = $DeviceId.ToLower()
@@ -254,11 +189,12 @@ function Get-EnergyHistory {
     $startTime = "${Date}T00:00:00"
     $endTime = "${Date}T23:59:59"
     
-    # Create 288 slots
-    $slots = @{}
-    for ($i = 0; $i -lt 288; $i++) {
-        $timeKey = "{0:D2}:{1:D2}" -f [Math]::Floor($i/12), (($i%12)*5)
-        $slots[$timeKey] = @{ time = $timeKey; pv = 0; battery = 0; grid = 0; load = 0 }
+    $peaks = @{
+        pvPeak = 0; pvPeakTime = $null
+        chargePeak = 0; chargePeakTime = $null
+        dischargePeak = 0; dischargePeakTime = $null
+        gridPeak = 0; gridPeakTime = $null
+        loadPeak = 0; loadPeakTime = $null
     }
     
     foreach ($key in $entities.Keys) {
@@ -269,45 +205,80 @@ function Get-EnergyHistory {
             if ($response -and $response[0]) {
                 foreach ($point in $response[0]) {
                     if ($point.state -ne "unavailable" -and $point.state -ne "unknown") {
+                        $value = [double]$point.state
                         $time = ([DateTime]::Parse($point.last_changed)).ToLocalTime()
-                        if ($time.ToString("yyyy-MM-dd") -eq $Date) {
-                            $slotIndex = $time.Hour * 12 + [Math]::Floor($time.Minute / 5)
-                            $timeKey = "{0:D2}:{1:D2}" -f [Math]::Floor($slotIndex/12), (($slotIndex%12)*5)
-                            $value = [double]$point.state
-                            $slots[$timeKey][$key] = if ($key -eq "battery") { $value } else { [Math]::Abs($value) }
+                        $timeStr = $time.ToString("HH:mm")
+                        
+                        switch ($key) {
+                            "pv" {
+                                if ($value -gt $peaks.pvPeak) {
+                                    $peaks.pvPeak = $value
+                                    $peaks.pvPeakTime = $timeStr
+                                }
+                            }
+                            "battery" {
+                                # Positive = charging, Negative = discharging
+                                if ($value -gt 0 -and $value -gt $peaks.chargePeak) {
+                                    $peaks.chargePeak = $value
+                                    $peaks.chargePeakTime = $timeStr
+                                }
+                                if ($value -lt 0 -and [Math]::Abs($value) -gt $peaks.dischargePeak) {
+                                    $peaks.dischargePeak = [Math]::Abs($value)
+                                    $peaks.dischargePeakTime = $timeStr
+                                }
+                            }
+                            "grid" {
+                                if ($value -gt $peaks.gridPeak) {
+                                    $peaks.gridPeak = $value
+                                    $peaks.gridPeakTime = $timeStr
+                                }
+                            }
+                            "load" {
+                                if ($value -gt $peaks.loadPeak) {
+                                    $peaks.loadPeak = $value
+                                    $peaks.loadPeakTime = $timeStr
+                                }
+                            }
                         }
                     }
                 }
             }
-        } catch {}
+        } catch {
+            Write-Log "  Error fetching $key history: $_" "WARNING"
+        }
     }
     
-    return $slots.Values | Sort-Object { $_.time } | Where-Object { $_.pv -ne 0 -or $_.battery -ne 0 -or $_.grid -ne 0 -or $_.load -ne 0 }
+    return $peaks
 }
 
-function Sync-ChartData {
-    param([string]$DeviceId, [string]$Date)
+function Sync-RealtimeData {
+    param([string]$DeviceId)
     
-    $socTimeline = Get-SocHistory -DeviceId $DeviceId -Date $Date
-    $energyTimeline = Get-EnergyHistory -DeviceId $DeviceId -Date $Date
-    
-    if ($socTimeline.Count -eq 0 -and $energyTimeline.Count -eq 0) {
-        return $false
-    }
+    $realtime = Get-DeviceRealtimeData -DeviceId $DeviceId
+    $daily = Get-DeviceDailyEnergy -DeviceId $DeviceId
+    $cells = Get-BatteryCells -DeviceId $DeviceId
+    $today = (Get-Date).ToString("yyyy-MM-dd")
+    $tempMinMax = Get-TemperatureMinMax -DeviceId $DeviceId -Date $today
+    $peaks = Get-PeakPowerStats -DeviceId $DeviceId -Date $today
     
     $body = @{
-        DeviceId = $DeviceId.ToUpper()
-        Date = $Date
-        SocTimeline = $socTimeline
-        EnergyTimeline = $energyTimeline
-    } | ConvertTo-Json -Depth 10 -Compress
+        deviceId = $DeviceId.ToUpper()
+        realtime = $realtime
+        dailyEnergy = $daily
+        batteryCells = $cells
+        temperatureMin = $tempMinMax.min
+        temperatureMax = $tempMinMax.max
+        temperatureMinTime = $tempMinMax.minTime
+        temperatureMaxTime = $tempMinMax.maxTime
+        peakStats = $peaks
+    } | ConvertTo-Json -Depth 5 -Compress
     
     try {
-        $url = "$RailwayUrl/api/cloud/sync-chart"
-        $response = Invoke-RestMethod -Uri $url -Headers $railwayHeaders -Method Post -Body $body -TimeoutSec 30
+        $url = "$RailwayUrl/api/cloud/sync-realtime"
+        $response = Invoke-RestMethod -Uri $url -Headers $railwayHeaders -Method Post -Body $body -TimeoutSec 15
         return $response.success
     } catch {
-        Write-Log "  Chart sync error: $_" "ERROR"
+        Write-Log "  Sync error: $_" "ERROR"
         return $false
     }
 }
@@ -320,27 +291,15 @@ $startTime = Get-Date
 Write-Log "========== LightEarth Data Sync ==========" "INFO"
 
 $devices = $DeviceIds -split "," | ForEach-Object { $_.Trim() }
-$today = (Get-Date).ToString("yyyy-MM-dd")
 
 foreach ($deviceId in $devices) {
     Write-Log "[$deviceId] Syncing..." "INFO"
     
-    # 1. Realtime + Daily Energy
-    $rtSuccess = Sync-RealtimeData -DeviceId $deviceId
-    if ($rtSuccess) {
-        Write-Log "  Realtime/Daily: OK" "SUCCESS"
+    $success = Sync-RealtimeData -DeviceId $deviceId
+    if ($success) {
+        Write-Log "  OK" "SUCCESS"
     } else {
-        Write-Log "  Realtime/Daily: FAILED" "ERROR"
-    }
-    
-    # 2. Chart Data (if enabled)
-    if ($SyncChart) {
-        $chartSuccess = Sync-ChartData -DeviceId $deviceId -Date $today
-        if ($chartSuccess) {
-            Write-Log "  Chart Data: OK" "SUCCESS"
-        } else {
-            Write-Log "  Chart Data: No data or failed" "WARNING"
-        }
+        Write-Log "  FAILED" "ERROR"
     }
 }
 
