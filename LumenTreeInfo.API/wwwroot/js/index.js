@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13236 - Use Cloudflare Workers for FREE (ZERO Railway egress)
+ * Version: 13237 - Battery Cells from Worker v3.7 + ZERO Railway egress
  * 
  * Features:
  * - Real-time data via SignalR
@@ -686,7 +686,7 @@ document.addEventListener('DOMContentLoaded', function () {
             let displayData, cellsData;
             
             if (isNewFormat) {
-                // New format from Cloud API
+                // New format from Cloud API (Cloudflare Worker v3.7)
                 const dd = data.deviceData || {};
                 displayData = {
                     pvTotalPower: dd.pv?.totalPower || 0,
@@ -700,14 +700,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     batteryValue: dd.battery?.power || 0,
                     batteryVoltage: dd.battery?.voltage || 0,
                     batteryStatus: dd.battery?.status || 'Idle',
-                    deviceTempValue: dd.system?.temperature || 0,
+                    deviceTempValue: dd.temperature || dd.system?.temperature || 0,
                     essentialValue: dd.acOutput?.power || 0,
-                    loadValue: dd.load?.power || 0,
+                    loadValue: dd.load?.homePower || dd.load?.power || 0,
                     inverterAcOutPower: dd.acOutput?.power || 0
                 };
-                cellsData = data.batteryCells;
-                console.log('📊 Using Cloud format', displayData);
-                console.log('🔋 batteryCells from API:', data.batteryCells);
+                // Battery cells data from Worker v3.7: deviceData.battery.cells
+                cellsData = dd.battery?.cells || data.batteryCells;
+                console.log('📊 Using Cloud format (Worker v3.7)', displayData);
+                console.log('🔋 batteryCells from API:', cellsData);
             } else if (data.data) {
                 // Legacy format from API
                 displayData = {
@@ -741,37 +742,58 @@ document.addEventListener('DOMContentLoaded', function () {
             
             // Update battery cell voltages
             console.log('🔋 CellsData received:', cellsData ? 'YES' : 'NO');
-            console.log('🔋 CellsData.cellVoltages:', cellsData?.cellVoltages);
-            if (cellsData && cellsData.cellVoltages) {
-                console.log('✅ Processing cell voltages...');
-                let cellVoltages = [];
-                const rawVoltages = cellsData.cellVoltages;
-                
-                // Handle Array format: [3.413, 3.379, ...]
-                if (Array.isArray(rawVoltages)) {
-                    cellVoltages = rawVoltages;
-                } 
-                // Handle Object format: {"Cell 01": 3.223, ...}
-                else if (typeof rawVoltages === 'object') {
-                    const cellNames = Object.keys(rawVoltages).sort((a, b) => 
-                        parseInt(a.replace(/\D/g, '')) - parseInt(b.replace(/\D/g, ''))
-                    );
-                    cellNames.forEach(cellName => {
-                        cellVoltages.push(rawVoltages[cellName]);
+            console.log('🔋 CellsData structure:', cellsData);
+            
+            // Handle multiple cell data formats
+            let cellVoltages = [];
+            let maxVoltage = 0, minVoltage = 0, avgVoltage = 0;
+            
+            if (cellsData) {
+                // Format 1: Worker v3.7 - {num, avg, min, max, diff, cells: {c_01: 3.181, ...}}
+                if (cellsData.cells && typeof cellsData.cells === 'object' && !Array.isArray(cellsData.cells)) {
+                    console.log('✅ Processing Worker v3.7 format (cells object)');
+                    const cellKeys = Object.keys(cellsData.cells).sort((a, b) => {
+                        const numA = parseInt(a.replace(/\D/g, ''));
+                        const numB = parseInt(b.replace(/\D/g, ''));
+                        return numA - numB;
                     });
+                    cellKeys.forEach(key => {
+                        cellVoltages.push(cellsData.cells[key]);
+                    });
+                    maxVoltage = cellsData.max || 0;
+                    minVoltage = cellsData.min || 0;
+                    avgVoltage = cellsData.avg || 0;
+                }
+                // Format 2: Legacy - {cellVoltages: [3.413, 3.379, ...]}
+                else if (cellsData.cellVoltages) {
+                    console.log('✅ Processing Legacy format (cellVoltages array)');
+                    const rawVoltages = cellsData.cellVoltages;
+                    if (Array.isArray(rawVoltages)) {
+                        cellVoltages = rawVoltages;
+                    } else if (typeof rawVoltages === 'object') {
+                        const cellNames = Object.keys(rawVoltages).sort((a, b) => 
+                            parseInt(a.replace(/\D/g, '')) - parseInt(b.replace(/\D/g, ''))
+                        );
+                        cellNames.forEach(cellName => {
+                            cellVoltages.push(rawVoltages[cellName]);
+                        });
+                    }
+                    maxVoltage = cellsData.maximumVoltage || 0;
+                    minVoltage = cellsData.minimumVoltage || 0;
+                    avgVoltage = cellsData.averageVoltage || 0;
                 }
                 
                 if (cellVoltages.length > 0) {
                     const validVoltages = cellVoltages.filter(v => v > 0);
                     const cellData = {
                         cells: cellVoltages,
-                        maximumVoltage: cellsData.maximumVoltage || Math.max(...validVoltages, 0),
-                        minimumVoltage: cellsData.minimumVoltage || Math.min(...validVoltages.filter(v => v > 0), 0),
-                        averageVoltage: cellsData.averageVoltage || (validVoltages.length > 0 ? validVoltages.reduce((a, b) => a + b, 0) / validVoltages.length : 0),
+                        maximumVoltage: maxVoltage || Math.max(...validVoltages, 0),
+                        minimumVoltage: minVoltage || Math.min(...validVoltages.filter(v => v > 0), 0),
+                        averageVoltage: avgVoltage || (validVoltages.length > 0 ? validVoltages.reduce((a, b) => a + b, 0) / validVoltages.length : 0),
                         numberOfCells: cellVoltages.length
                     };
                     updateBatteryCellDisplay(cellData);
-                    console.log(`📊 Cell voltages updated: ${cellVoltages.length} cells`);
+                    console.log(`📊 Cell voltages updated: ${cellVoltages.length} cells`, cellData);
                 }
             }
             
