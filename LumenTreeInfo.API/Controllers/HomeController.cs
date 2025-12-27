@@ -940,6 +940,9 @@ public class HomeController : Controller
     {
         try
         {
+            // Load from file if not loaded yet (after restart)
+            LoadSyncedDataFromFile();
+            
             // First, try to use synced realtime data (has online status + power data)
             if (_syncedRealtimeData != null && _syncedRealtimeData.Count > 0)
             {
@@ -1129,6 +1132,78 @@ public class HomeController : Controller
     private static DateTime? _lastSyncTime = null;
     private static Dictionary<string, SyncedDeviceData> _syncedRealtimeData = new Dictionary<string, SyncedDeviceData>();
     private static DateTime? _lastRealtimeSyncTime = null;
+    private static bool _dataLoaded = false;
+    private static readonly object _fileLock = new object();
+    private const string SYNC_DATA_FILE = "synced_realtime_data.json";
+
+    /// <summary>
+    /// Persist synced data to file for recovery after restart
+    /// </summary>
+    private static void SaveSyncedDataToFile()
+    {
+        try
+        {
+            lock (_fileLock)
+            {
+                var data = new {
+                    devices = _syncedRealtimeData,
+                    lastSyncTime = _lastRealtimeSyncTime,
+                    savedAt = DateTime.UtcNow
+                };
+                var json = System.Text.Json.JsonSerializer.Serialize(data);
+                System.IO.File.WriteAllText(SYNC_DATA_FILE, json);
+                Log.Debug($"Saved {_syncedRealtimeData.Count} devices to {SYNC_DATA_FILE}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"Failed to save synced data to file: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Load synced data from file on startup
+    /// </summary>
+    private static void LoadSyncedDataFromFile()
+    {
+        if (_dataLoaded) return;
+        
+        try
+        {
+            lock (_fileLock)
+            {
+                if (_dataLoaded) return;
+                
+                if (System.IO.File.Exists(SYNC_DATA_FILE))
+                {
+                    var json = System.IO.File.ReadAllText(SYNC_DATA_FILE);
+                    var doc = System.Text.Json.JsonDocument.Parse(json);
+                    
+                    if (doc.RootElement.TryGetProperty("devices", out var devicesElement))
+                    {
+                        var devices = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, SyncedDeviceData>>(devicesElement.GetRawText());
+                        if (devices != null && devices.Count > 0)
+                        {
+                            _syncedRealtimeData = devices;
+                            Log.Information($"Loaded {devices.Count} devices from {SYNC_DATA_FILE}");
+                        }
+                    }
+                    
+                    if (doc.RootElement.TryGetProperty("lastSyncTime", out var syncTimeElement))
+                    {
+                        _lastRealtimeSyncTime = syncTimeElement.GetDateTime();
+                    }
+                }
+                
+                _dataLoaded = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"Failed to load synced data from file: {ex.Message}");
+            _dataLoaded = true;
+        }
+    }
 
     public class SyncDevicesRequest
     {
@@ -1191,6 +1266,9 @@ public class HomeController : Controller
             
             _lastRealtimeSyncTime = DateTime.UtcNow;
 
+            // Save to file for persistence across restarts
+            SaveSyncedDataToFile();
+
             var onlineCount = _syncedRealtimeData.Values.Count(d => d.IsOnline);
             var totalPv = _syncedRealtimeData.Values.Where(d => d.IsOnline).Sum(d => d.PvPower);
             var totalLoad = _syncedRealtimeData.Values.Where(d => d.IsOnline).Sum(d => d.LoadPower);
@@ -1219,6 +1297,9 @@ public class HomeController : Controller
     [Route("/api/cloud/synced-realtime")]
     public IActionResult GetSyncedRealtimeData()
     {
+        // Load from file if not loaded yet (after restart)
+        LoadSyncedDataFromFile();
+        
         var onlineCount = _syncedRealtimeData.Values.Count(d => d.IsOnline);
         return Json(new {
             success = true,
@@ -1237,6 +1318,9 @@ public class HomeController : Controller
     [Route("/api/realtime/all")]
     public IActionResult GetRealtimeAll()
     {
+        // Load from file if not loaded yet (after restart)
+        LoadSyncedDataFromFile();
+        
         // Return synced data from local HA push
         var devices = _syncedRealtimeData.Values
             .OrderBy(d => d.DeviceId)
@@ -1289,6 +1373,9 @@ public class HomeController : Controller
     [Route("/api/realtime/device/{deviceId}")]
     public IActionResult GetRealtimeDevice(string deviceId)
     {
+        // Load from file if not loaded yet (after restart)
+        LoadSyncedDataFromFile();
+        
         if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
         {
             return Json(new {
