@@ -630,7 +630,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // ========================================
-    // REALTIME POLLING (2 seconds interval)
+    // REALTIME POLLING (3 seconds interval)
     // ========================================
     
     function startRealtimePolling(deviceId) {
@@ -638,15 +638,15 @@ document.addEventListener('DOMContentLoaded', function () {
             clearInterval(realtimePollingInterval);
         }
         
-        console.log(`Starting realtime polling for device: ${deviceId}`);
+        console.log(`🔄 Starting realtime polling for device: ${deviceId} (every 3 seconds)`);
         
         // Fetch immediately
         fetchRealtimeData(deviceId);
         
-        // Then poll every 30 seconds (reduced from 3s to prevent server overload)
+        // Then poll every 3 seconds as requested
         realtimePollingInterval = setInterval(() => {
             fetchRealtimeData(deviceId);
-        }, 30000);
+        }, 3000);
     }
     
     function stopRealtimePolling() {
