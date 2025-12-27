@@ -2,6 +2,12 @@
 
 Script để đồng bộ dữ liệu từ Home Assistant lên Railway.
 
+**🚀 LỢI ÍCH:**
+- Giảm ~80% traffic qua Cloudflare Tunnel
+- Tránh lỗi "context canceled" do quá tải tunnel
+- API response nhanh hơn nhờ cached data
+- SOC chart hiển thị ổn định hơn
+
 ## Script
 
 ### `Sync-AllData.ps1`
@@ -11,6 +17,7 @@ Sync tất cả dữ liệu:
 - Peak power stats (Max PV, Max Charge, Max Discharge, Max Grid, Max Load)
 - Battery cells voltage
 - Temperature min/max
+- **SOC history** (battery level timeline cho chart)
 
 ## Cách sử dụng
 
@@ -24,7 +31,7 @@ Sync tất cả dữ liệu:
     -DeviceIds "P250801055,P250617024"
 ```
 
-### Setup Task Scheduler (Tự động chạy mỗi 5 phút)
+### Setup Task Scheduler (Tự động chạy mỗi 3 phút)
 
 1. Mở **Task Scheduler** (Win + R → `taskschd.msc`)
 
@@ -37,7 +44,7 @@ Sync tất cả dữ liệu:
 
 4. Tab **Triggers**:
    - New → Daily
-   - Repeat task every: **5 minutes**
+   - Repeat task every: **3 minutes** (hoặc 5 phút)
    - For a duration of: **Indefinitely**
 
 5. Tab **Actions**:
@@ -81,3 +88,19 @@ Thay `{device}` bằng device ID viết thường (vd: `p250801055`):
 
 ### Battery Cells (tùy chọn)
 - `sensor.device_{device}_cell_01_voltage` ... `cell_16_voltage`
+
+## API Endpoints sử dụng
+
+Script sync đến các endpoint sau trên Railway:
+- `POST /api/cloud/sync-realtime` - Realtime data + daily energy
+- `POST /api/realtime/sync-soc` - SOC history (NEW)
+
+## Kết quả sau khi sync
+
+Backend sẽ:
+1. Cache SOC history để không cần gọi HA qua tunnel mỗi request
+2. Serve data từ cache cho frontend (nhanh hơn)
+3. Giảm đáng kể traffic qua Cloudflare Tunnel
+
+**Lưu ý:** Script này thay thế việc Railway gọi HA qua Cloudflare Tunnel. 
+Tunnel vẫn cần chạy nhưng traffic sẽ giảm đáng kể.

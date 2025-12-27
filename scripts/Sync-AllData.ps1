@@ -175,6 +175,38 @@ function Get-TemperatureMinMax {
     return $null
 }
 
+function Get-SocHistory {
+    param([string]$DeviceId, [string]$Date)
+    
+    $d = $DeviceId.ToLower()
+    $entity = "sensor.device_${d}_battery_soc"
+    
+    try {
+        $startTime = "${Date}T00:00:00"
+        $endTime = "${Date}T23:59:59"
+        $url = "$HaUrl/api/history/period/$startTime`?end_time=$endTime&filter_entity_id=$entity&minimal_response=true&no_attributes=true"
+        $response = Invoke-RestMethod -Uri $url -Headers $haHeaders -Method Get -TimeoutSec 15
+        
+        if ($response -and $response[0]) {
+            $timeline = @()
+            foreach ($point in $response[0]) {
+                if ($point.state -ne "unavailable" -and $point.state -ne "unknown") {
+                    $time = ([DateTime]::Parse($point.last_changed)).ToLocalTime()
+                    $timeline += @{
+                        time = $time.ToString("HH:mm")
+                        soc = [int]$point.state
+                    }
+                }
+            }
+            return $timeline
+        }
+    } catch {
+        Write-Log "  Error fetching SOC history: $_" "WARNING"
+    }
+    
+    return @()
+}
+
 function Get-PeakPowerStats {
     param([string]$DeviceId, [string]$Date)
     
@@ -283,6 +315,33 @@ function Sync-RealtimeData {
     }
 }
 
+function Sync-SocHistory {
+    param([string]$DeviceId)
+    
+    $today = (Get-Date).ToString("yyyy-MM-dd")
+    $timeline = Get-SocHistory -DeviceId $DeviceId -Date $today
+    
+    if ($timeline.Count -eq 0) {
+        Write-Log "  No SOC history data" "WARNING"
+        return $false
+    }
+    
+    $body = @{
+        deviceId = $DeviceId.ToUpper()
+        date = $today
+        timeline = $timeline
+    } | ConvertTo-Json -Depth 5 -Compress
+    
+    try {
+        $url = "$RailwayUrl/api/realtime/sync-soc"
+        $response = Invoke-RestMethod -Uri $url -Headers $railwayHeaders -Method Post -Body $body -TimeoutSec 15
+        return $response.success
+    } catch {
+        Write-Log "  SOC sync error: $_" "ERROR"
+        return $false
+    }
+}
+
 # =============================================================================
 # MAIN
 # =============================================================================
@@ -293,13 +352,22 @@ Write-Log "========== LightEarth Data Sync ==========" "INFO"
 $devices = $DeviceIds -split "," | ForEach-Object { $_.Trim() }
 
 foreach ($deviceId in $devices) {
-    Write-Log "[$deviceId] Syncing..." "INFO"
+    Write-Log "[$deviceId] Syncing realtime..." "INFO"
     
     $success = Sync-RealtimeData -DeviceId $deviceId
     if ($success) {
-        Write-Log "  OK" "SUCCESS"
+        Write-Log "  Realtime OK" "SUCCESS"
     } else {
-        Write-Log "  FAILED" "ERROR"
+        Write-Log "  Realtime FAILED" "ERROR"
+    }
+    
+    # Sync SOC history (reduces Cloudflare Tunnel traffic)
+    Write-Log "[$deviceId] Syncing SOC history..." "INFO"
+    $socSuccess = Sync-SocHistory -DeviceId $deviceId
+    if ($socSuccess) {
+        Write-Log "  SOC OK" "SUCCESS"
+    } else {
+        Write-Log "  SOC FAILED" "WARNING"
     }
 }
 

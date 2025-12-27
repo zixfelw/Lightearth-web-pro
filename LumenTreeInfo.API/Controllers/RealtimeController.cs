@@ -521,21 +521,87 @@ public class RealtimeController : ControllerBase
     [HttpGet("soc-history/{deviceId}")]
     public async Task<IActionResult> GetSocHistory(string deviceId, [FromQuery] string? date = null)
     {
-        _logger.LogInformation("Fetching SOC history for device: {DeviceId}, date: {Date}", deviceId, date ?? "today");
+        _logger.LogDebug("Fetching SOC history for device: {DeviceId}, date: {Date}", deviceId, date ?? "today");
 
-        if (_multiDeviceHaClient == null)
+        // Parse date first
+        DateTime targetDate;
+        if (string.IsNullOrEmpty(date))
         {
-            return Ok(new
+            targetDate = DateTime.Today;
+        }
+        else if (!DateTime.TryParse(date, out targetDate))
+        {
+            return BadRequest(new
             {
                 success = false,
-                message = "Cloud client not configured",
-                deviceId = deviceId,
-                timestamp = DateTime.Now
+                message = "Invalid date format. Use yyyy-MM-dd",
+                deviceId = deviceId
             });
         }
 
         try
         {
+            // PRIORITY 1: Try to get from SocHistoryCollector cache (no tunnel call)
+            var cachedSoc = SocHistoryCollector.GetSocHistory(deviceId, targetDate);
+            if (cachedSoc != null && cachedSoc.Timeline.Count > 0)
+            {
+                _logger.LogDebug("SOC history served from cache for {DeviceId}: {Count} points", deviceId, cachedSoc.Count);
+                return Ok(new
+                {
+                    success = true,
+                    deviceId = deviceId.ToUpper(),
+                    date = targetDate.ToString("yyyy-MM-dd"),
+                    source = "cached",
+                    timeline = cachedSoc.Timeline,
+                    statistics = new
+                    {
+                        count = cachedSoc.Count,
+                        minSoc = cachedSoc.MinSoc,
+                        maxSoc = cachedSoc.MaxSoc,
+                        avgSoc = cachedSoc.AvgSoc,
+                        currentSoc = cachedSoc.CurrentSoc
+                    },
+                    timestamp = DateTime.Now
+                });
+            }
+
+            // PRIORITY 2: Check synced data (from external sync endpoint)
+            var syncedData = SyncedSocDataStore.GetSocHistory(deviceId, targetDate);
+            if (syncedData != null && syncedData.Count > 0)
+            {
+                _logger.LogDebug("SOC history served from synced data for {DeviceId}: {Count} points", deviceId, syncedData.Count);
+                var socValues = syncedData.Select(x => x.Soc).Where(s => s >= 0).ToList();
+                return Ok(new
+                {
+                    success = true,
+                    deviceId = deviceId.ToUpper(),
+                    date = targetDate.ToString("yyyy-MM-dd"),
+                    source = "synced",
+                    timeline = syncedData,
+                    statistics = new
+                    {
+                        count = syncedData.Count,
+                        minSoc = socValues.Any() ? socValues.Min() : 0,
+                        maxSoc = socValues.Any() ? socValues.Max() : 0,
+                        avgSoc = socValues.Any() ? Math.Round(socValues.Average(), 1) : 0,
+                        currentSoc = syncedData.LastOrDefault()?.Soc ?? 0
+                    },
+                    timestamp = DateTime.Now
+                });
+            }
+
+            // PRIORITY 3: Fall back to direct HA call (via tunnel - minimize this)
+            if (_multiDeviceHaClient == null)
+            {
+                return Ok(new
+                {
+                    success = false,
+                    message = "No cached SOC data and HA client not configured",
+                    deviceId = deviceId,
+                    timestamp = DateTime.Now
+                });
+            }
+
             // Check if device exists in Cloud system
             var deviceExists = await _multiDeviceHaClient.DeviceExistsAsync(deviceId);
             
@@ -551,23 +617,9 @@ public class RealtimeController : ControllerBase
                 });
             }
 
-            // Parse date or use today
-            DateTime targetDate;
-            if (string.IsNullOrEmpty(date))
-            {
-                targetDate = DateTime.Today;
-            }
-            else if (!DateTime.TryParse(date, out targetDate))
-            {
-                return BadRequest(new
-                {
-                    success = false,
-                    message = "Invalid date format. Use yyyy-MM-dd",
-                    deviceId = deviceId
-                });
-            }
-
-            // Get SOC history from HA
+            _logger.LogInformation("SOC history: cache miss, fetching from HA via tunnel for {DeviceId}", deviceId);
+            
+            // Get SOC history from HA (this goes through Cloudflare Tunnel)
             var socHistory = await _multiDeviceHaClient.GetSocHistoryAsync(deviceId, targetDate);
 
             if (socHistory == null || socHistory.Count == 0)
@@ -582,17 +634,21 @@ public class RealtimeController : ControllerBase
                 });
             }
 
+            // Cache the result for future requests
+            SocHistoryCollector.SetSocHistory(deviceId, targetDate, socHistory);
+
             // Calculate statistics
-            var socValues = socHistory.Select(x => x.Soc).Where(s => s >= 0).ToList();
-            var minSoc = socValues.Any() ? socValues.Min() : 0;
-            var maxSoc = socValues.Any() ? socValues.Max() : 0;
-            var avgSoc = socValues.Any() ? Math.Round(socValues.Average(), 1) : 0;
+            var socVals = socHistory.Select(x => x.Soc).Where(s => s >= 0).ToList();
+            var minSoc = socVals.Any() ? socVals.Min() : 0;
+            var maxSoc = socVals.Any() ? socVals.Max() : 0;
+            var avgSoc = socVals.Any() ? Math.Round(socVals.Average(), 1) : 0;
 
             return Ok(new
             {
                 success = true,
                 deviceId = deviceId.ToUpper(),
                 date = targetDate.ToString("yyyy-MM-dd"),
+                source = "ha_tunnel",
                 timeline = socHistory,
                 statistics = new
                 {
@@ -836,4 +892,138 @@ public class RealtimeController : ControllerBase
             timestamp = DateTime.Now
         });
     }
+
+    // ========================================
+    // SYNC ENDPOINTS - For receiving data from external sync scripts
+    // These endpoints allow PowerShell scripts to push data directly
+    // to Railway, bypassing the need for Cloudflare Tunnel calls.
+    // ========================================
+
+    /// <summary>
+    /// Sync SOC history data from external source (e.g., PowerShell script syncing from HA)
+    /// This allows the script to push SOC data directly, avoiding tunnel calls.
+    /// </summary>
+    [HttpPost("sync-soc")]
+    public IActionResult SyncSocHistory([FromBody] SocSyncRequest request)
+    {
+        if (request == null || string.IsNullOrEmpty(request.DeviceId))
+        {
+            return BadRequest(new { success = false, message = "DeviceId is required" });
+        }
+
+        if (request.Timeline == null || request.Timeline.Count == 0)
+        {
+            return BadRequest(new { success = false, message = "Timeline data is required" });
+        }
+
+        if (!DateTime.TryParse(request.Date, out var date))
+        {
+            date = DateTime.Today;
+        }
+
+        try
+        {
+            // Convert to SocHistoryPoint list
+            var timeline = request.Timeline.Select(p => new SocHistoryPoint
+            {
+                Time = p.Time ?? "",
+                Soc = p.Soc,
+                Timestamp = string.IsNullOrEmpty(p.Time) ? DateTime.MinValue : DateTime.Today.Add(TimeSpan.Parse(p.Time))
+            }).ToList();
+
+            // Store in both caches for redundancy
+            SocHistoryCollector.SetSocHistory(request.DeviceId, date, timeline);
+            SyncedSocDataStore.SetSocHistory(request.DeviceId, date, timeline);
+
+            _logger.LogInformation("Synced SOC history for {DeviceId}: {Count} points for {Date}", 
+                request.DeviceId, timeline.Count, date.ToString("yyyy-MM-dd"));
+
+            return Ok(new
+            {
+                success = true,
+                message = $"Synced {timeline.Count} SOC points for {request.DeviceId}",
+                deviceId = request.DeviceId.ToUpper(),
+                date = date.ToString("yyyy-MM-dd"),
+                pointCount = timeline.Count,
+                timestamp = DateTime.Now
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error syncing SOC history for {DeviceId}", request.DeviceId);
+            return StatusCode(500, new
+            {
+                success = false,
+                message = ex.Message,
+                timestamp = DateTime.Now
+            });
+        }
+    }
+
+    /// <summary>
+    /// Get SOC sync statistics
+    /// </summary>
+    [HttpGet("soc-sync-stats")]
+    public IActionResult GetSocSyncStats()
+    {
+        var collectorStats = SocHistoryCollector.GetStats();
+        var syncedStats = SyncedSocDataStore.GetStats();
+
+        return Ok(new
+        {
+            success = true,
+            collectorCache = new
+            {
+                description = "SOC data collected by background service",
+                stats = collectorStats
+            },
+            syncedData = new
+            {
+                description = "SOC data synced from external scripts",
+                stats = syncedStats
+            },
+            timestamp = DateTime.Now
+        });
+    }
+
+    /// <summary>
+    /// Clear SOC cache (useful for debugging)
+    /// </summary>
+    [HttpPost("soc-cache-clear")]
+    public IActionResult ClearSocCache()
+    {
+        var collectorCount = SocHistoryCollector.ClearAllData();
+        var syncedCount = SyncedSocDataStore.ClearAllData();
+
+        _logger.LogInformation("Cleared SOC caches: {CollectorCount} collector entries, {SyncedCount} synced entries", 
+            collectorCount, syncedCount);
+
+        return Ok(new
+        {
+            success = true,
+            message = "SOC caches cleared",
+            collectorEntriesCleared = collectorCount,
+            syncedEntriesCleared = syncedCount,
+            timestamp = DateTime.Now
+        });
+    }
+}
+
+/// <summary>
+/// Request model for SOC sync endpoint
+/// </summary>
+public class SocSyncRequest
+{
+    public string DeviceId { get; set; } = "";
+    public string? Date { get; set; }
+    public List<SocSyncPoint> Timeline { get; set; } = new();
+}
+
+/// <summary>
+/// SOC point in sync request
+/// </summary>
+public class SocSyncPoint
+{
+    public string? Time { get; set; }
+    public int Soc { get; set; }
 }

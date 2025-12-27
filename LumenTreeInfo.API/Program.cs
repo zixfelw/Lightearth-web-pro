@@ -145,8 +145,11 @@ public class Program
         // Start DataSourceManager as hosted service
         builder.Services.AddHostedService<DataSourceManagerHostedService>();
         
-        // Add PowerHistoryCollector to collect power data every 5 minutes
+        // Add PowerHistoryCollector to collect power data every 10 minutes (reduced from 5 to lower tunnel traffic)
         builder.Services.AddHostedService<PowerHistoryCollector>();
+        
+        // Add SocHistoryCollector to cache SOC history data (reduces tunnel calls significantly)
+        builder.Services.AddHostedService<SocHistoryCollector>();
         
         // Add TelegramNotificationService for power outage alerts
         builder.Services.AddSingleton<TelegramNotificationService>();

@@ -12,7 +12,8 @@ public class PowerHistoryCollector : BackgroundService
 {
     private readonly ILogger<PowerHistoryCollector> _logger;
     private readonly IServiceProvider _serviceProvider;
-    private readonly TimeSpan _collectionInterval = TimeSpan.FromMinutes(5);
+    // Collect every 10 minutes (reduced from 5 to lower Cloudflare Tunnel traffic)
+    private readonly TimeSpan _collectionInterval = TimeSpan.FromMinutes(10);
     
     // Store power history per device per date
     // Key: "deviceId:yyyy-MM-dd", Value: List of power points
