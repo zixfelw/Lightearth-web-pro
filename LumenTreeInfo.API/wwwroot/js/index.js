@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13238 - Battery Cells DEBUG + ZERO Railway egress
+ * Version: 13244 - Battery Cells DEBUG v2 + ZERO Railway egress
  * 
  * Features:
  * - Real-time data via SignalR
@@ -667,6 +667,10 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             
             const data = await response.json();
+            console.log('🔍 RAW API Response:', JSON.stringify(data).substring(0, 500));
+            console.log('🔍 data.deviceData exists:', data.deviceData !== undefined);
+            console.log('🔍 data.deviceData?.battery:', data.deviceData?.battery);
+            console.log('🔍 data.deviceData?.battery?.cells:', data.deviceData?.battery?.cells);
             if (data.error) return;
             
             // Check if device not found in LightEarth Cloud
