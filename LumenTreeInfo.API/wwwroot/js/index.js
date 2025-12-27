@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13237 - Battery Cells from Worker v3.7 + ZERO Railway egress
+ * Version: 13238 - Battery Cells DEBUG + ZERO Railway egress
  * 
  * Features:
  * - Real-time data via SignalR
@@ -752,17 +752,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Format 1: Worker v3.7 - {num, avg, min, max, diff, cells: {c_01: 3.181, ...}}
                 if (cellsData.cells && typeof cellsData.cells === 'object' && !Array.isArray(cellsData.cells)) {
                     console.log('✅ Processing Worker v3.7 format (cells object)');
+                    console.log('🔋 Raw cellsData.cells:', JSON.stringify(cellsData.cells));
                     const cellKeys = Object.keys(cellsData.cells).sort((a, b) => {
                         const numA = parseInt(a.replace(/\D/g, ''));
                         const numB = parseInt(b.replace(/\D/g, ''));
                         return numA - numB;
                     });
-                    cellKeys.forEach(key => {
-                        cellVoltages.push(cellsData.cells[key]);
+                    console.log('🔋 Sorted cellKeys:', cellKeys);
+                    cellKeys.forEach((key, index) => {
+                        const voltage = cellsData.cells[key];
+                        cellVoltages.push(voltage);
+                        console.log(`🔋 Cell ${index + 1} (${key}): ${voltage}V`);
                     });
                     maxVoltage = cellsData.max || 0;
                     minVoltage = cellsData.min || 0;
                     avgVoltage = cellsData.avg || 0;
+                    console.log('🔋 Final cellVoltages array:', cellVoltages);
                 }
                 // Format 2: Legacy - {cellVoltages: [3.413, 3.379, ...]}
                 else if (cellsData.cellVoltages) {
