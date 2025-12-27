@@ -1225,6 +1225,10 @@ public class HomeController : Controller
     private static bool _dataLoaded = false;
     private static readonly object _fileLock = new object();
     private const string SYNC_DATA_FILE = "synced_realtime_data.json";
+    
+    // Static storage for chart data (keyed by deviceId_date)
+    private static Dictionary<string, SyncedChartData> _syncedChartData = new Dictionary<string, SyncedChartData>();
+    private const string CHART_DATA_FILE = "synced_chart_data.json";
 
     /// <summary>
     /// Persist synced data to file for recovery after restart
@@ -1336,6 +1340,39 @@ public class HomeController : Controller
     public class SyncRealtimeRequest
     {
         public List<SyncedDeviceData> Devices { get; set; } = new List<SyncedDeviceData>();
+    }
+
+    // Chart data models for SOC and Energy history
+    public class ChartDataPoint
+    {
+        public string Time { get; set; } = "";  // HH:mm format
+        public double Value { get; set; }
+    }
+
+    public class EnergyChartDataPoint
+    {
+        public string Time { get; set; } = "";  // HH:mm format
+        public double Pv { get; set; }
+        public double Load { get; set; }
+        public double Grid { get; set; }
+        public double Battery { get; set; }
+    }
+
+    public class SyncedChartData
+    {
+        public string DeviceId { get; set; } = "";
+        public string Date { get; set; } = "";  // YYYY-MM-DD
+        public List<ChartDataPoint> SocTimeline { get; set; } = new List<ChartDataPoint>();
+        public List<EnergyChartDataPoint> EnergyTimeline { get; set; } = new List<EnergyChartDataPoint>();
+        public DateTime LastUpdate { get; set; }
+    }
+
+    public class SyncChartDataRequest
+    {
+        public string DeviceId { get; set; } = "";
+        public string Date { get; set; } = "";
+        public List<ChartDataPoint>? SocTimeline { get; set; }
+        public List<EnergyChartDataPoint>? EnergyTimeline { get; set; }
     }
 
     /// <summary>
@@ -1572,6 +1609,165 @@ public class HomeController : Controller
             error = $"Device {deviceId} not found in synced data",
             deviceId = deviceId
         });
+    }
+
+    /// <summary>
+    /// Sync chart data (SOC + Energy) from local HA script
+    /// Endpoint: POST /api/cloud/sync-chart
+    /// </summary>
+    [HttpPost]
+    [Route("/api/cloud/sync-chart")]
+    public IActionResult SyncChartData([FromBody] SyncChartDataRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(request?.DeviceId) || string.IsNullOrEmpty(request?.Date))
+            {
+                return Json(new { success = false, error = "DeviceId and Date are required" });
+            }
+
+            var key = $"{request.DeviceId.ToUpper()}_{request.Date}";
+            
+            var chartData = new SyncedChartData
+            {
+                DeviceId = request.DeviceId.ToUpper(),
+                Date = request.Date,
+                SocTimeline = request.SocTimeline ?? new List<ChartDataPoint>(),
+                EnergyTimeline = request.EnergyTimeline ?? new List<EnergyChartDataPoint>(),
+                LastUpdate = DateTime.UtcNow
+            };
+
+            _syncedChartData[key] = chartData;
+            SaveChartDataToFile();
+
+            Log.Information($"Synced chart data for {request.DeviceId} on {request.Date}: SOC={chartData.SocTimeline.Count} points, Energy={chartData.EnergyTimeline.Count} points");
+
+            return Json(new {
+                success = true,
+                deviceId = request.DeviceId,
+                date = request.Date,
+                socPoints = chartData.SocTimeline.Count,
+                energyPoints = chartData.EnergyTimeline.Count
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error syncing chart data");
+            return Json(new { success = false, error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get SOC history chart data from synced HA data
+    /// Endpoint: /api/cloud/soc-history/{deviceId}/{date}
+    /// </summary>
+    [Route("/api/cloud/soc-history/{deviceId}/{date}")]
+    public IActionResult GetCloudSocHistory(string deviceId, string date)
+    {
+        LoadChartDataFromFile();
+        
+        var key = $"{deviceId.ToUpper()}_{date}";
+        
+        if (_syncedChartData.TryGetValue(key, out var chartData) && chartData.SocTimeline.Count > 0)
+        {
+            return Json(new {
+                success = true,
+                deviceId = chartData.DeviceId,
+                date = chartData.Date,
+                timeline = chartData.SocTimeline.Select(p => new { time = p.Time, soc = p.Value }),
+                count = chartData.SocTimeline.Count,
+                source = "synced"
+            });
+        }
+
+        return Json(new {
+            success = false,
+            error = $"No SOC data for device {deviceId} on {date}",
+            deviceId = deviceId,
+            date = date
+        });
+    }
+
+    /// <summary>
+    /// Get Energy history chart data from synced HA data
+    /// Endpoint: /api/cloud/energy-history/{deviceId}/{date}
+    /// </summary>
+    [Route("/api/cloud/energy-history/{deviceId}/{date}")]
+    public IActionResult GetCloudEnergyHistory(string deviceId, string date)
+    {
+        LoadChartDataFromFile();
+        
+        var key = $"{deviceId.ToUpper()}_{date}";
+        
+        if (_syncedChartData.TryGetValue(key, out var chartData) && chartData.EnergyTimeline.Count > 0)
+        {
+            return Json(new {
+                success = true,
+                deviceId = chartData.DeviceId,
+                date = chartData.Date,
+                timeline = chartData.EnergyTimeline.Select(p => new { 
+                    time = p.Time, 
+                    pv = p.Pv, 
+                    load = p.Load, 
+                    grid = p.Grid, 
+                    battery = p.Battery 
+                }),
+                count = chartData.EnergyTimeline.Count,
+                source = "synced"
+            });
+        }
+
+        return Json(new {
+            success = false,
+            error = $"No energy data for device {deviceId} on {date}",
+            deviceId = deviceId,
+            date = date
+        });
+    }
+
+    /// <summary>
+    /// Save chart data to file for persistence
+    /// </summary>
+    private static void SaveChartDataToFile()
+    {
+        try
+        {
+            lock (_fileLock)
+            {
+                var json = System.Text.Json.JsonSerializer.Serialize(_syncedChartData);
+                System.IO.File.WriteAllText(CHART_DATA_FILE, json);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error saving chart data to file");
+        }
+    }
+
+    /// <summary>
+    /// Load chart data from file
+    /// </summary>
+    private static void LoadChartDataFromFile()
+    {
+        try
+        {
+            lock (_fileLock)
+            {
+                if (System.IO.File.Exists(CHART_DATA_FILE))
+                {
+                    var json = System.IO.File.ReadAllText(CHART_DATA_FILE);
+                    var loaded = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, SyncedChartData>>(json);
+                    if (loaded != null)
+                    {
+                        _syncedChartData = loaded;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error loading chart data from file");
+        }
     }
 
     /// <summary>
