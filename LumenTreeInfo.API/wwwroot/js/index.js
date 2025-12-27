@@ -2134,68 +2134,47 @@ document.addEventListener('DOMContentLoaded', function () {
     // REAL-TIME DISPLAY UPDATE
     // ========================================
     
+    // Track if device not found error was shown (to avoid repeating)
+    let deviceNotFoundShown = false;
+    
     function updateRealTimeDisplay(data) {
         // Check if device not found in LightEarth Cloud
         if (data.deviceNotFound) {
-            updateValue('pv-power', 'N/A');
-            updateValueHTML('pv-desc', `<span class="text-red-400 text-xs">Thiết bị chưa được thêm vào, vui lòng liên hệ trong nhóm Zalo</span>`);
-            
-            updateValue('grid-power', 'N/A');
-            updateValue('grid-voltage', 'N/A');
-            
-            updateValue('battery-percent-icon', 'N/A');
-            updateValueHTML('battery-status-text', `<span class="text-red-400">Không tìm thấy</span>`);
-            updateValueHTML('battery-power', `<span class="text-red-400">--</span>`);
-            updateValue('batteryVoltageDisplay', '--');
-            
-            updateValue('device-temp', 'N/A');
-            updateValue('device-temp-info', '--');
-            updateValue('essential-power', 'N/A');
-            updateValue('load-power', 'N/A');
-            updateValue('acout-power', 'N/A');
-            
-            // Show error message
-            console.error(`❌ Device not found: ${data.errorMessage}`);
+            // Only show error once, then keep previous values
+            if (!deviceNotFoundShown) {
+                updateValue('pv-power', 'N/A');
+                updateValueHTML('pv-desc', `<span class="text-red-400 text-xs">Thiết bị chưa được thêm vào, vui lòng liên hệ trong nhóm Zalo</span>`);
+                
+                updateValue('grid-power', 'N/A');
+                updateValue('grid-voltage', 'N/A');
+                
+                updateValue('battery-percent-icon', 'N/A');
+                updateValueHTML('battery-status-text', `<span class="text-red-400">Không tìm thấy</span>`);
+                updateValueHTML('battery-power', `<span class="text-red-400">--</span>`);
+                updateValue('batteryVoltageDisplay', '--');
+                
+                updateValue('device-temp', 'N/A');
+                updateValue('device-temp-info', '--');
+                updateValue('essential-power', 'N/A');
+                updateValue('load-power', 'N/A');
+                updateValue('acout-power', 'N/A');
+                
+                console.error(`❌ Device not found: ${data.errorMessage}`);
+                deviceNotFoundShown = true;
+            }
             return;
         }
+        
+        // Reset flag when device is found
+        deviceNotFoundShown = false;
         
         // Check if we have NO realtime data (all values are null)
         const noData = data.noRealtimeData || (data.pvTotalPower === null && data.gridValue === null);
         
         if (noData) {
-            // Display empty state - no demo data
-            updateValue('pv-power', '--');
-            updateValueHTML('pv-desc', `<span class="text-slate-400">Chờ dữ liệu hệ thống</span>`);
-            
-            updateValue('grid-power', '--');
-            updateValue('grid-voltage', '--');
-            
-            updateValue('battery-percent-icon', '--%');
-            updateValueHTML('battery-status-text', `<span class="text-slate-400">Chờ dữ liệu</span>`);
-            updateValueHTML('battery-power', `<span class="text-slate-400">--</span>`);
-            updateValue('batteryVoltageDisplay', '--');
-            
-            updateValue('device-temp', '--');
-            updateValue('device-temp-info', '--');
-            updateValue('essential-power', '--');
-            updateValue('load-power', '--');
-            updateValue('acout-power', '--');
-            
-            // Update battery fill to empty
-            const batteryFill = document.getElementById('battery-fill');
-            if (batteryFill) {
-                batteryFill.style.width = '0%';
-                batteryFill.className = 'absolute left-0 top-0 bottom-0 bg-slate-400 transition-all duration-500';
-            }
-            
-            // Disable all flow animations
-            updateFlowStatus('pv-flow', false);
-            updateFlowStatus('grid-flow', false);
-            updateFlowStatus('battery-flow', false);
-            updateFlowStatus('essential-flow', false);
-            updateFlowStatus('load-flow', false);
-            
-            console.log("Realtime display: No data - showing empty state");
+            // KEEP OLD VALUES - don't clear to N/A or --
+            // Just log and wait for next data fetch
+            console.log("⏳ Realtime: No new data - keeping previous values, waiting for next fetch...");
             return;
         }
         
