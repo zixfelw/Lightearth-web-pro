@@ -2005,8 +2005,8 @@
         <!-- Header with title and time info -->
         <div class="flex items-center justify-between mb-4">
             <h2 class="text-sm sm:text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                <i data-lucide="bar-chart-3" class="w-5 h-5 text-indigo-500"></i>
-                Biểu Đồ Năng Lượng Tổng Hợp
+                <i data-lucide="zap" class="w-5 h-5 text-indigo-500"></i>
+                Công Suất Cao Nhất Trong Ngày
             </h2>
             <div class="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300">
                 <span id="energy-chart-date"></span>
@@ -2103,60 +2103,7 @@
             </div>
         </div>
         
-        <!-- Interactive Legend toggle buttons -->
-        <div class="flex flex-wrap gap-1.5 mb-3" id="chartLegendToggle">
-            <button onclick="toggleDataset(0)" class="legend-btn active group px-2.5 py-1.5 text-xs rounded-lg border-2 border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/30 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-all shadow-sm" data-color="amber" title="Sản Lượng PV">
-                <span class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-sm shadow-amber-500/50"></span>
-                    <span class="font-semibold text-amber-700 dark:text-amber-300">PV</span>
-                </span>
-            </button>
-            <button onclick="toggleDataset(1)" class="legend-btn active group px-2.5 py-1.5 text-xs rounded-lg border-2 border-green-300 dark:border-green-600 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 transition-all shadow-sm" data-color="green" title="Sạc Pin">
-                <span class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-full bg-green-500 shadow-sm shadow-green-500/50"></span>
-                    <span class="font-semibold text-green-700 dark:text-green-300">Sạc</span>
-                </span>
-            </button>
-            <button onclick="toggleDataset(2)" class="legend-btn active group px-2.5 py-1.5 text-xs rounded-lg border-2 border-red-300 dark:border-red-600 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 transition-all shadow-sm" data-color="red" title="Xả Pin">
-                <span class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-full bg-red-500 shadow-sm shadow-red-500/50"></span>
-                    <span class="font-semibold text-red-700 dark:text-red-300">Xả</span>
-                </span>
-            </button>
-            <button onclick="toggleDataset(3)" class="legend-btn active group px-2.5 py-1.5 text-xs rounded-lg border-2 border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-all shadow-sm" data-color="blue" title="Điện Tiêu Thụ">
-                <span class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50"></span>
-                    <span class="font-semibold text-blue-700 dark:text-blue-300">Tải</span>
-                </span>
-            </button>
-            <button onclick="toggleDataset(4)" class="legend-btn active group px-2.5 py-1.5 text-xs rounded-lg border-2 border-purple-300 dark:border-purple-600 bg-purple-50 dark:bg-purple-900/30 hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-all shadow-sm" data-color="purple" title="Điện Lưới EVN">
-                <span class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-full bg-purple-500 shadow-sm shadow-purple-500/50"></span>
-                    <span class="font-semibold text-purple-700 dark:text-purple-300">EVN</span>
-                </span>
-            </button>
-            <button onclick="toggleDataset(5)" class="legend-btn active group px-2.5 py-1.5 text-xs rounded-lg border-2 border-cyan-300 dark:border-cyan-600 bg-cyan-50 dark:bg-cyan-900/30 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 transition-all shadow-sm" data-color="cyan" title="Điện Dự Phòng">
-                <span class="flex items-center gap-1.5">
-                    <span class="w-2.5 h-2.5 rounded-full bg-cyan-500 shadow-sm shadow-cyan-500/50"></span>
-                    <span class="font-semibold text-cyan-700 dark:text-cyan-300">Dự phòng</span>
-                </span>
-            </button>
-        </div>
-        
-        <!-- Chart Container -->
-        <div class="chart-container relative bg-slate-50/50 dark:bg-slate-900/30 rounded-xl p-2" style="height: 45vh; min-height: 280px;">
-            <canvas id="combinedEnergyChart"></canvas>
-            <!-- External Tooltip for Energy Chart -->
-            <div id="energy-tooltip" class="hidden absolute z-50 bg-slate-900/95 text-white text-xs rounded-xl shadow-2xl p-3 pointer-events-none min-w-[180px] backdrop-blur-sm border border-slate-700">
-                <div id="energy-tooltip-time" class="text-slate-300 mb-2 font-medium border-b border-slate-700 pb-2"></div>
-                <div id="energy-tooltip-content" class="space-y-1.5"></div>
-            </div>
-        </div>
-        
-        <!-- Chart Footer Info -->
-        <div class="flex items-center justify-center mt-3 text-[10px] text-slate-400 dark:text-slate-500">
-            <span>Dữ liệu mỗi 5 phút trong ngày</span>
-        </div>
+        <!-- Note: Chart removed - using peak stats only -->
     </div>
 </div>
 
@@ -2552,7 +2499,7 @@
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="/js/index.js?v=13237" defer></script>
+    <script src="/js/index.js?v=13238" defer></script>
 
 </body>
 </html>

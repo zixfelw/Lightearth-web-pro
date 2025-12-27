@@ -1341,18 +1341,7 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log(`📊 Cloud data converted: ${timeline.length} points -> ${nonNullCount} chart slots`);
         console.log("📊 Sample data - PV max:", Math.max(...pvData.filter(v => v !== null && v > 0), 0), "Load max:", Math.max(...loadData.filter(v => v !== null && v > 0), 0));
         
-        // Convert to chart format and update
-        const chartData = {
-            pv: { tableValueInfo: pvData },
-            bat: { tableValueInfo: batData },
-            load: { tableValueInfo: loadData },
-            grid: { tableValueInfo: gridData },
-            essentialLoad: { tableValueInfo: new Array(288).fill(null) }
-        };
-        
-        console.log("📊 Updating combined energy chart with LightEarth Cloud data");
-        updateCharts(chartData);
-        
+        // NOTE: Chart removed - only update peak stats now
         // Update peak stats from Cloud data (timeline format)
         const filteredTimeline = timeline.filter((point, index) => {
             let slotIndex;
@@ -2605,11 +2594,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // ========================================
     
     // Show loading/skeleton chart immediately while waiting for data
+    // NOTE: Chart removed - this function is now a no-op
     function showLoadingChart() {
-        const ctx = document.getElementById('combinedEnergyChart');
-        if (!ctx) return;
-        
-        console.log("📊 Showing loading chart placeholder...");
+        console.log("📊 Chart disabled - showing peak stats only");
+        return; // Chart removed
         
         // Generate time labels (same as real chart)
         const timeLabels = generateTimeLabels();
@@ -2684,6 +2672,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     function updateCharts(data) {
+        // NOTE: Chart removed - only update peak stats now
         const timeLabels = generateTimeLabels();
 
         const processedData = {
@@ -2695,10 +2684,17 @@ document.addEventListener('DOMContentLoaded', function () {
             essentialLoad: processChartData(data.essentialLoad.tableValueInfo)
         };
 
-        const commonOptions = getCommonChartOptions();
-
-        // Combined Energy Chart - All datasets in one chart
-        updateCombinedEnergyChart(timeLabels, processedData, commonOptions);
+        // Update peak stats only (chart removed)
+        updateEnergyChartPeakStats(timeLabels, processedData);
+        
+        // Update date display
+        const dateEl = document.getElementById('energy-chart-date');
+        const dateInput = document.getElementById('dateInput');
+        if (dateEl && dateInput) {
+            dateEl.textContent = dateInput.value;
+        }
+        
+        console.log("📊 Peak stats updated (chart disabled)");
     }
 
     // Combined Energy Chart - All 6 datasets in one chart - ENHANCED V2.0
