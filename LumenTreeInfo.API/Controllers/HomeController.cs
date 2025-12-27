@@ -1230,6 +1230,101 @@ public class HomeController : Controller
     }
 
     /// <summary>
+    /// Get realtime data for all devices (used by frontend dashboard)
+    /// Returns data from synced realtime (pushed by local HA script)
+    /// Endpoint: /api/realtime/all
+    /// </summary>
+    [Route("/api/realtime/all")]
+    public IActionResult GetRealtimeAll()
+    {
+        // Return synced data from local HA push
+        var devices = _syncedRealtimeData.Values
+            .OrderBy(d => d.DeviceId)
+            .Select(d => new {
+                deviceId = d.DeviceId,
+                isOnline = d.IsOnline,
+                lastUpdate = d.LastUpdate,
+                realtime = new {
+                    pvPower = d.PvPower,
+                    batteryPower = d.BatteryPower,
+                    batterySoc = d.Soc,
+                    gridPower = d.GridPower,
+                    loadPower = d.LoadPower,
+                    temperature = d.Temperature,
+                    batteryStatus = d.BatteryStatus,
+                    gridStatus = d.GridStatus
+                },
+                daily = new {
+                    pvDay = d.PvDay,
+                    chargeDay = d.ChargeDay,
+                    dischargeDay = d.DischargeDay,
+                    loadDay = d.LoadDay,
+                    gridDay = d.GridDay,
+                    exportDay = d.ExportDay
+                }
+            })
+            .ToList();
+
+        var onlineDevices = _syncedRealtimeData.Values.Where(d => d.IsOnline);
+        
+        return Json(new {
+            success = true,
+            count = devices.Count,
+            onlineCount = onlineDevices.Count(),
+            totalPvPower = onlineDevices.Sum(d => d.PvPower),
+            totalLoadPower = onlineDevices.Sum(d => d.LoadPower),
+            totalBatteryPower = onlineDevices.Sum(d => d.BatteryPower),
+            totalGridPower = onlineDevices.Sum(d => d.GridPower),
+            avgSoc = onlineDevices.Any() ? Math.Round(onlineDevices.Average(d => d.Soc), 1) : 0,
+            devices = devices,
+            lastSyncTime = _lastRealtimeSyncTime,
+            timestamp = DateTime.Now
+        });
+    }
+
+    /// <summary>
+    /// Get realtime data for a specific device
+    /// Endpoint: /api/realtime/device/{deviceId}
+    /// </summary>
+    [Route("/api/realtime/device/{deviceId}")]
+    public IActionResult GetRealtimeDevice(string deviceId)
+    {
+        if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
+        {
+            return Json(new {
+                success = true,
+                deviceId = device.DeviceId,
+                isOnline = device.IsOnline,
+                lastUpdate = device.LastUpdate,
+                realtime = new {
+                    pvPower = device.PvPower,
+                    batteryPower = device.BatteryPower,
+                    batterySoc = device.Soc,
+                    gridPower = device.GridPower,
+                    loadPower = device.LoadPower,
+                    temperature = device.Temperature,
+                    batteryStatus = device.BatteryStatus,
+                    gridStatus = device.GridStatus
+                },
+                daily = new {
+                    pvDay = device.PvDay,
+                    chargeDay = device.ChargeDay,
+                    dischargeDay = device.DischargeDay,
+                    loadDay = device.LoadDay,
+                    gridDay = device.GridDay,
+                    exportDay = device.ExportDay
+                }
+            });
+        }
+
+        return Json(new {
+            success = false,
+            error = $"Device {deviceId} not found in synced data",
+            deviceId = deviceId
+        });
+    }
+
+    /// <summary>
     /// Gets detailed device data from LightEarth Cloud for a specific device
     /// </summary>
     [Route("/api/cloud/device/{deviceId}")]
