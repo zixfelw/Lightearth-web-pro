@@ -1545,6 +1545,36 @@ public class HomeController : Controller
     }
 
     /// <summary>
+    /// Gets device info (inverter model) from synced data
+    /// Endpoint: /api/cloud/device-info/{deviceId}
+    /// </summary>
+    [Route("/api/cloud/device-info/{deviceId}")]
+    public IActionResult GetCloudDeviceInfo(string deviceId)
+    {
+        // Load from file if not loaded yet
+        LoadSyncedDataFromFile();
+        
+        if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
+        {
+            return Json(new {
+                success = true,
+                deviceId = device.DeviceId,
+                model = device.InverterModel,
+                friendly_name = !string.IsNullOrEmpty(device.InverterModel) 
+                    ? $"{device.InverterModel} Device Temperature" 
+                    : null,
+                source = "synced"
+            });
+        }
+
+        return Json(new {
+            success = false,
+            error = $"Device {deviceId} not found in synced data",
+            deviceId = deviceId
+        });
+    }
+
+    /// <summary>
     /// Gets detailed device data from LightEarth Cloud for a specific device
     /// </summary>
     [Route("/api/cloud/device/{deviceId}")]
