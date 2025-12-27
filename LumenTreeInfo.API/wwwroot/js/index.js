@@ -13,9 +13,9 @@
  */
 
 // Global constants - defined outside DOMContentLoaded to avoid TDZ issues
-// Railway APIs (LightEarth Cloud data) - Primary source, always available
-const SOC_API_PRIMARY = window.location.origin + '/api/realtime/soc-history';
-const POWER_HISTORY_API = window.location.origin + '/api/realtime/power-history';
+// Railway APIs - Primary source, always available
+const SOC_API_PRIMARY = window.location.origin + '/api/soc';  // Proxy to lumentree.net
+const POWER_HISTORY_API = window.location.origin + '/api/realtime/power-history';  // Local collector
 
 // ========================================
 // GLOBAL FUNCTIONS - Available immediately for onclick handlers
@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Get current origin for local proxy API
     const currentOrigin = window.location.origin;
     
-    // API Configuration - Local Railway API only (simplified)
+    // API Configuration - ALL APIs use Railway (no Cloudflare Worker)
     const API_SOURCES = {
         local: {
             name: 'Local API (LightEarth Cloud)',
@@ -159,104 +159,42 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
     
-    // LightEarth API endpoints with fallback support
-    const LIGHTEARTH_PROXIES = [
-        'https://lightearth.applike098.workers.dev',
-        'https://lightearth-proxy.minhlongt358.workers.dev'
-    ];
-    
-    // Track which endpoint is currently working (persist across requests)
-    let currentProxyIndex = 0;
-    const PROXY_INDEX_KEY = 'solar_endpoint_index';
-    
-    // Load saved endpoint index from localStorage
-    try {
-        const savedIndex = localStorage.getItem(PROXY_INDEX_KEY);
-        if (savedIndex !== null) {
-            currentProxyIndex = parseInt(savedIndex, 10) || 0;
-            if (currentProxyIndex >= LIGHTEARTH_PROXIES.length) currentProxyIndex = 0;
-        }
-    } catch (e) { /* ignore */ }
-    
-    // Get current endpoint base URL
-    function getCurrentProxy() {
-        return LIGHTEARTH_PROXIES[currentProxyIndex];
-    }
-    
-    // Switch to fallback endpoint
-    function switchToFallbackProxy() {
-        const oldEndpoint = getCurrentProxy();
-        currentProxyIndex = (currentProxyIndex + 1) % LIGHTEARTH_PROXIES.length;
-        localStorage.setItem(PROXY_INDEX_KEY, String(currentProxyIndex));
-        console.log(`🔄 Switching endpoint`);
-        return getCurrentProxy();
-    }
-    
-    // Reset to primary endpoint (call when primary works again)
-    function resetToPrimaryProxy() {
-        if (currentProxyIndex !== 0) {
-            currentProxyIndex = 0;
-            localStorage.setItem(PROXY_INDEX_KEY, '0');
-        }
-    }
-    
-    // Dynamic LIGHTEARTH_API that uses current endpoint
+    // ALL APIs now use Railway - NO Cloudflare Worker
+    // This prevents tunnel spam and HA overload
     const LIGHTEARTH_API = {
-        get base() { return getCurrentProxy(); },
-        bat: (deviceId, date) => `${getCurrentProxy()}/api/bat/${deviceId}/${date}`,
-        pv: (deviceId, date) => `${getCurrentProxy()}/api/pv/${deviceId}/${date}`,
-        other: (deviceId, date) => `${getCurrentProxy()}/api/other/${deviceId}/${date}`,
-        month: (deviceId) => `${getCurrentProxy()}/api/month/${deviceId}`,
-        year: (deviceId) => `${getCurrentProxy()}/api/year/${deviceId}`,
-        historyYear: (deviceId) => `${getCurrentProxy()}/api/history-year/${deviceId}`,
-        // LightEarth Cloud endpoints for chart data
-        cloudPowerHistory: (deviceId, date) => `${getCurrentProxy()}/api/cloud/power-history/${deviceId}/${date}`,
-        cloudSocHistory: (deviceId, date) => `${getCurrentProxy()}/api/cloud/soc-history/${deviceId}/${date}`,
-        cloudStates: (deviceId) => `${getCurrentProxy()}/api/cloud/states/${deviceId}`,
-        cloudDeviceInfo: (deviceId) => `${getCurrentProxy()}/api/cloud/device-info/${deviceId}`,
-        cloudTemperature: (deviceId, date) => `${getCurrentProxy()}/api/cloud/temperature/${deviceId}/${date}`
+        get base() { return currentOrigin; },
+        // Legacy LightEarth API endpoints (proxied through Railway)
+        bat: (deviceId, date) => `${currentOrigin}/api/bat/${deviceId}/${date}`,
+        pv: (deviceId, date) => `${currentOrigin}/api/pv/${deviceId}/${date}`,
+        other: (deviceId, date) => `${currentOrigin}/api/other/${deviceId}/${date}`,
+        month: (deviceId) => `${currentOrigin}/api/month/${deviceId}`,
+        year: (deviceId) => `${currentOrigin}/api/year/${deviceId}`,
+        historyYear: (deviceId) => `${currentOrigin}/api/history-year/${deviceId}`,
+        // Cloud endpoints (all on Railway now)
+        cloudPowerHistory: (deviceId, date) => `${currentOrigin}/api/cloud/power-history/${deviceId}/${date}`,
+        cloudSocHistory: (deviceId, date) => `${currentOrigin}/api/cloud/soc-history/${deviceId}/${date}`,
+        cloudStates: (deviceId) => `${currentOrigin}/api/cloud/states/${deviceId}`,
+        cloudDeviceInfo: (deviceId) => `${currentOrigin}/api/cloud/device-info/${deviceId}`,
+        cloudTemperature: (deviceId, date) => `${currentOrigin}/api/cloud/temperature/${deviceId}/${date}`
     };
     
-    // Fetch with automatic endpoint fallback
+    // Simplified - no more proxy switching needed
+    function getCurrentProxy() { return currentOrigin; }
+    function switchToFallbackProxy() { return currentOrigin; }
+    function resetToPrimaryProxy() { }
+    
+    // Simplified fetch - all APIs on Railway now (no proxy fallback needed)
     async function fetchWithProxyFallback(urlBuilder, options = {}) {
-        const maxRetries = LIGHTEARTH_PROXIES.length;
-        let lastError = null;
+        const url = typeof urlBuilder === 'function' ? urlBuilder() : urlBuilder;
+        console.log(`📡 [Railway API] Fetching: ${url}`);
         
-        for (let retry = 0; retry < maxRetries; retry++) {
-            const url = typeof urlBuilder === 'function' ? urlBuilder() : urlBuilder;
-            console.log(`📡 [Proxy ${currentProxyIndex + 1}/${LIGHTEARTH_PROXIES.length}] Fetching: ${url}`);
-            
-            try {
-                const response = await fetch(url, options);
-                
-                // Check for rate limit or server error
-                if (response.status === 429 || response.status >= 500) {
-                    console.warn(`⚠️ Proxy error (${response.status}), trying fallback...`);
-                    switchToFallbackProxy();
-                    lastError = new Error(`HTTP ${response.status}`);
-                    continue;
-                }
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-                
-                // Success! If we're on primary and it worked, great
-                // If we're on fallback and primary might be back, we'll try primary next time
-                if (currentProxyIndex === 0) {
-                    // Primary is working, keep using it
-                }
-                
-                return response;
-            } catch (error) {
-                console.warn(`❌ Proxy ${currentProxyIndex + 1} failed:`, error.message);
-                lastError = error;
-                switchToFallbackProxy();
-            }
+        const response = await fetch(url, options);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
         }
         
-        // All proxies failed
-        throw lastError || new Error('All proxies failed');
+        return response;
     }
     
     // Lightearth API cache - refresh every 10 minutes
@@ -373,9 +311,9 @@ document.addEventListener('DOMContentLoaded', function () {
         return `${source.realtime}/${deviceId}`;
     }
     
-    // SOC API URL - Use Railway API (simplified, no external fallback)
+    // SOC API URL - Use Railway API (proxy to lumentree.net)
     function getSocApiUrl(deviceId, date) {
-        return `${SOC_API_PRIMARY}/${deviceId}?date=${date}`;
+        return `${SOC_API_PRIMARY}/${deviceId}/${date}`;
     }
     
     // Store previous values for blink detection
@@ -692,7 +630,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // ========================================
-    // REALTIME POLLING (2 seconds interval)
+    // REALTIME POLLING (3 seconds interval)
     // ========================================
     
     function startRealtimePolling(deviceId) {
@@ -700,12 +638,12 @@ document.addEventListener('DOMContentLoaded', function () {
             clearInterval(realtimePollingInterval);
         }
         
-        console.log(`Starting realtime polling for device: ${deviceId}`);
+        console.log(`🔄 Starting realtime polling for device: ${deviceId} (every 3 seconds)`);
         
         // Fetch immediately
         fetchRealtimeData(deviceId);
         
-        // Then poll every 3 seconds
+        // Then poll every 3 seconds as requested
         realtimePollingInterval = setInterval(() => {
             fetchRealtimeData(deviceId);
         }, 3000);
@@ -1299,9 +1237,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 return;
             }
             
-            // All APIs failed - keep existing values if we have any (prevent flickering)
-            console.error("❌ All data sources failed for device:", deviceId, "- keeping previous values");
-            // Don't clear - let previous values stay visible
+            // All APIs failed - show N/A
+            console.error("❌ All data sources failed for device:", deviceId);
+            updateValue('pv-total', 'N/A');
+            updateValue('bat-charge', 'N/A');
+            updateValue('bat-discharge', 'N/A');
+            updateValue('load-total', 'N/A');
+            updateValue('grid-total', 'N/A');
+            updateValue('essential-total', 'N/A');
         }
     }
     
@@ -1709,6 +1652,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 badge.classList.remove('hidden');
                 badge.classList.add('flex');
                 console.log(`✅ Temperature badge updated: ${data.min}°C (${data.minTime}) - ${data.max}°C (${data.maxTime})`);
+                
+                // Also update current temperature from synced data (HA)
+                if (data.current !== null && data.current !== undefined) {
+                    updateValue('device-temp', `${data.current}°C`);
+                    updateValue('device-temp-info', `${data.current}°C`);
+                    console.log(`✅ Current temperature updated from HA: ${data.current}°C`);
+                }
             } else {
                 console.warn("⚠️ Temperature data not available or invalid");
                 if (badge) badge.classList.add('hidden');
@@ -1867,10 +1817,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const dateInput = document.getElementById('dateInput')?.value;
         const date = dateInput || new Date().toISOString().split('T')[0];
         
-        // Railway SOC History API (LightEarth Cloud data)
+        // Railway SOC API (proxy to lumentree.net)
         // Add cache-busting timestamp to force fresh fetch on F5
         const cacheBuster = Date.now();
-        const railwayUrl = `${SOC_API_PRIMARY}/${deviceId}?date=${date}&_t=${cacheBuster}`;
+        const railwayUrl = `${SOC_API_PRIMARY}/${deviceId}/${date}?_t=${cacheBuster}`;
         
         let data = null;
         
@@ -2297,41 +2247,65 @@ document.addEventListener('DOMContentLoaded', function () {
     function updateRealTimeDisplay(data) {
         // Check if device not found in LightEarth Cloud
         if (data.deviceNotFound) {
-            // Only show "not found" error once, don't keep flickering
-            if (!deviceNotFoundShown) {
-                deviceNotFoundShown = true;
-                updateValue('pv-power', 'N/A');
-                updateValueHTML('pv-desc', `<span class="text-red-400 text-xs">Thiết bị chưa được thêm vào, vui lòng liên hệ trong nhóm Zalo</span>`);
-                
-                updateValue('grid-power', 'N/A');
-                updateValue('grid-voltage', 'N/A');
-                
-                updateValue('battery-percent-icon', 'N/A');
-                updateValueHTML('battery-status-text', `<span class="text-red-400">Không tìm thấy</span>`);
-                updateValueHTML('battery-power', `<span class="text-red-400">--</span>`);
-                updateValue('batteryVoltageDisplay', '--');
-                
-                updateValue('device-temp', 'N/A');
-                updateValue('device-temp-info', '--');
-                updateValue('essential-power', 'N/A');
-                updateValue('load-power', 'N/A');
-                updateValue('acout-power', 'N/A');
-                
-                console.error(`❌ Device not found: ${data.errorMessage}`);
-            }
+            updateValue('pv-power', 'N/A');
+            updateValueHTML('pv-desc', `<span class="text-red-400 text-xs">Thiết bị chưa được thêm vào, vui lòng liên hệ trong nhóm Zalo</span>`);
+            
+            updateValue('grid-power', 'N/A');
+            updateValue('grid-voltage', 'N/A');
+            
+            updateValue('battery-percent-icon', 'N/A');
+            updateValueHTML('battery-status-text', `<span class="text-red-400">Không tìm thấy</span>`);
+            updateValueHTML('battery-power', `<span class="text-red-400">--</span>`);
+            updateValue('batteryVoltageDisplay', '--');
+            
+            updateValue('device-temp', 'N/A');
+            updateValue('device-temp-info', '--');
+            updateValue('essential-power', 'N/A');
+            updateValue('load-power', 'N/A');
+            updateValue('acout-power', 'N/A');
+            
+            // Show error message
+            console.error(`❌ Device not found: ${data.errorMessage}`);
             return;
         }
-        
-        // Device found - reset the flag
-        deviceNotFoundShown = false;
         
         // Check if we have NO realtime data (all values are null)
         const noData = data.noRealtimeData || (data.pvTotalPower === null && data.gridValue === null);
         
         if (noData) {
-            // KEEP OLD DATA - Don't clear display when temporarily no data
-            // This prevents flickering when API intermittently fails
-            console.log("⏳ Realtime: No new data - keeping previous values displayed");
+            // Display empty state - no demo data
+            updateValue('pv-power', '--');
+            updateValueHTML('pv-desc', `<span class="text-slate-400">Chờ dữ liệu hệ thống</span>`);
+            
+            updateValue('grid-power', '--');
+            updateValue('grid-voltage', '--');
+            
+            updateValue('battery-percent-icon', '--%');
+            updateValueHTML('battery-status-text', `<span class="text-slate-400">Chờ dữ liệu</span>`);
+            updateValueHTML('battery-power', `<span class="text-slate-400">--</span>`);
+            updateValue('batteryVoltageDisplay', '--');
+            
+            updateValue('device-temp', '--');
+            updateValue('device-temp-info', '--');
+            updateValue('essential-power', '--');
+            updateValue('load-power', '--');
+            updateValue('acout-power', '--');
+            
+            // Update battery fill to empty
+            const batteryFill = document.getElementById('battery-fill');
+            if (batteryFill) {
+                batteryFill.style.width = '0%';
+                batteryFill.className = 'absolute left-0 top-0 bottom-0 bg-slate-400 transition-all duration-500';
+            }
+            
+            // Disable all flow animations
+            updateFlowStatus('pv-flow', false);
+            updateFlowStatus('grid-flow', false);
+            updateFlowStatus('battery-flow', false);
+            updateFlowStatus('essential-flow', false);
+            updateFlowStatus('load-flow', false);
+            
+            console.log("Realtime display: No data - showing empty state");
             return;
         }
         
@@ -3217,7 +3191,6 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Store latest realtime data for 3D view sync
     let latestRealtimeData = {};
-    let deviceNotFoundShown = false; // Flag to prevent repeated "not found" messages
     
     // Auto-sync data to 3D Home view elements
     // Auto-sync data to 3D Home view - With Sun/Moon animation
