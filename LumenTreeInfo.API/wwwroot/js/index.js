@@ -1652,6 +1652,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 badge.classList.remove('hidden');
                 badge.classList.add('flex');
                 console.log(`✅ Temperature badge updated: ${data.min}°C (${data.minTime}) - ${data.max}°C (${data.maxTime})`);
+                
+                // Also update current temperature from synced data (HA)
+                if (data.current !== null && data.current !== undefined) {
+                    updateValue('device-temp', `${data.current}°C`);
+                    updateValue('device-temp-info', `${data.current}°C`);
+                    console.log(`✅ Current temperature updated from HA: ${data.current}°C`);
+                }
             } else {
                 console.warn("⚠️ Temperature data not available or invalid");
                 if (badge) badge.classList.add('hidden');
