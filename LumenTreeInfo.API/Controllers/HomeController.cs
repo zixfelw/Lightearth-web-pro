@@ -1505,6 +1505,40 @@ public class HomeController : Controller
     }
 
     /// <summary>
+    /// Get temperature history (min/max) for a device on a specific date
+    /// Returns data from synced realtime (pushed by local HA script)
+    /// Endpoint: /api/cloud/temperature/{deviceId}/{date}
+    /// </summary>
+    [Route("/api/cloud/temperature/{deviceId}/{date}")]
+    public IActionResult GetCloudTemperature(string deviceId, string date)
+    {
+        // Load from file if not loaded yet
+        LoadSyncedDataFromFile();
+        
+        if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
+        {
+            return Json(new {
+                success = true,
+                deviceId = device.DeviceId,
+                date = date,
+                min = device.TemperatureMin,
+                max = device.TemperatureMax,
+                current = device.Temperature,
+                minTime = "--:--",  // Will be tracked by PowerShell script in future
+                maxTime = "--:--",
+                count = 1,
+                source = "synced"
+            });
+        }
+
+        return Json(new {
+            success = false,
+            error = $"Device {deviceId} not found in synced data",
+            deviceId = deviceId
+        });
+    }
+
+    /// <summary>
     /// Gets detailed device data from LightEarth Cloud for a specific device
     /// </summary>
     [Route("/api/cloud/device/{deviceId}")]
