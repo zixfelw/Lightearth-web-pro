@@ -1139,11 +1139,27 @@ public class HomeController : Controller
     {
         public string DeviceId { get; set; } = "";
         public bool IsOnline { get; set; }
+        
+        // Realtime Power (W)
         public int Soc { get; set; }
         public int PvPower { get; set; }
-        public int BatteryPower { get; set; }
+        public int BatteryPower { get; set; }  // Positive=charging, Negative=discharging
         public int LoadPower { get; set; }
-        public int GridPower { get; set; }
+        public int GridPower { get; set; }     // Positive=import, Negative=export
+        
+        // Daily Energy (kWh)
+        public double PvDay { get; set; }       // PV production today
+        public double ChargeDay { get; set; }   // Battery charge today
+        public double DischargeDay { get; set; } // Battery discharge today
+        public double LoadDay { get; set; }     // Load consumption today
+        public double GridDay { get; set; }     // Grid import today
+        public double ExportDay { get; set; }   // Grid export today
+        
+        // Additional info
+        public double Temperature { get; set; }
+        public string BatteryStatus { get; set; } = "";  // charging/discharging/idle
+        public string GridStatus { get; set; } = "";     // importing/exporting/idle
+        
         public DateTime LastUpdate { get; set; }
     }
 
