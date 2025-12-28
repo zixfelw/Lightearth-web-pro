@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13263 - Fallback APIs with 10s polling when using backup endpoints
+ * Version: 13262 - Solar Dashboard uses Cloudflare Worker instead of Cloudflare Worker
  * 
  * Features:
  * - Real-time data via SignalR
@@ -10,58 +10,15 @@
  * - Energy flow visualization
  * - Chart.js visualizations
  * - Mobile optimized interface
- * - Fallback API support with automatic failover
  */
 
 // Global constants - defined outside DOMContentLoaded to avoid TDZ issues
-// PRIMARY Cloudflare Worker APIs - FREE, direct to HA (ZERO Railway egress cost)
+// Cloudflare Worker APIs - FREE, direct to HA (direct HA access)
 const CLOUDFLARE_WORKER_API = 'https://lightearth.applike098.workers.dev';
-const CLOUDFLARE_WORKER_TSP = 'https://temperature-soc-power.applike098.workers.dev';
-
-// FALLBACK Cloudflare Worker APIs - Use when primary fails (polling 10s instead of 5s)
-const FALLBACK_WORKER_API = 'https://lightearth-proxy.minhlongt358.workers.dev';
-const FALLBACK_WORKER_TSP = 'https://temperature-soc-power.minhlongt358.workers.dev';
-
-// API State Management
-let usingFallbackAPI = false;
-let primaryAPIFailCount = 0;
-const MAX_PRIMARY_FAILS = 3;  // Switch to fallback after 3 consecutive failures
-const POLLING_INTERVAL_PRIMARY = 5000;  // 5 seconds for primary API
-const POLLING_INTERVAL_FALLBACK = 10000;  // 10 seconds for fallback API
-
-// Get current API endpoints based on fallback state
-function getCurrentWorkerAPI() {
-    return usingFallbackAPI ? FALLBACK_WORKER_API : CLOUDFLARE_WORKER_API;
-}
-
-function getCurrentWorkerTSP() {
-    return usingFallbackAPI ? FALLBACK_WORKER_TSP : CLOUDFLARE_WORKER_TSP;
-}
-
-function getCurrentPollingInterval() {
-    return usingFallbackAPI ? POLLING_INTERVAL_FALLBACK : POLLING_INTERVAL_PRIMARY;
-}
-
-// Switch to fallback API
-function switchToFallbackAPI() {
-    if (!usingFallbackAPI) {
-        usingFallbackAPI = true;
-        console.warn('⚠️ Switching to FALLBACK API (polling interval: 10s)');
-        console.log('🔄 Fallback endpoints:', FALLBACK_WORKER_API, FALLBACK_WORKER_TSP);
-    }
-}
-
-// Try to switch back to primary API
-function tryPrimaryAPI() {
-    if (usingFallbackAPI) {
-        console.log('🔄 Trying to switch back to PRIMARY API...');
-        usingFallbackAPI = false;
-        primaryAPIFailCount = 0;
-    }
-}
-
-// Note: SOC and Power History APIs now use getCurrentWorkerTSP() for fallback support
-// See getSocApiUrl() and getPowerHistoryApiUrl() functions
+const CLOUDFLARE_WORKER_TSP = 'https://temperature-soc-power.applike098.workers.dev';  // Temperature, SOC, Power history
+// Worker APIs - fallback only
+const SOC_API_PRIMARY = CLOUDFLARE_WORKER_TSP + '/api/realtime/soc-history';  // FREE via Cloudflare Worker
+const POWER_HISTORY_API = CLOUDFLARE_WORKER_TSP + '/api/realtime/power-history';  // FREE via Cloudflare Worker
 
 // ========================================
 // GLOBAL FUNCTIONS - Available immediately for onclick handlers
@@ -196,7 +153,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Get current origin for local proxy API
     const currentOrigin = window.location.origin;
     
-    // API Configuration - ALL APIs use Railway (no Cloudflare Worker)
+    // API Configuration - ALL APIs use Cloudflare Worker
     const API_SOURCES = {
         local: {
             name: 'Local API (LightEarth Cloud)',
@@ -205,25 +162,23 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
     
-    // APIs use Cloudflare Workers for FREE (ZERO Railway egress)
+    // APIs use Cloudflare Workers for FREE (direct HA access)
     // Temperature, SOC, Power history -> temperature-soc-power Worker -> HA direct
     // Realtime device data -> lightearth Worker -> HA direct
     const LIGHTEARTH_API = {
         get base() { return currentOrigin; },
-        // REMOVED: bat, pv, other - these timeout because Railway cannot reach lesvr.suntcn.com
-        // Monthly/Yearly data (still on Railway - low frequency)
+        // REMOVED: bat, pv, other - these timeout because backend cannot reach lesvr.suntcn.com
+        // Monthly/Yearly data (via Worker)
         month: (deviceId) => `${currentOrigin}/api/month/${deviceId}`,
         year: (deviceId) => `${currentOrigin}/api/year/${deviceId}`,
         historyYear: (deviceId) => `${currentOrigin}/api/history-year/${deviceId}`,
-        // Cloud endpoints - FREE via Cloudflare Workers (ZERO Railway egress)
-        // Uses getCurrentWorkerTSP() for automatic fallback support
-        cloudPowerHistory: (deviceId, date) => `${getCurrentWorkerTSP()}/api/realtime/power-history/${deviceId}?date=${date}`,
-        cloudSocHistory: (deviceId, date) => `${getCurrentWorkerTSP()}/api/realtime/soc-history/${deviceId}?date=${date}`,
-        cloudTemperature: (deviceId, date) => `${getCurrentWorkerTSP()}/api/cloud/temperature/${deviceId}/${date}`,
-        cloudPowerPeak: (deviceId, date) => `${getCurrentWorkerTSP()}/api/realtime/power-peak/${deviceId}?date=${date}`,
-        // These still use Railway (low frequency, not worth separate worker)
-        cloudStates: (deviceId) => `${currentOrigin}/api/cloud/states/${deviceId}`,
-        cloudDeviceInfo: (deviceId) => `${currentOrigin}/api/cloud/device-info/${deviceId}`
+        // Cloud endpoints - FREE via Cloudflare Workers (direct HA access)
+        cloudPowerHistory: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/realtime/power-history/${deviceId}?date=${date}`,
+        cloudSocHistory: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/realtime/soc-history/${deviceId}?date=${date}`,
+        cloudTemperature: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/cloud/temperature/${deviceId}/${date}`,
+        // These (via Worker - low frequency) (low frequency, not worth separate worker)
+        cloudStates: (deviceId) => `${currentOrigin}/api/cloud/states/${deviceId}`
+        // v13265: REMOVED cloudDeviceInfo - model comes from realtime API
     };
     
     // Simplified - no more proxy switching needed
@@ -231,10 +186,10 @@ document.addEventListener('DOMContentLoaded', function () {
     function switchToFallbackProxy() { return currentOrigin; }
     function resetToPrimaryProxy() { }
     
-    // Simplified fetch - all APIs on Railway now (no proxy fallback needed)
+    // Simplified fetch - all APIs via Cloudflare Worker (no proxy fallback needed)
     async function fetchWithProxyFallback(urlBuilder, options = {}) {
         const url = typeof urlBuilder === 'function' ? urlBuilder() : urlBuilder;
-        console.log(`📡 [Railway API] Fetching: ${url}`);
+        console.log(`📡 [Worker API] Fetching: ${url}`);
         
         const response = await fetch(url, options);
         
@@ -350,22 +305,13 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentApiSource = 'local';
     
     function getRealtimeApiUrl(deviceId) {
-        // Use Cloudflare Worker for realtime API - 100% FREE (no Railway egress)
-        // Automatically use fallback API if primary fails
-        const baseUrl = getCurrentWorkerAPI();
-        return `${baseUrl}/api/realtime/device/${deviceId}`;
+        // Use Cloudflare Worker for realtime API - 100% FREE (no backend costs)
+        return `${CLOUDFLARE_WORKER_API}/api/realtime/device/${deviceId}`;
     }
     
-    // SOC API URL - Use Cloudflare Worker (with fallback support)
+    // SOC API URL - Use Worker API (from HA via Cloudflare Tunnel)
     function getSocApiUrl(deviceId, date) {
-        const baseUrl = getCurrentWorkerTSP();
-        return `${baseUrl}/api/realtime/soc-history/${deviceId}?date=${date}`;
-    }
-    
-    // Power History API URL (with fallback support)
-    function getPowerHistoryApiUrl(deviceId, date) {
-        const baseUrl = getCurrentWorkerTSP();
-        return `${baseUrl}/api/realtime/power-history/${deviceId}?date=${date}`;
+        return `${SOC_API_PRIMARY}/${deviceId}?date=${date}`;
     }
     
     // Store previous values for blink detection
@@ -690,31 +636,16 @@ document.addEventListener('DOMContentLoaded', function () {
             clearInterval(realtimePollingInterval);
         }
         
-        const pollingInterval = getCurrentPollingInterval();
-        const apiType = usingFallbackAPI ? 'FALLBACK' : 'PRIMARY';
-        console.log(`🔄 Starting realtime polling for device: ${deviceId} (every ${pollingInterval/1000}s - ${apiType} API)`);
+        console.log(`🔄 Starting realtime polling for device: ${deviceId} (every 5 seconds)`);
         
         // Fetch immediately
         fetchRealtimeData(deviceId);
         
-        // Poll based on current API state
-        // Primary: 5 seconds, Fallback: 10 seconds
+        // Poll every 5 seconds for real-time updates
+        // Reduced from 3s to 5s to minimize API requests and egress costs
         realtimePollingInterval = setInterval(() => {
             fetchRealtimeData(deviceId);
-        }, pollingInterval);
-    }
-    
-    // Restart polling with new interval (when switching between primary/fallback)
-    function restartPollingWithNewInterval(deviceId) {
-        if (realtimePollingInterval) {
-            clearInterval(realtimePollingInterval);
-            const pollingInterval = getCurrentPollingInterval();
-            const apiType = usingFallbackAPI ? 'FALLBACK' : 'PRIMARY';
-            console.log(`🔄 Restarting polling (${pollingInterval/1000}s - ${apiType} API)`);
-            realtimePollingInterval = setInterval(() => {
-                fetchRealtimeData(deviceId);
-            }, pollingInterval);
-        }
+        }, 5000);
     }
     
     function stopRealtimePolling() {
@@ -726,41 +657,13 @@ document.addEventListener('DOMContentLoaded', function () {
     
     async function fetchRealtimeData(deviceId) {
         try {
-            // Use configured API source (with fallback support)
+            // Use configured API source
             const apiUrl = getRealtimeApiUrl(deviceId);
-            const apiType = usingFallbackAPI ? 'FALLBACK' : 'PRIMARY';
-            console.log(`📡 Fetching from ${apiType} API:`, apiUrl);
-            
-            const response = await fetch(apiUrl, { timeout: 8000 });
-            
+            console.log(`📡 Fetching from ${API_SOURCES[currentApiSource].name}:`, apiUrl);
+            const response = await fetch(apiUrl);
             if (!response.ok) {
                 console.error(`❌ API error ${response.status}: ${response.statusText} for ${apiUrl}`);
-                
-                // Track failures for primary API
-                if (!usingFallbackAPI) {
-                    primaryAPIFailCount++;
-                    console.warn(`⚠️ Primary API fail count: ${primaryAPIFailCount}/${MAX_PRIMARY_FAILS}`);
-                    
-                    if (primaryAPIFailCount >= MAX_PRIMARY_FAILS) {
-                        switchToFallbackAPI();
-                        restartPollingWithNewInterval(deviceId);
-                        // Retry immediately with fallback
-                        return fetchRealtimeData(deviceId);
-                    }
-                }
                 return;
-            }
-            
-            // Success - reset fail count and try primary if using fallback
-            if (!usingFallbackAPI) {
-                primaryAPIFailCount = 0;
-            } else {
-                // Every 5 minutes, try switching back to primary
-                if (Math.random() < 0.03) {  // ~3% chance per request = ~once per 5 min at 10s interval
-                    console.log('🔄 Testing primary API availability...');
-                    tryPrimaryAPI();
-                    restartPollingWithNewInterval(deviceId);
-                }
             }
             
             const data = await response.json();
@@ -806,12 +709,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     deviceTempValue: dd.temperature || dd.system?.temperature || 0,
                     essentialValue: dd.acOutput?.power || 0,
                     loadValue: dd.load?.homePower || dd.load?.power || 0,
-                    inverterAcOutPower: dd.acOutput?.power || 0
+                    inverterAcOutPower: dd.acOutput?.power || 0,
+                    // v3.9: Inverter model from HA friendly_name
+                    inverterModel: dd.model || dd.deviceType || null
                 };
-                // Battery cells data from Worker v3.7: deviceData.battery.cells
+                // Battery cells data from Worker v3.7+: deviceData.battery.cells
                 cellsData = dd.battery?.cells || data.batteryCells;
-                console.log('📊 [v13245] Using Cloud format (Worker v3.7)', displayData);
-                console.log('🔋 [v13245] batteryCells from API:', cellsData);
+                console.log('📊 [v13262] Using Cloud format (Worker v3.9)', displayData);
+                console.log('🔋 Inverter model:', dd.model);
+                console.log('🔋 [v13262] batteryCells from API:', cellsData);
             } else if (data.data) {
                 // Legacy format from API
                 displayData = {
@@ -839,6 +745,24 @@ document.addEventListener('DOMContentLoaded', function () {
             
             // Store data for 3D view sync
             latestRealtimeData = displayData;
+            
+            // v13265: Update inverter model/type from realtime API (ONLY SOURCE)
+            // Model comes directly from HA sensor friendly_name via Worker
+            if (displayData.inverterModel) {
+                // Store model globally for reference
+                window._currentInverterModel = displayData.inverterModel;
+                
+                // Update UI immediately
+                const deviceTypeEl = document.getElementById('device-type');
+                const inverterTypeEl = document.getElementById('inverter-type');
+                const inverterTypeBasicEl = document.getElementById('inverter-type-basic');
+                
+                if (deviceTypeEl) deviceTypeEl.textContent = displayData.inverterModel;
+                if (inverterTypeEl) inverterTypeEl.textContent = displayData.inverterModel;
+                if (inverterTypeBasicEl) inverterTypeBasicEl.textContent = displayData.inverterModel;
+                
+                console.log('✅ [v13264] Inverter model updated from realtime API:', displayData.inverterModel);
+            }
             
             // Update displays with realtime data
             updateRealTimeDisplay(displayData);
@@ -953,6 +877,8 @@ document.addEventListener('DOMContentLoaded', function () {
         hasCellData = false;
         cellDataReceived = false;
         previousCellValues = {};
+        // v13265: Reset model when switching device
+        window._currentInverterModel = null;
         console.log('🔄 Reset cell data state for device:', deviceId);
 
         // FAST LOAD: Call realtime API first for instant display
@@ -972,7 +898,7 @@ document.addEventListener('DOMContentLoaded', function () {
         
         updateDeviceInfo({
             deviceId: deviceId,
-            deviceType: 'Lumentree Inverter',
+            deviceType: 'Đang tải...',
             onlineStatus: 1,
             remarkName: ''
         });
@@ -1053,24 +979,21 @@ document.addEventListener('DOMContentLoaded', function () {
             fetchTemperatureMinMax(deviceId, queryDate);
         }, 1000);
         
-        // 4. Device info - delay 1500ms
-        setTimeout(() => {
-            fetchDeviceInfo(deviceId);
-        }, 1500);
+        // v13265: REMOVED fetchDeviceInfo call - model comes from realtime API
         
-        // 5. Solar Project Summary - delay 2000ms
+        // 4. Solar Project Summary - delay 1500ms
         setTimeout(() => {
             if (typeof window.loadSolarProjectSummary === 'function') {
                 console.log('📊 [Staggered] Loading solar project summary...');
                 window.loadSolarProjectSummary(deviceId);
             }
-        }, 2000);
+        }, 1500);
         
-        // 6. Chart/Peak stats data - delay 2500ms
+        // 5. Chart/Peak stats data - delay 2000ms
         setTimeout(() => {
             console.log('📊 [Staggered] Fetching peak stats data...');
             fetchDayDataInBackground(deviceId, queryDate, true).catch(err => console.warn('Day data error:', err));
-        }, 2500);
+        }, 2000);
     }
     
     // Helper to apply summary data to UI
@@ -1147,7 +1070,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Fetch day data in background (for summary stats: Năng lượng - Pin Lưu Trữ - Nguồn Điện)
     // PRIORITY ORDER:
-    // 1. Railway API (LightEarth Cloud data) - always try first for all devices
+    // 1. Worker API (LightEarth Cloud data) - always try first for all devices
     // 2. Lightearth API - for chart data
     // forceRefresh = true: Skip cache and always fetch fresh data (used on F5/page load)
     async function fetchDayDataInBackground(deviceId, date, forceRefresh = false) {
@@ -1168,13 +1091,13 @@ document.addEventListener('DOMContentLoaded', function () {
             summaryDataCache = { deviceId: null, data: null, timestamp: 0 };
         }
         
-        // STEP 1: Skip Railway daily-energy API here - already fetched in fetchRealtimeDataForSummary()
+        // STEP 1: Skip daily-energy API here - already fetched in fetchRealtimeDataForSummary()
         // Only fetch if cache is empty (for fallback)
-        let railwayDataLoaded = summaryDataCache.deviceId === deviceId && summaryDataCache.data;
+        let apiDataLoaded = summaryDataCache.deviceId === deviceId && summaryDataCache.data;
         
-        if (!railwayDataLoaded) {
+        if (!apiDataLoaded) {
             try {
-                console.log("📡 [Priority 1] Trying Railway API (LightEarth Cloud)...");
+                console.log("📡 [Priority 1] Trying Worker API (LightEarth Cloud)...");
                 const haEnergyUrl = `${CLOUDFLARE_WORKER_API}/api/realtime/daily-energy/${deviceId}`;
                 const haResponse = await fetch(haEnergyUrl);
                 
@@ -1200,15 +1123,15 @@ document.addEventListener('DOMContentLoaded', function () {
                         saveSummaryCacheToLocalStorage(); // Persist to localStorage
                         applySummaryData(cacheData);
                         
-                        console.log("✅ [Priority 1] Railway API SUCCESS:", summary);
-                        railwayDataLoaded = true;
+                        console.log("✅ [Priority 1] Worker API SUCCESS:", summary);
+                        apiDataLoaded = true;
                     }
                 }
             } catch (haError) {
-                console.warn("⚠️ [Priority 1] Railway API failed:", haError.message);
+                console.warn("⚠️ [Priority 1] Worker API failed:", haError.message);
             }
         } else {
-            console.log("📦 [Priority 1] Using cached summary data, skipping Railway API");
+            console.log("📦 [Priority 1] Using cached summary data, skipping Worker API");
         }
         
         // STEP 2: Try LightEarth Cloud Power History API for chart data
@@ -1236,15 +1159,15 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log('🔄 Force refresh: Skipping cache, fetching fresh data...');
         }
         
-        // PRIORITY 1: Try Cloudflare Worker Power History API (with fallback support)
+        // PRIORITY 1: Try Worker Power History API first (most reliable, no region block)
         try {
             // Add cache-busting timestamp to force fresh fetch on F5
             const cacheBuster = Date.now();
-            const powerHistoryUrl = getPowerHistoryApiUrl(deviceId, queryDate) + `&_t=${cacheBuster}`;
+            const powerHistoryUrl = `${POWER_HISTORY_API}/${deviceId}?date=${queryDate}&_t=${cacheBuster}`;
             console.log("📊📊📊 [POWER CHART] Fetching from Worker API:", powerHistoryUrl);
             
             // Force no-cache to ensure fresh data on F5
-            const railwayResponse = await fetch(powerHistoryUrl, {
+            const apiResponse = await fetch(powerHistoryUrl, {
                 method: 'GET',
                 cache: 'no-store',
                 headers: {
@@ -1252,19 +1175,19 @@ document.addEventListener('DOMContentLoaded', function () {
                     'Pragma': 'no-cache'
                 }
             });
-            console.log("📊 Railway response status:", railwayResponse.status, railwayResponse.ok);
+            console.log("📊 API response status:", apiResponse.status, apiResponse.ok);
             
-            if (railwayResponse.ok) {
-                const railwayData = await railwayResponse.json();
-                console.log("📊 Railway API response:", railwayData);
+            if (apiResponse.ok) {
+                const apiData = await apiResponse.json();
+                console.log("📊 Worker API response:", apiData);
                 
-                // Use Railway data if available (even 1 point is valid - data grows over time)
-                if (railwayData.success && railwayData.timeline && railwayData.timeline.length > 0) {
-                    console.log(`✅ Railway API SUCCESS: ${railwayData.timeline.length} data points`);
+                // Use Worker data if available (even 1 point is valid - data grows over time)
+                if (apiData.success && apiData.timeline && apiData.timeline.length > 0) {
+                    console.log(`✅ Worker API SUCCESS: ${apiData.timeline.length} data points`);
                     
-                    // Cache the Railway data
+                    // Cache the Worker data
                     lightearthCache = {
-                        data: { ...railwayData, dataSource: 'PowerHistoryCollector' },
+                        data: { ...apiData, dataSource: 'PowerHistoryCollector' },
                         deviceId: deviceId,
                         date: queryDate,
                         timestamp: now
@@ -1272,21 +1195,21 @@ document.addEventListener('DOMContentLoaded', function () {
                     console.log("💾 Chart data cached (TTL: 30 minutes)");
                     saveCacheToLocalStorage();
                     
-                    // Update chart with Railway data
-                    updateChartFromCloudData(railwayData);
+                    // Update chart with Worker data
+                    updateChartFromCloudData(apiData);
                     chartDataLoaded = true;
                     return; // Success!
                 } else {
-                    console.warn("⚠️ Railway API returned no data - collector may still be gathering data");
+                    console.warn("⚠️ Worker API returned no data - collector may still be gathering data");
                 }
             } else {
-                console.warn(`⚠️ [Priority 1] Railway API failed: HTTP ${railwayResponse.status}`);
+                console.warn(`⚠️ [Priority 1] Worker API failed: HTTP ${apiResponse.status}`);
             }
-        } catch (railwayError) {
-            console.warn("⚠️ Railway API error:", railwayError.message);
+        } catch (apiError) {
+            console.warn("⚠️ Worker API error:", apiError.message);
         }
         
-        // No fallback needed - Railway PowerHistoryCollector is the only source
+        // No fallback needed - Worker PowerHistoryCollector is the only source
         // Data will be available after collector runs (every 5 minutes)
         if (!chartDataLoaded) {
             console.log("ℹ️ No chart data yet - PowerHistoryCollector is gathering data every 5 minutes");
@@ -1295,7 +1218,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // STEP 3: Fetch ACCURATE peak values from dedicated power-peak endpoint
         // This scans ALL raw data (6000+ points) for accurate peak detection
         try {
-            const peakUrl = API_ENDPOINTS.cloudPowerPeak(deviceId, queryDate);
+            const peakUrl = `${CLOUDFLARE_WORKER_TSP}/api/realtime/power-peak/${deviceId}?date=${queryDate}`;
             console.log('🎯 [Power Peak] Fetching accurate peaks from:', peakUrl);
             
             const peakResponse = await fetch(peakUrl, { 
@@ -1499,7 +1422,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         fill: true,
                         tension: 0.3,
                         pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointHoverRadius: 8,
                         spanGaps: false
                     },
                     {
@@ -1511,7 +1434,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         fill: true,
                         tension: 0.3,
                         pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointHoverRadius: 8,
                         spanGaps: false
                     },
                     {
@@ -1523,7 +1446,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         fill: true,
                         tension: 0.3,
                         pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointHoverRadius: 8,
                         spanGaps: false
                     },
                     {
@@ -1535,7 +1458,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         fill: true,
                         tension: 0.3,
                         pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointHoverRadius: 8,
                         spanGaps: false
                     },
                     {
@@ -1547,7 +1470,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         fill: true,
                         tension: 0.3,
                         pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointHoverRadius: 8,
                         spanGaps: false
                     },
                     {
@@ -1559,7 +1482,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         fill: true,
                         tension: 0.3,
                         pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointHoverRadius: 8,
                         spanGaps: false
                     }
                 ]
@@ -1574,12 +1497,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        backgroundColor: 'rgba(15, 23, 42, 0.98)',
                         titleColor: '#f8fafc',
                         bodyColor: '#e2e8f0',
-                        padding: 12,
-                        cornerRadius: 8,
+                        padding: 16,
+                        cornerRadius: 10,
                         displayColors: true,
+                        boxWidth: 14,
+                        boxHeight: 14,
+                        boxPadding: 6,
+                        titleFont: { size: 15, weight: 'bold' },
+                        bodyFont: { size: 14 },
                         callbacks: {
                             title: (items) => `⏰ ${items[0].label}`,
                             label: (context) => {
@@ -1631,14 +1559,14 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log('✅ Power Timeline Chart created (6 datasets, 24h timeline)');
     }
     
-    // Convert Railway Power History data to chart format (288 points for 5-minute intervals)
+    // Convert Worker Power History data to chart format (288 points for 5-minute intervals)
     // Data mapping:
     // - pv: Sản lượng PV (pv_power)
     // - load: Tiêu Thụ (load_power)
     // - bat: Nạp Pin (bat > 0) / Xả Pin (bat < 0)
     // - grid: Xài Điện EVN (grid_power)
     // - backup: Điện dự phòng (ac_output_power)
-    function convertRailwayPowerToChartData(timeline) {
+    function convertWorkerPowerToChartData(timeline) {
         // Create 288 slots for each 5-minute interval (00:00 to 23:55)
         const pvData = new Array(288).fill(0);
         const batData = new Array(288).fill(0);
@@ -1674,7 +1602,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Battery data is different - 0 is valid, so don't forward fill
         }
         
-        console.log(`📊 Converted Railway data: ${timeline.length} points -> 288 chart slots (with backup)`);
+        console.log(`📊 Converted Worker data: ${timeline.length} points -> 288 chart slots (with backup)`);
         
         return {
             pv: { tableValueInfo: pvData },
@@ -1685,8 +1613,8 @@ document.addEventListener('DOMContentLoaded', function () {
         };
     }
     
-    // Update peak stats from Railway Power History data
-    function updateEnergyChartPeakStatsFromRailway(powerData) {
+    // Update peak stats from Worker Power History data
+    function updateEnergyChartPeakStatsFromWorker(powerData) {
         if (!powerData || !powerData.timeline) return;
         
         const timeline = powerData.timeline;
@@ -1726,7 +1654,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (gridMaxEl) gridMaxEl.textContent = maxGrid > 0 ? `${maxGrid} W` : '--';
         if (gridMaxTimeEl) gridMaxTimeEl.textContent = maxGrid > 0 ? maxGridTime : '--:--';
         
-        console.log("📊 Peak stats updated from Railway:", { 
+        console.log("📊 Peak stats updated from Worker:", { 
             pv: `${maxPv}W @ ${maxPvTime}`,
             load: `${maxLoad}W @ ${maxLoadTime}`,
             grid: `${maxGrid}W @ ${maxGridTime}`
@@ -1772,7 +1700,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Fill in data from timeline
         // Support multiple formats:
         // - Worker v2.1: { t: "HH:mm", pv, bat, load, grid, backup }
-        // - Railway: { time: "HH:mm" or ISO, pvPower, batteryPower, loadPower, gridPower }
+        // - Worker: { time: "HH:mm" or ISO, pvPower, batteryPower, loadPower, gridPower }
         // - Legacy: { time: ISO, pv, battery, load, grid }
         timeline.forEach((point, index) => {
             // Parse time from "t" or "time" field
@@ -1799,7 +1727,7 @@ document.addEventListener('DOMContentLoaded', function () {
             
             // Only include data for valid slots
             if (slotIndex >= 0 && slotIndex < 288 && slotIndex <= maxAllowedSlot) {
-                // Support all formats: Worker (bat), Railway (batteryPower), Legacy (battery)
+                // Support all formats: Worker (bat), API (batteryPower), Legacy (battery)
                 pvData[slotIndex] = point.pvPower ?? point.pv ?? 0;
                 batData[slotIndex] = point.batteryPower ?? point.bat ?? point.battery ?? 0;
                 loadData[slotIndex] = point.loadPower ?? point.load ?? 0;
@@ -1888,7 +1816,7 @@ document.addEventListener('DOMContentLoaded', function () {
             
             // Support multiple API formats:
             // - Worker: { t, pv, bat, load, grid, backup }
-            // - Railway: { time, pvPower, batteryPower, loadPower, gridPower }
+            // - Worker: { time, pvPower, batteryPower, loadPower, gridPower }
             // - Legacy: { time, pv, battery, load, grid }
             const pv = point.pvPower ?? point.pv ?? 0;
             const battery = point.batteryPower ?? point.bat ?? point.battery ?? 0;
@@ -2104,122 +2032,14 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // ========================================
-    // DEVICE INFO - Get inverter model from Cloud API
-    // With localStorage caching (24h TTL) to reduce API calls
+    // v13265: REMOVED fetchDeviceInfo and applyDeviceInfo
+    // Model now comes directly from realtime API (/api/realtime/device/{deviceId})
+    // No separate /api/cloud/device-info/ call needed anymore
     // ========================================
-    
-    // Device info cache TTL: 24 hours (model/firmware rarely changes)
-    const DEVICE_INFO_CACHE_TTL = 24 * 60 * 60 * 1000;
-    
-    function fetchDeviceInfo(deviceId) {
-        if (!deviceId) return;
-        
-        // Check localStorage cache first
-        const cacheKey = `deviceInfo_${deviceId}`;
-        const cached = localStorage.getItem(cacheKey);
-        
-        if (cached) {
-            try {
-                const cachedData = JSON.parse(cached);
-                const cacheAge = Date.now() - cachedData.timestamp;
-                
-                // Use cache if not expired (24 hours)
-                if (cacheAge < DEVICE_INFO_CACHE_TTL) {
-                    console.log(`📦 Using cached device info for ${deviceId} (age: ${Math.round(cacheAge / 60000)} min)`);
-                    applyDeviceInfo(cachedData.model);
-                    return;
-                } else {
-                    console.log(`📦 Device info cache expired for ${deviceId}, fetching fresh data`);
-                }
-            } catch (e) {
-                console.warn('📦 Invalid cache data, fetching fresh');
-            }
-        }
-        
-        console.log(`📦 Fetching device info...`);
-        
-        fetchWithProxyFallback(() => LIGHTEARTH_API.cloudDeviceInfo(deviceId))
-            .then(response => response.json())
-            .then(data => {
-                console.log("📦 Device info received:", data);
-                
-                if (data.success) {
-                    // Extract model from friendly_name (e.g., "SUNT-4.0kW-H PV Power" -> "SUNT-4.0kW-H")
-                    let model = null;
-                    
-                    if (data.friendly_name) {
-                        // Parse friendly_name to extract model (usually "MODEL SENSOR_TYPE")
-                        // Examples: "SUNT-4.0kW-H PV Power", "SUNT-8.0kW-T Battery SOC"
-                        const friendlyName = data.friendly_name;
-                        const modelMatch = friendlyName.match(/^(SUNT-[\d.]+kW-[A-Z]+)/i);
-                        if (modelMatch) {
-                            model = modelMatch[1];
-                        } else {
-                            // Fallback: Take first part before common sensor names
-                            const sensorNames = ['PV Power', 'Battery', 'Grid', 'Load', 'SOC', 'Temperature'];
-                            for (const sensorName of sensorNames) {
-                                if (friendlyName.includes(sensorName)) {
-                                    model = friendlyName.split(sensorName)[0].trim();
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Fallback to model field if available
-                    if (!model && data.model) {
-                        model = data.model;
-                    }
-                    
-                    // Cache to localStorage with timestamp
-                    if (model) {
-                        try {
-                            localStorage.setItem(cacheKey, JSON.stringify({
-                                model: model,
-                                timestamp: Date.now(),
-                                raw: data
-                            }));
-                            console.log(`💾 Device info cached for ${deviceId}: ${model}`);
-                        } catch (e) {
-                            console.warn('📦 Could not cache device info:', e.message);
-                        }
-                    }
-                    
-                    applyDeviceInfo(model);
-                }
-            })
-            .catch(error => {
-                console.warn("📦 Device info API unavailable (all proxies failed):", error.message);
-                // Try to use expired cache as fallback
-                if (cached) {
-                    try {
-                        const cachedData = JSON.parse(cached);
-                        console.log(`📦 Using expired cache as fallback for ${deviceId}`);
-                        applyDeviceInfo(cachedData.model);
-                    } catch (e) {
-                        // Ignore
-                    }
-                }
-            });
-    }
-    
-    // Helper function to apply device info to UI
-    function applyDeviceInfo(model) {
-        if (!model) return;
-        
-        const deviceTypeEl = document.getElementById('device-type');
-        const inverterTypeEl = document.getElementById('inverter-type');
-        const inverterTypeBasicEl = document.getElementById('inverter-type-basic');
-        
-        if (deviceTypeEl) deviceTypeEl.textContent = model;
-        if (inverterTypeEl) inverterTypeEl.textContent = model;
-        if (inverterTypeBasicEl) inverterTypeBasicEl.textContent = model;
-        console.log(`✅ Device type updated: ${model}`);
-    }
     
     // ========================================
     // SOC CHART V5 - Clean Implementation
-    // API: Railway SOC History (LightEarth Cloud data)
+    // API: Worker SOC History (LightEarth Cloud data)
     // ========================================
     
     // SOC Chart variables
@@ -2236,7 +2056,7 @@ document.addEventListener('DOMContentLoaded', function () {
         timestamp: 0
     };
     
-    // Fetch SOC data from Railway API (LightEarth Cloud data only)
+    // Fetch SOC data from Worker API (LightEarth Cloud data only)
     // Uses 5-minute cache to prevent excessive API calls
     async function fetchSOCData() {
         console.log('🔋 fetchSOCData() called');
@@ -2275,14 +2095,14 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         
-        // Fetch fresh data (with fallback support)
-        const socUrl = getSocApiUrl(deviceId, date) + `&_t=${now}`;
+        // Fetch fresh data
+        const socHistoryUrl = `${SOC_API_PRIMARY}/${deviceId}?date=${date}&_t=${now}`;
         
         let data = null;
-        console.log('🔋 Fetching fresh SOC data from:', socUrl);
+        console.log('🔋 Fetching fresh SOC data from:', socHistoryUrl);
         
         try {
-            const response = await fetch(socUrl, {
+            const response = await fetch(socHistoryUrl, {
                 method: 'GET',
                 cache: 'no-store',
                 headers: {
