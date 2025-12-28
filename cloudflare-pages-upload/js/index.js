@@ -17,8 +17,10 @@
 const CLOUDFLARE_WORKER_API = 'https://lightearth.applike098.workers.dev';
 const CLOUDFLARE_WORKER_TSP = 'https://temperature-soc-power.applike098.workers.dev';  // Temperature, SOC, Power history
 // Worker APIs - fallback only
+// v13266: Added '.' security suffix for TSP Worker v2.6
 const SOC_API_PRIMARY = CLOUDFLARE_WORKER_TSP + '/api/realtime/soc-history';  // FREE via Cloudflare Worker
 const POWER_HISTORY_API = CLOUDFLARE_WORKER_TSP + '/api/realtime/power-history';  // FREE via Cloudflare Worker
+const TSP_SECURITY_SUFFIX = '.';  // Security: append to URL before query params
 
 // ========================================
 // GLOBAL FUNCTIONS - Available immediately for onclick handlers
@@ -173,9 +175,10 @@ document.addEventListener('DOMContentLoaded', function () {
         year: (deviceId) => `${currentOrigin}/api/year/${deviceId}`,
         historyYear: (deviceId) => `${currentOrigin}/api/history-year/${deviceId}`,
         // Cloud endpoints - FREE via Cloudflare Workers (direct HA access)
-        cloudPowerHistory: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/realtime/power-history/${deviceId}?date=${date}`,
-        cloudSocHistory: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/realtime/soc-history/${deviceId}?date=${date}`,
-        cloudTemperature: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/cloud/temperature/${deviceId}/${date}`,
+        // v13266: Added '.' security suffix for TSP Worker v2.6
+        cloudPowerHistory: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/realtime/power-history/${deviceId}${TSP_SECURITY_SUFFIX}?date=${date}`,
+        cloudSocHistory: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/realtime/soc-history/${deviceId}${TSP_SECURITY_SUFFIX}?date=${date}`,
+        cloudTemperature: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/cloud/temperature/${deviceId}/${date}${TSP_SECURITY_SUFFIX}`,
         // These (via Worker - low frequency) (low frequency, not worth separate worker)
         cloudStates: (deviceId) => `${currentOrigin}/api/cloud/states/${deviceId}`
         // v13265: REMOVED cloudDeviceInfo - model comes from realtime API
@@ -310,8 +313,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // SOC API URL - Use Worker API (from HA via Cloudflare Tunnel)
+    // v13266: Added '.' security suffix
     function getSocApiUrl(deviceId, date) {
-        return `${SOC_API_PRIMARY}/${deviceId}?date=${date}`;
+        return `${SOC_API_PRIMARY}/${deviceId}${TSP_SECURITY_SUFFIX}?date=${date}`;
     }
     
     // Store previous values for blink detection
@@ -1163,7 +1167,7 @@ document.addEventListener('DOMContentLoaded', function () {
         try {
             // Add cache-busting timestamp to force fresh fetch on F5
             const cacheBuster = Date.now();
-            const powerHistoryUrl = `${POWER_HISTORY_API}/${deviceId}?date=${queryDate}&_t=${cacheBuster}`;
+            const powerHistoryUrl = `${POWER_HISTORY_API}/${deviceId}${TSP_SECURITY_SUFFIX}?date=${queryDate}&_t=${cacheBuster}`;
             console.log("📊📊📊 [POWER CHART] Fetching from Worker API:", powerHistoryUrl);
             
             // Force no-cache to ensure fresh data on F5
@@ -1218,7 +1222,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // STEP 3: Fetch ACCURATE peak values from dedicated power-peak endpoint
         // This scans ALL raw data (6000+ points) for accurate peak detection
         try {
-            const peakUrl = `${CLOUDFLARE_WORKER_TSP}/api/realtime/power-peak/${deviceId}?date=${queryDate}`;
+            const peakUrl = `${CLOUDFLARE_WORKER_TSP}/api/realtime/power-peak/${deviceId}${TSP_SECURITY_SUFFIX}?date=${queryDate}`;
             console.log('🎯 [Power Peak] Fetching accurate peaks from:', peakUrl);
             
             const peakResponse = await fetch(peakUrl, { 
@@ -2090,8 +2094,8 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         
-        // Fetch fresh data
-        const socHistoryUrl = `${SOC_API_PRIMARY}/${deviceId}?date=${date}&_t=${now}`;
+        // Fetch fresh data - v13266: Added security suffix
+        const socHistoryUrl = `${SOC_API_PRIMARY}/${deviceId}${TSP_SECURITY_SUFFIX}?date=${date}&_t=${now}`;
         
         let data = null;
         console.log('🔋 Fetching fresh SOC data from:', socHistoryUrl);
