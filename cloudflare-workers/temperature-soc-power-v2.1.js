@@ -1,5 +1,5 @@
 /**
- * Temperature-SOC-Power Worker v2.0
+ * Temperature-SOC-Power Worker v2.1
  * - Added /api/realtime/daily-energy/{deviceId} for Năng Lượng - Pin Lưu Trữ - Nguồn Điện
  * - All other endpoints from v1.7
  * - Full CORS support
@@ -242,14 +242,15 @@ async function getDailyEnergy(deviceId) {
   }
   
   // Build summary object
+  // Use !== undefined to handle 0 values correctly
   const summary = {
-    pv_day: results.pv_day || 0,
-    grid_day: results.grid_day || 0,
-    load_day: results.load_day || 0,
-    charge_day: results.charge_day || 0,
-    discharge_day: results.discharge_day || 0,
-    total_load_day: results.total_load_day || results.load_day || 0,
-    essential_day: results.essential_day || results.load_day || 0
+    pv_day: results.pv_day !== undefined ? results.pv_day : 0,
+    grid_day: results.grid_day !== undefined ? results.grid_day : 0,
+    load_day: results.load_day !== undefined ? results.load_day : 0,
+    charge_day: results.charge_day !== undefined ? results.charge_day : 0,
+    discharge_day: results.discharge_day !== undefined ? results.discharge_day : 0,
+    total_load_day: results.total_load_day !== undefined ? results.total_load_day : (results.load_day || 0),
+    essential_day: results.essential_day !== undefined ? results.essential_day : 0
   };
   
   return {
@@ -277,7 +278,7 @@ export default {
       if (path === '/' || path === '') {
         return jsonResponse({
           status: 'ok',
-          version: '2.0',
+          version: '2.1',
           service: 'temperature-soc-power-proxy',
           tunnel: HA_TUNNEL_URL,
           timezone: 'UTC+7 (Vietnam)',
