@@ -177,8 +177,8 @@ document.addEventListener('DOMContentLoaded', function () {
         cloudSocHistory: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/realtime/soc-history/${deviceId}?date=${date}`,
         cloudTemperature: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/cloud/temperature/${deviceId}/${date}`,
         // These (via Worker - low frequency) (low frequency, not worth separate worker)
-        cloudStates: (deviceId) => `${currentOrigin}/api/cloud/states/${deviceId}`,
-        cloudDeviceInfo: (deviceId) => `${currentOrigin}/api/cloud/device-info/${deviceId}`
+        cloudStates: (deviceId) => `${currentOrigin}/api/cloud/states/${deviceId}`
+        // v13265: REMOVED cloudDeviceInfo - model comes from realtime API
     };
     
     // Simplified - no more proxy switching needed
@@ -746,11 +746,11 @@ document.addEventListener('DOMContentLoaded', function () {
             // Store data for 3D view sync
             latestRealtimeData = displayData;
             
-            // v13264: Update inverter model/type from realtime API (PRIMARY SOURCE)
-            // This is the most reliable source - directly from HA sensor friendly_name
+            // v13265: Update inverter model/type from realtime API (ONLY SOURCE)
+            // Model comes directly from HA sensor friendly_name via Worker
             if (displayData.inverterModel) {
-                // Store globally so fetchDeviceInfo knows not to override
-                window._inverterModelFromRealtime = displayData.inverterModel;
+                // Store model globally for reference
+                window._currentInverterModel = displayData.inverterModel;
                 
                 // Update UI immediately
                 const deviceTypeEl = document.getElementById('device-type');
@@ -877,8 +877,8 @@ document.addEventListener('DOMContentLoaded', function () {
         hasCellData = false;
         cellDataReceived = false;
         previousCellValues = {};
-        // v13264: Reset realtime model flag when switching device
-        window._inverterModelFromRealtime = null;
+        // v13265: Reset model when switching device
+        window._currentInverterModel = null;
         console.log('🔄 Reset cell data state for device:', deviceId);
 
         // FAST LOAD: Call realtime API first for instant display
@@ -979,24 +979,21 @@ document.addEventListener('DOMContentLoaded', function () {
             fetchTemperatureMinMax(deviceId, queryDate);
         }, 1000);
         
-        // 4. Device info - delay 1500ms
-        setTimeout(() => {
-            fetchDeviceInfo(deviceId);
-        }, 1500);
+        // v13265: REMOVED fetchDeviceInfo call - model comes from realtime API
         
-        // 5. Solar Project Summary - delay 2000ms
+        // 4. Solar Project Summary - delay 1500ms
         setTimeout(() => {
             if (typeof window.loadSolarProjectSummary === 'function') {
                 console.log('📊 [Staggered] Loading solar project summary...');
                 window.loadSolarProjectSummary(deviceId);
             }
-        }, 2000);
+        }, 1500);
         
-        // 6. Chart/Peak stats data - delay 2500ms
+        // 5. Chart/Peak stats data - delay 2000ms
         setTimeout(() => {
             console.log('📊 [Staggered] Fetching peak stats data...');
             fetchDayDataInBackground(deviceId, queryDate, true).catch(err => console.warn('Day data error:', err));
-        }, 2500);
+        }, 2000);
     }
     
     // Helper to apply summary data to UI
@@ -2030,125 +2027,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // ========================================
-    // DEVICE INFO - Get inverter model from Cloud API
-    // With localStorage caching (24h TTL) to reduce API calls
+    // v13265: REMOVED fetchDeviceInfo and applyDeviceInfo
+    // Model now comes directly from realtime API (/api/realtime/device/{deviceId})
+    // No separate /api/cloud/device-info/ call needed anymore
     // ========================================
-    
-    // Device info cache TTL: 24 hours (model/firmware rarely changes)
-    const DEVICE_INFO_CACHE_TTL = 24 * 60 * 60 * 1000;
-    
-    function fetchDeviceInfo(deviceId) {
-        if (!deviceId) return;
-        
-        // Check localStorage cache first
-        const cacheKey = `deviceInfo_${deviceId}`;
-        const cached = localStorage.getItem(cacheKey);
-        
-        if (cached) {
-            try {
-                const cachedData = JSON.parse(cached);
-                const cacheAge = Date.now() - cachedData.timestamp;
-                
-                // Use cache if not expired (24 hours)
-                if (cacheAge < DEVICE_INFO_CACHE_TTL) {
-                    console.log(`📦 Using cached device info for ${deviceId} (age: ${Math.round(cacheAge / 60000)} min)`);
-                    applyDeviceInfo(cachedData.model);
-                    return;
-                } else {
-                    console.log(`📦 Device info cache expired for ${deviceId}, fetching fresh data`);
-                }
-            } catch (e) {
-                console.warn('📦 Invalid cache data, fetching fresh');
-            }
-        }
-        
-        console.log(`📦 Fetching device info...`);
-        
-        fetchWithProxyFallback(() => LIGHTEARTH_API.cloudDeviceInfo(deviceId))
-            .then(response => response.json())
-            .then(data => {
-                console.log("📦 Device info received:", data);
-                
-                if (data.success) {
-                    // Extract model from friendly_name (e.g., "SUNT-4.0kW-H PV Power" -> "SUNT-4.0kW-H")
-                    let model = null;
-                    
-                    if (data.friendly_name) {
-                        // Parse friendly_name to extract model (usually "MODEL SENSOR_TYPE")
-                        // Examples: "SUNT-4.0kW-H PV Power", "SUNT-8.0kW-T Battery SOC"
-                        const friendlyName = data.friendly_name;
-                        const modelMatch = friendlyName.match(/^(SUNT-[\d.]+kW-[A-Z]+)/i);
-                        if (modelMatch) {
-                            model = modelMatch[1];
-                        } else {
-                            // Fallback: Take first part before common sensor names
-                            const sensorNames = ['PV Power', 'Battery', 'Grid', 'Load', 'SOC', 'Temperature'];
-                            for (const sensorName of sensorNames) {
-                                if (friendlyName.includes(sensorName)) {
-                                    model = friendlyName.split(sensorName)[0].trim();
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Fallback to model field if available
-                    if (!model && data.model) {
-                        model = data.model;
-                    }
-                    
-                    // Cache to localStorage with timestamp
-                    if (model) {
-                        try {
-                            localStorage.setItem(cacheKey, JSON.stringify({
-                                model: model,
-                                timestamp: Date.now(),
-                                raw: data
-                            }));
-                            console.log(`💾 Device info cached for ${deviceId}: ${model}`);
-                        } catch (e) {
-                            console.warn('📦 Could not cache device info:', e.message);
-                        }
-                    }
-                    
-                    applyDeviceInfo(model);
-                }
-            })
-            .catch(error => {
-                console.warn("📦 Device info API unavailable (all proxies failed):", error.message);
-                // Try to use expired cache as fallback
-                if (cached) {
-                    try {
-                        const cachedData = JSON.parse(cached);
-                        console.log(`📦 Using expired cache as fallback for ${deviceId}`);
-                        applyDeviceInfo(cachedData.model);
-                    } catch (e) {
-                        // Ignore
-                    }
-                }
-            });
-    }
-    
-    // Helper function to apply device info to UI
-    // v13264: Only apply if realtime API hasn't already set the model
-    function applyDeviceInfo(model) {
-        if (!model) return;
-        
-        // Skip if realtime API already provided the model (it's more reliable)
-        if (window._inverterModelFromRealtime) {
-            console.log(`📦 [v13264] Skipping device info update - already have model from realtime: ${window._inverterModelFromRealtime}`);
-            return;
-        }
-        
-        const deviceTypeEl = document.getElementById('device-type');
-        const inverterTypeEl = document.getElementById('inverter-type');
-        const inverterTypeBasicEl = document.getElementById('inverter-type-basic');
-        
-        if (deviceTypeEl) deviceTypeEl.textContent = model;
-        if (inverterTypeEl) inverterTypeEl.textContent = model;
-        if (inverterTypeBasicEl) inverterTypeBasicEl.textContent = model;
-        console.log(`✅ Device type updated from device-info API: ${model}`);
-    }
     
     // ========================================
     // SOC CHART V5 - Clean Implementation
