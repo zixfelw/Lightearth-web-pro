@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13254 - Support both lightearth & temperature-soc-power API formats
+ * Version: 13255 - Fixed power history format (t/bat) for peak stats
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1335,19 +1335,23 @@ document.addEventListener('DOMContentLoaded', function () {
         let lastDataSlot = -1;
         
         // Fill in data from timeline
-        // v2.3 format: time is "HH:mm" string (local Vietnam time)
+        // Support multiple formats:
+        // - Worker v2.1: { t: "HH:mm", pv, bat, load, grid, backup }
+        // - Railway: { time: "HH:mm" or ISO, pvPower, batteryPower, loadPower, gridPower }
+        // - Legacy: { time: ISO, pv, battery, load, grid }
         timeline.forEach((point, index) => {
-            // Parse "HH:mm" format OR handle legacy ISO format
+            // Parse time from "t" or "time" field
             let hours, minutes;
+            const timeStr = point.t || point.time;
             
-            if (point.time && point.time.includes(':') && point.time.length <= 5) {
-                // New format: "HH:mm"
-                const parts = point.time.split(':');
+            if (timeStr && timeStr.includes(':') && timeStr.length <= 5) {
+                // Format: "HH:mm"
+                const parts = timeStr.split(':');
                 hours = parseInt(parts[0], 10);
                 minutes = parseInt(parts[1], 10);
-            } else if (point.time && point.time.includes('T')) {
+            } else if (timeStr && timeStr.includes('T')) {
                 // Legacy ISO format (backwards compatibility)
-                const d = new Date(point.time);
+                const d = new Date(timeStr);
                 hours = d.getHours();
                 minutes = d.getMinutes();
             } else {
@@ -1360,15 +1364,15 @@ document.addEventListener('DOMContentLoaded', function () {
             
             // Only include data for valid slots
             if (slotIndex >= 0 && slotIndex < 288 && slotIndex <= maxAllowedSlot) {
-                // Support both old format (pv, battery) and new Railway format (pvPower, batteryPower)
+                // Support all formats: Worker (bat), Railway (batteryPower), Legacy (battery)
                 pvData[slotIndex] = point.pvPower ?? point.pv ?? 0;
-                batData[slotIndex] = point.batteryPower ?? point.battery ?? 0;
+                batData[slotIndex] = point.batteryPower ?? point.bat ?? point.battery ?? 0;
                 loadData[slotIndex] = point.loadPower ?? point.load ?? 0;
                 gridData[slotIndex] = point.gridPower ?? point.grid ?? 0;
                 
                 // Track last slot with any actual data (non-zero)
                 const pv = point.pvPower ?? point.pv ?? 0;
-                const bat = point.batteryPower ?? point.battery ?? 0;
+                const bat = point.batteryPower ?? point.bat ?? point.battery ?? 0;
                 const load = point.loadPower ?? point.load ?? 0;
                 const grid = point.gridPower ?? point.grid ?? 0;
                 const hasData = (pv > 0) || (bat !== 0) || (load > 0) || (grid > 0);
@@ -1404,8 +1408,9 @@ document.addEventListener('DOMContentLoaded', function () {
         // Update peak stats from Cloud data (timeline format)
         const filteredTimeline = timeline.filter((point, index) => {
             let slotIndex;
-            if (point.time && point.time.includes(':') && point.time.length <= 5) {
-                const parts = point.time.split(':');
+            const timeStr = point.t || point.time;
+            if (timeStr && timeStr.includes(':') && timeStr.length <= 5) {
+                const parts = timeStr.split(':');
                 slotIndex = parseInt(parts[0], 10) * 12 + Math.floor(parseInt(parts[1], 10) / 5);
             } else {
                 slotIndex = index;
@@ -1427,24 +1432,29 @@ document.addEventListener('DOMContentLoaded', function () {
         let maxLoad = 0, maxLoadTime = '--:--';
         let maxGrid = 0, maxGridTime = '--:--';
         
-        // Format time: handle both "HH:mm" and ISO formats
-        const getTimeStr = (timeValue) => {
-            if (!timeValue) return '--:--';
-            // If already in "HH:mm" format
-            if (timeValue.includes(':') && timeValue.length <= 5) {
-                return timeValue;
+        // Format time: handle "t" (HH:mm), "time" (ISO or HH:mm)
+        const getTimeStr = (point) => {
+            // Worker format: point.t = "HH:mm"
+            if (point.t) return point.t;
+            // Legacy format: point.time
+            if (!point.time) return '--:--';
+            if (point.time.includes(':') && point.time.length <= 5) {
+                return point.time;
             }
-            // Legacy ISO format
-            const d = new Date(timeValue);
+            // ISO format
+            const d = new Date(point.time);
             return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         };
         
         timeline.forEach(point => {
-            const timeStr = getTimeStr(point.time);
+            const timeStr = getTimeStr(point);
             
-            // Support both old format (pv, battery, load, grid) and Railway format (pvPower, batteryPower, etc.)
+            // Support multiple API formats:
+            // - Worker: { t, pv, bat, load, grid, backup }
+            // - Railway: { time, pvPower, batteryPower, loadPower, gridPower }
+            // - Legacy: { time, pv, battery, load, grid }
             const pv = point.pvPower ?? point.pv ?? 0;
-            const battery = point.batteryPower ?? point.battery ?? 0;
+            const battery = point.batteryPower ?? point.bat ?? point.battery ?? 0;
             const load = point.loadPower ?? point.load ?? 0;
             const grid = point.gridPower ?? point.grid ?? 0;
             
