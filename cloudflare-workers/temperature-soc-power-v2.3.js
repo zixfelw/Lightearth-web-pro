@@ -407,6 +407,7 @@ function calculateTieredPrice(kWh, vatRate = 0.08) {
 
 // Get yearly energy totals from Home Assistant _pv_year sensor attributes
 // Sensor: sensor.device_{deviceId}_pv_year contains ALL monthly data in attributes
+// Only need 3 arrays: monthly_total_load, monthly_grid, monthly_essential
 async function getYearlyEnergyData(deviceId) {
   const deviceLower = deviceId.toLowerCase();
   
@@ -421,46 +422,28 @@ async function getYearlyEnergyData(deviceId) {
     const attrs = pvYearSensor.attributes;
     const year = attrs.year || new Date().getFullYear();
     
-    // Extract monthly arrays (index 0-11 = month 1-12)
-    const monthlyPv = attrs.monthly_pv || [];
-    const monthlyGrid = attrs.monthly_grid || [];
-    const monthlyLoad = attrs.monthly_load || [];
-    const monthlyEssential = attrs.monthly_essential || [];
+    // Only need 3 arrays for Solar Dashboard calculation
     const monthlyTotalLoad = attrs.monthly_total_load || [];
-    const monthlyCharge = attrs.monthly_charge || [];
-    const monthlyDischarge = attrs.monthly_discharge || [];
-    const monthlySavedKwh = attrs.monthly_saved_kwh || [];
-    const monthlySavingsVnd = attrs.monthly_savings_vnd || [];
+    const monthlyGrid = attrs.monthly_grid || [];
+    const monthlyEssential = attrs.monthly_essential || [];
     
     const monthlyData = [];
     
     // Build monthly data array (only months with data)
     for (let i = 0; i < 12; i++) {
-      const pv = monthlyPv[i] || 0;
-      const load = monthlyLoad[i] || 0;
+      const totalLoad = monthlyTotalLoad[i] || 0;
       const grid = monthlyGrid[i] || 0;
       const essential = monthlyEssential[i] || 0;
-      const totalLoad = monthlyTotalLoad[i] || 0;
-      const charge = monthlyCharge[i] || 0;
-      const discharge = monthlyDischarge[i] || 0;
-      const savedKwh = monthlySavedKwh[i] || 0;
-      const savingsVnd = monthlySavingsVnd[i] || 0;
       
       // Only include months with actual data
-      if (pv > 0 || load > 0 || grid > 0 || totalLoad > 0) {
+      if (totalLoad > 0 || grid > 0) {
         const monthNumber = i + 1;
         monthlyData.push({
           month: `${year}-${monthNumber.toString().padStart(2, '0')}`,
           monthNumber,
-          pv: Math.round(pv * 10) / 10,
-          grid: Math.round(grid * 10) / 10,
-          load: Math.round(load * 10) / 10,
-          essential: Math.round(essential * 10) / 10,
           totalLoad: Math.round(totalLoad * 10) / 10,
-          charge: Math.round(charge * 10) / 10,
-          discharge: Math.round(discharge * 10) / 10,
-          savedKwh: Math.round(savedKwh * 10) / 10,
-          savingsVnd: Math.round(savingsVnd)
+          grid: Math.round(grid * 10) / 10,
+          essential: Math.round(essential * 10) / 10
         });
       }
     }
@@ -473,6 +456,7 @@ async function getYearlyEnergyData(deviceId) {
 }
 
 // Calculate Solar Dashboard summary (same logic as Railway SolarDataSyncService)
+// Uses only: monthly_total_load, monthly_grid, monthly_essential
 async function getSolarDashboard(deviceId) {
   const deviceUpper = deviceId.toUpperCase();
   
@@ -496,18 +480,18 @@ async function getSolarDashboard(deviceId) {
   let totalCostWithoutSolar = 0;
   let monthsWithData = 0;
   
-  // Calculate for each month
+  // Calculate for each month using: totalLoad, grid, essential
   for (const month of yearlyData.months) {
-    const load = month.load || 0;
-    const grid = month.grid || 0;
-    const essential = month.essential || 0;
+    const totalLoadMonth = month.totalLoad || 0;  // monthly_total_load
+    const grid = month.grid || 0;                  // monthly_grid
+    const essential = month.essential || 0;        // monthly_essential
     
-    if (load <= 0 && grid <= 0 && essential <= 0) continue;
+    if (totalLoadMonth <= 0 && grid <= 0) continue;
     
     monthsWithData++;
     
-    // Total consumption = Load + Essential (backup load)
-    const totalConsumption = load + essential;
+    // Total consumption = totalLoad (already includes essential in HA sensor)
+    const totalConsumption = totalLoadMonth;
     
     // Solar produced = Total consumption - Grid
     const solarProduced = Math.max(0, totalConsumption - grid);
@@ -522,7 +506,7 @@ async function getSolarDashboard(deviceId) {
     const savings = costWithoutSolar - gridCost;
     
     totalSavings += savings;
-    totalLoad += load;
+    totalLoad += totalLoadMonth;
     totalSolarProduced += solarProduced;
     totalGrid += grid;
     totalCostWithoutSolar += costWithoutSolar;
