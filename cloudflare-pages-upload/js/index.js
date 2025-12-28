@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13235 - Use Railway APIs only (removed timeout-prone lesvr.suntcn.com fallback)
+ * Version: 13250 - Power History + backup data support
  * 
  * Features:
  * - Real-time data via SignalR
@@ -13,11 +13,12 @@
  */
 
 // Global constants - defined outside DOMContentLoaded to avoid TDZ issues
-// Cloudflare Worker API - FREE, direct to HA (no Railway egress cost)
+// Cloudflare Worker APIs - FREE, direct to HA (ZERO Railway egress cost)
 const CLOUDFLARE_WORKER_API = 'https://lightearth.applike098.workers.dev';
-// Railway APIs - for endpoints not yet on Worker
-const SOC_API_PRIMARY = window.location.origin + '/api/realtime/soc-history';  // From HA via Cloudflare Tunnel
-const POWER_HISTORY_API = window.location.origin + '/api/realtime/power-history';  // PowerHistoryCollector
+const CLOUDFLARE_WORKER_TSP = 'https://temperature-soc-power.applike098.workers.dev';  // Temperature, SOC, Power history
+// Railway APIs - fallback only
+const SOC_API_PRIMARY = CLOUDFLARE_WORKER_TSP + '/api/realtime/soc-history';  // FREE via Cloudflare Worker
+const POWER_HISTORY_API = CLOUDFLARE_WORKER_TSP + '/api/realtime/power-history';  // FREE via Cloudflare Worker
 
 // ========================================
 // GLOBAL FUNCTIONS - Available immediately for onclick handlers
@@ -161,21 +162,23 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
     
-    // ALL APIs now use Railway - NO Cloudflare Worker
-    // This prevents tunnel spam and HA overload
+    // APIs use Cloudflare Workers for FREE (ZERO Railway egress)
+    // Temperature, SOC, Power history -> temperature-soc-power Worker -> HA direct
+    // Realtime device data -> lightearth Worker -> HA direct
     const LIGHTEARTH_API = {
         get base() { return currentOrigin; },
         // REMOVED: bat, pv, other - these timeout because Railway cannot reach lesvr.suntcn.com
-        // Monthly/Yearly data (still needed for statistics)
+        // Monthly/Yearly data (still on Railway - low frequency)
         month: (deviceId) => `${currentOrigin}/api/month/${deviceId}`,
         year: (deviceId) => `${currentOrigin}/api/year/${deviceId}`,
         historyYear: (deviceId) => `${currentOrigin}/api/history-year/${deviceId}`,
-        // Cloud endpoints (all on Railway now)
-        cloudPowerHistory: (deviceId, date) => `${currentOrigin}/api/realtime/power-history/${deviceId}?date=${date}`,
-        cloudSocHistory: (deviceId, date) => `${currentOrigin}/api/realtime/soc-history/${deviceId}?date=${date}`,
+        // Cloud endpoints - FREE via Cloudflare Workers (ZERO Railway egress)
+        cloudPowerHistory: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/realtime/power-history/${deviceId}?date=${date}`,
+        cloudSocHistory: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/realtime/soc-history/${deviceId}?date=${date}`,
+        cloudTemperature: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/cloud/temperature/${deviceId}/${date}`,
+        // These still use Railway (low frequency, not worth separate worker)
         cloudStates: (deviceId) => `${currentOrigin}/api/cloud/states/${deviceId}`,
-        cloudDeviceInfo: (deviceId) => `${currentOrigin}/api/cloud/device-info/${deviceId}`,
-        cloudTemperature: (deviceId, date) => `${currentOrigin}/api/cloud/temperature/${deviceId}/${date}`
+        cloudDeviceInfo: (deviceId) => `${currentOrigin}/api/cloud/device-info/${deviceId}`
     };
     
     // Simplified - no more proxy switching needed
@@ -664,6 +667,10 @@ document.addEventListener('DOMContentLoaded', function () {
             }
             
             const data = await response.json();
+            console.log('🔍 RAW API Response:', JSON.stringify(data).substring(0, 500));
+            console.log('🔍 data.deviceData exists:', data.deviceData !== undefined);
+            console.log('🔍 data.deviceData?.battery:', data.deviceData?.battery);
+            console.log('🔍 data.deviceData?.battery?.cells:', data.deviceData?.battery?.cells);
             if (data.error) return;
             
             // Check if device not found in LightEarth Cloud
@@ -683,8 +690,10 @@ document.addEventListener('DOMContentLoaded', function () {
             let displayData, cellsData;
             
             if (isNewFormat) {
-                // New format from Cloud API
+                // New format from Cloud API (Cloudflare Worker v3.7)
                 const dd = data.deviceData || {};
+                console.log('🔍 [v13245] dd.battery:', dd.battery);
+                console.log('🔍 [v13245] dd.battery?.cells:', dd.battery?.cells);
                 displayData = {
                     pvTotalPower: dd.pv?.totalPower || 0,
                     pv1Power: dd.pv?.pv1Power || 0,
@@ -697,14 +706,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     batteryValue: dd.battery?.power || 0,
                     batteryVoltage: dd.battery?.voltage || 0,
                     batteryStatus: dd.battery?.status || 'Idle',
-                    deviceTempValue: dd.system?.temperature || 0,
+                    deviceTempValue: dd.temperature || dd.system?.temperature || 0,
                     essentialValue: dd.acOutput?.power || 0,
-                    loadValue: dd.load?.power || 0,
+                    loadValue: dd.load?.homePower || dd.load?.power || 0,
                     inverterAcOutPower: dd.acOutput?.power || 0
                 };
-                cellsData = data.batteryCells;
-                console.log('📊 Using Cloud format', displayData);
-                console.log('🔋 batteryCells from API:', data.batteryCells);
+                // Battery cells data from Worker v3.7: deviceData.battery.cells
+                cellsData = dd.battery?.cells || data.batteryCells;
+                console.log('📊 [v13245] Using Cloud format (Worker v3.7)', displayData);
+                console.log('🔋 [v13245] batteryCells from API:', cellsData);
             } else if (data.data) {
                 // Legacy format from API
                 displayData = {
@@ -738,37 +748,63 @@ document.addEventListener('DOMContentLoaded', function () {
             
             // Update battery cell voltages
             console.log('🔋 CellsData received:', cellsData ? 'YES' : 'NO');
-            console.log('🔋 CellsData.cellVoltages:', cellsData?.cellVoltages);
-            if (cellsData && cellsData.cellVoltages) {
-                console.log('✅ Processing cell voltages...');
-                let cellVoltages = [];
-                const rawVoltages = cellsData.cellVoltages;
-                
-                // Handle Array format: [3.413, 3.379, ...]
-                if (Array.isArray(rawVoltages)) {
-                    cellVoltages = rawVoltages;
-                } 
-                // Handle Object format: {"Cell 01": 3.223, ...}
-                else if (typeof rawVoltages === 'object') {
-                    const cellNames = Object.keys(rawVoltages).sort((a, b) => 
-                        parseInt(a.replace(/\D/g, '')) - parseInt(b.replace(/\D/g, ''))
-                    );
-                    cellNames.forEach(cellName => {
-                        cellVoltages.push(rawVoltages[cellName]);
+            console.log('🔋 CellsData structure:', cellsData);
+            
+            // Handle multiple cell data formats
+            let cellVoltages = [];
+            let maxVoltage = 0, minVoltage = 0, avgVoltage = 0;
+            
+            if (cellsData) {
+                // Format 1: Worker v3.7 - {num, avg, min, max, diff, cells: {c_01: 3.181, ...}}
+                if (cellsData.cells && typeof cellsData.cells === 'object' && !Array.isArray(cellsData.cells)) {
+                    console.log('✅ Processing Worker v3.7 format (cells object)');
+                    console.log('🔋 Raw cellsData.cells:', JSON.stringify(cellsData.cells));
+                    const cellKeys = Object.keys(cellsData.cells).sort((a, b) => {
+                        const numA = parseInt(a.replace(/\D/g, ''));
+                        const numB = parseInt(b.replace(/\D/g, ''));
+                        return numA - numB;
                     });
+                    console.log('🔋 Sorted cellKeys:', cellKeys);
+                    cellKeys.forEach((key, index) => {
+                        const voltage = cellsData.cells[key];
+                        cellVoltages.push(voltage);
+                        console.log(`🔋 Cell ${index + 1} (${key}): ${voltage}V`);
+                    });
+                    maxVoltage = cellsData.max || 0;
+                    minVoltage = cellsData.min || 0;
+                    avgVoltage = cellsData.avg || 0;
+                    console.log('🔋 Final cellVoltages array:', cellVoltages);
+                }
+                // Format 2: Legacy - {cellVoltages: [3.413, 3.379, ...]}
+                else if (cellsData.cellVoltages) {
+                    console.log('✅ Processing Legacy format (cellVoltages array)');
+                    const rawVoltages = cellsData.cellVoltages;
+                    if (Array.isArray(rawVoltages)) {
+                        cellVoltages = rawVoltages;
+                    } else if (typeof rawVoltages === 'object') {
+                        const cellNames = Object.keys(rawVoltages).sort((a, b) => 
+                            parseInt(a.replace(/\D/g, '')) - parseInt(b.replace(/\D/g, ''))
+                        );
+                        cellNames.forEach(cellName => {
+                            cellVoltages.push(rawVoltages[cellName]);
+                        });
+                    }
+                    maxVoltage = cellsData.maximumVoltage || 0;
+                    minVoltage = cellsData.minimumVoltage || 0;
+                    avgVoltage = cellsData.averageVoltage || 0;
                 }
                 
                 if (cellVoltages.length > 0) {
                     const validVoltages = cellVoltages.filter(v => v > 0);
                     const cellData = {
                         cells: cellVoltages,
-                        maximumVoltage: cellsData.maximumVoltage || Math.max(...validVoltages, 0),
-                        minimumVoltage: cellsData.minimumVoltage || Math.min(...validVoltages.filter(v => v > 0), 0),
-                        averageVoltage: cellsData.averageVoltage || (validVoltages.length > 0 ? validVoltages.reduce((a, b) => a + b, 0) / validVoltages.length : 0),
+                        maximumVoltage: maxVoltage || Math.max(...validVoltages, 0),
+                        minimumVoltage: minVoltage || Math.min(...validVoltages.filter(v => v > 0), 0),
+                        averageVoltage: avgVoltage || (validVoltages.length > 0 ? validVoltages.reduce((a, b) => a + b, 0) / validVoltages.length : 0),
                         numberOfCells: cellVoltages.length
                     };
                     updateBatteryCellDisplay(cellData);
-                    console.log(`📊 Cell voltages updated: ${cellVoltages.length} cells`);
+                    console.log(`📊 Cell voltages updated: ${cellVoltages.length} cells`, cellData);
                 }
             }
             
@@ -1152,12 +1188,19 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // Convert Railway Power History data to chart format (288 points for 5-minute intervals)
+    // Data mapping:
+    // - pv: Sản lượng PV (pv_power)
+    // - load: Tiêu Thụ (load_power)
+    // - bat: Nạp Pin (bat > 0) / Xả Pin (bat < 0)
+    // - grid: Xài Điện EVN (grid_power)
+    // - backup: Điện dự phòng (ac_output_power)
     function convertRailwayPowerToChartData(timeline) {
         // Create 288 slots for each 5-minute interval (00:00 to 23:55)
         const pvData = new Array(288).fill(0);
         const batData = new Array(288).fill(0);
         const loadData = new Array(288).fill(0);
         const gridData = new Array(288).fill(0);
+        const backupData = new Array(288).fill(0);  // Điện dự phòng
         
         // Fill in data from timeline
         timeline.forEach(point => {
@@ -1173,6 +1216,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     batData[slotIndex] = point.bat || 0;
                     loadData[slotIndex] = point.load || 0;
                     gridData[slotIndex] = point.grid || 0;
+                    backupData[slotIndex] = point.backup || 0;  // Điện dự phòng
                 }
             }
         });
@@ -1182,17 +1226,18 @@ document.addEventListener('DOMContentLoaded', function () {
             if (pvData[i] === 0 && pvData[i-1] !== 0) pvData[i] = pvData[i-1];
             if (loadData[i] === 0 && loadData[i-1] !== 0) loadData[i] = loadData[i-1];
             if (gridData[i] === 0 && gridData[i-1] !== 0) gridData[i] = gridData[i-1];
+            if (backupData[i] === 0 && backupData[i-1] !== 0) backupData[i] = backupData[i-1];
             // Battery data is different - 0 is valid, so don't forward fill
         }
         
-        console.log(`📊 Converted Railway data: ${timeline.length} points -> 288 chart slots`);
+        console.log(`📊 Converted Railway data: ${timeline.length} points -> 288 chart slots (with backup)`);
         
         return {
             pv: { tableValueInfo: pvData },
             bat: { tableValueInfo: batData },
             load: { tableValueInfo: loadData },
             grid: { tableValueInfo: gridData },
-            essentialLoad: { tableValueInfo: new Array(288).fill(0) } // Not available from Cloud API
+            essentialLoad: { tableValueInfo: backupData }  // Map backup to essentialLoad for UI
         };
     }
     
