@@ -16,7 +16,7 @@
  * - backup: Điện dự phòng (ac_output_power)
  */
 
-const HA_TUNNEL_URL = 'https://planning-thrown-optimum-click.trycloudflare.com';
+const HA_TUNNEL_URL = 'https://berry-ride-responses-mia.trycloudflare.com';
 const HA_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJjODZhMjRkOTgxZGI0NzJmOTU0YWMwMjhkMWJiNDFlYyIsImlhdCI6MTc2Njg0NzEwOSwiZXhwIjoyMDgyMjA3MTA5fQ.vsw3AVrDK1eMoL9LUz-66ojZTrqycsyFFFGYTEd28ys';
 
 const VN_TIMEZONE_OFFSET = 7;
