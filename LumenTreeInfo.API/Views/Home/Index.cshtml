@@ -9,7 +9,7 @@
     <title>Giám Sát Năng Lượng Mặt Trời - LightEarth Web Pro</title>
     
     <!-- Preload critical resources -->
-    <link rel="preload" href="https://lumentree-lighearth.pages.dev/css/index.css?v=13259" as="style" crossorigin>
+    <link rel="preload" href="https://lumentree-lighearth.pages.dev/css/index.css?v=13260" as="style" crossorigin>
     <link rel="preload" href="https://lumentree-lighearth.pages.dev/logo.png" as="image">
     
     <!-- Tailwind CSS with custom config -->
@@ -2371,13 +2371,14 @@
                     document.getElementById('solarProjectSummary').classList.remove('hidden');
                 }
                 
-                // Try API first (server-synced data - works across devices)
+                // Try Cloudflare Worker API first (direct Home Assistant data)
+                const CLOUDFLARE_WORKER_TSP = 'https://temperature-soc-power.applike098.workers.dev';
                 try {
-                    const response = await fetch(`/api/solar/dashboard/${deviceId}`);
+                    const response = await fetch(`${CLOUDFLARE_WORKER_TSP}/api/solar/dashboard/${deviceId}`);
                     const result = await response.json();
                     
                     if (result.success && result.hasData) {
-                        console.log(`✅ Loaded solar summary from API (${result.source}) for ${deviceId}`);
+                        console.log(`✅ Loaded solar summary from Cloudflare Worker (${result.source}) for ${deviceId}`);
                         updateSummaryUI({
                             totalSavings: result.raw.totalSavings,
                             totalLoad: result.raw.totalLoad,
@@ -2388,10 +2389,10 @@
                         });
                         return;
                     } else {
-                        console.log(`⚠️ API returned no data for ${deviceId}, trying localStorage...`);
+                        console.log(`⚠️ Cloudflare Worker returned no data for ${deviceId}, trying localStorage...`);
                     }
                 } catch (apiError) {
-                    console.log('API not available, falling back to localStorage:', apiError.message);
+                    console.log('Cloudflare Worker not available, falling back to localStorage:', apiError.message);
                 }
                 
                 // Fallback to localStorage (for backward compatibility)
@@ -2542,12 +2543,12 @@
     
     
     <!-- CSS first for fast rendering -->
-    <link href="https://lumentree-lighearth.pages.dev/css/index.css?v=13259" rel="stylesheet" crossorigin />
+    <link href="https://lumentree-lighearth.pages.dev/css/index.css?v=13260" rel="stylesheet" crossorigin />
     
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="https://lumentree-lighearth.pages.dev/js/index.js?v=13259" defer crossorigin></script>
+    <script src="https://lumentree-lighearth.pages.dev/js/index.js?v=13260" defer crossorigin></script>
 
 </body>
 </html>

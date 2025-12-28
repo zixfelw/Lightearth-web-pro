@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13259 - Power Chart: 24h zero baseline, removed summary stats, taller 450px height
+ * Version: 13260 - Solar Dashboard uses Cloudflare Worker instead of Railway backend
  * 
  * Features:
  * - Real-time data via SignalR
