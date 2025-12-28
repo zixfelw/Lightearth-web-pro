@@ -1,5 +1,5 @@
 /**
- * Temperature-SOC-Power Worker v1.8
+ * Temperature-SOC-Power Worker v1.9
  * - Added /api/realtime/daily-energy/{deviceId} for Năng Lượng - Pin Lưu Trữ - Nguồn Điện
  * - All other endpoints from v1.7
  * - Full CORS support
@@ -199,14 +199,15 @@ async function getDailyEnergy(deviceId) {
   const today = getVietnamToday();
   
   // Get all energy-related entities from HA current state
+  // CORRECT sensor names: _today not _day!
   const entities = [
-    `sensor.device_${deviceLower}_pv_day`,           // Năng Lượng PV trong ngày (kWh)
-    `sensor.device_${deviceLower}_grid_day`,         // Tiêu thụ lưới trong ngày (kWh)
-    `sensor.device_${deviceLower}_load_day`,         // Tải tiêu thụ trong ngày (kWh)
-    `sensor.device_${deviceLower}_charge_day`,       // Pin nạp trong ngày (kWh)
-    `sensor.device_${deviceLower}_discharge_day`,    // Pin xả trong ngày (kWh)
-    `sensor.device_${deviceLower}_total_load_day`,   // Tổng tải trong ngày
-    `sensor.device_${deviceLower}_essential_load_day` // Essential load
+    `sensor.device_${deviceLower}_pv_today`,           // Năng Lượng PV trong ngày (kWh)
+    `sensor.device_${deviceLower}_grid_in_today`,      // Tiêu thụ lưới trong ngày (kWh)
+    `sensor.device_${deviceLower}_load_today`,         // Tải tiêu thụ trong ngày (kWh)
+    `sensor.device_${deviceLower}_charge_today`,       // Pin nạp trong ngày (kWh)
+    `sensor.device_${deviceLower}_discharge_today`,    // Pin xả trong ngày (kWh)
+    `sensor.device_${deviceLower}_total_load_today`,   // Tổng tải trong ngày
+    `sensor.device_${deviceLower}_essential_today`     // Essential load
   ];
   
   // Fetch current states for all entities
@@ -218,8 +219,11 @@ async function getDailyEnergy(deviceId) {
       if (state && state.state && state.state !== 'unavailable' && state.state !== 'unknown') {
         const value = parseFloat(state.state);
         if (!isNaN(value)) {
-          // Extract key name from entity_id
-          const key = entityId.split('_').slice(-2).join('_'); // e.g., "pv_day", "charge_day"
+          // Extract key name from entity_id and normalize to _day format
+          const parts = entityId.split('_');
+          // Convert _today to _day for consistency
+          let key = parts.slice(-2).join('_'); // e.g., "pv_today", "charge_today"
+          key = key.replace('_today', '_day').replace('_in_day', '_day'); // normalize
           results[key] = value;
         }
       }
@@ -236,7 +240,7 @@ async function getDailyEnergy(deviceId) {
     charge_day: results.charge_day || 0,
     discharge_day: results.discharge_day || 0,
     total_load_day: results.total_load_day || results.load_day || 0,
-    essential_day: results.essential_load_day || results.load_day || 0
+    essential_day: results.essential_day || results.load_day || 0
   };
   
   return {
@@ -264,7 +268,7 @@ export default {
       if (path === '/' || path === '') {
         return jsonResponse({
           status: 'ok',
-          version: '1.8',
+          version: '1.9',
           service: 'temperature-soc-power-proxy',
           tunnel: HA_TUNNEL_URL,
           timezone: 'UTC+7 (Vietnam)',
