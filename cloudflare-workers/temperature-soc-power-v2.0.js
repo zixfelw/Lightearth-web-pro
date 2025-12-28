@@ -1,5 +1,5 @@
 /**
- * Temperature-SOC-Power Worker v1.9
+ * Temperature-SOC-Power Worker v2.0
  * - Added /api/realtime/daily-energy/{deviceId} for Năng Lượng - Pin Lưu Trữ - Nguồn Điện
  * - All other endpoints from v1.7
  * - Full CORS support
@@ -219,12 +219,21 @@ async function getDailyEnergy(deviceId) {
       if (state && state.state && state.state !== 'unavailable' && state.state !== 'unknown') {
         const value = parseFloat(state.state);
         if (!isNaN(value)) {
-          // Extract key name from entity_id and normalize to _day format
-          const parts = entityId.split('_');
-          // Convert _today to _day for consistency
-          let key = parts.slice(-2).join('_'); // e.g., "pv_today", "charge_today"
-          key = key.replace('_today', '_day').replace('_in_day', '_day'); // normalize
-          results[key] = value;
+          // Map entity_id to correct key name
+          // sensor.device_xxx_pv_today -> pv_day
+          // sensor.device_xxx_grid_in_today -> grid_day
+          // sensor.device_xxx_load_today -> load_day
+          // etc.
+          let key = '';
+          if (entityId.includes('_pv_today')) key = 'pv_day';
+          else if (entityId.includes('_grid_in_today')) key = 'grid_day';
+          else if (entityId.includes('_load_today') && !entityId.includes('total')) key = 'load_day';
+          else if (entityId.includes('_charge_today')) key = 'charge_day';
+          else if (entityId.includes('_discharge_today')) key = 'discharge_day';
+          else if (entityId.includes('_total_load_today')) key = 'total_load_day';
+          else if (entityId.includes('_essential_today')) key = 'essential_day';
+          
+          if (key) results[key] = value;
         }
       }
     } catch (e) {
@@ -268,7 +277,7 @@ export default {
       if (path === '/' || path === '') {
         return jsonResponse({
           status: 'ok',
-          version: '1.9',
+          version: '2.0',
           service: 'temperature-soc-power-proxy',
           tunnel: HA_TUNNEL_URL,
           timezone: 'UTC+7 (Vietnam)',

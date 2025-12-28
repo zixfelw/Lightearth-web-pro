@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13251 - Fixed SOC data format (time/value)
+ * Version: 13252 - Worker v2.0 daily-energy support
  * 
  * Features:
  * - Real-time data via SignalR
