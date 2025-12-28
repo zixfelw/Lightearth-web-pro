@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13250 - Power History + backup data support
+ * Version: 13251 - Fixed SOC data format (time/value)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1930,8 +1930,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         
         // Prepare data
-        const labels = socData.map(d => d.t);
-        const values = socData.map(d => d.soc);
+        // API returns {time, value} format - convert to chart format
+        const labels = socData.map(d => {
+            if (d.t) return d.t;  // Already formatted
+            if (d.time) {
+                const date = new Date(d.time);
+                return date.toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'});
+            }
+            return '';
+        });
+        const values = socData.map(d => d.soc !== undefined ? d.soc : (d.value !== undefined ? d.value : 0));
         
         // Calculate stats
         const maxSOC = Math.max(...values);
@@ -1974,8 +1982,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!item) return;
                 
                 // Update tooltip content - only time and SOC
-                document.getElementById('soc-tooltip-time').textContent = `⏰ ${item.t}`;
-                document.getElementById('soc-tooltip-soc').textContent = `🔋 ${item.soc}%`;
+                const timeStr = item.t || (item.time ? new Date(item.time).toLocaleTimeString('vi-VN', {hour: '2-digit', minute: '2-digit'}) : '');
+                const socValue = item.soc !== undefined ? item.soc : (item.value !== undefined ? item.value : 0);
+                document.getElementById('soc-tooltip-time').textContent = `⏰ ${timeStr}`;
+                document.getElementById('soc-tooltip-soc').textContent = `🔋 ${socValue}%`;
                 
                 // Position using caretX/caretY (zoom-proof)
                 const chartArea = chart.chartArea;
