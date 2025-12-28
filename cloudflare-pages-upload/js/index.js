@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13252 - Worker v2.0 daily-energy support
+ * Version: 13253 - Fixed 0 value handling for daily-energy
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1005,13 +1005,14 @@ document.addEventListener('DOMContentLoaded', function () {
             
             if (data.success && data.summary) {
                 const summary = data.summary;
+                // Use !== undefined to handle 0 values correctly
                 const cacheData = {
-                    pvDay: summary.pv_day || 0,
-                    chargeDay: summary.charge_day || 0,
-                    dischargeDay: summary.discharge_day || 0,
-                    loadDay: summary.total_load_day || summary.load_day || 0,
-                    gridDay: summary.grid_day || 0,
-                    essentialDay: summary.essential_day || 0
+                    pvDay: summary.pv_day !== undefined ? summary.pv_day : 0,
+                    chargeDay: summary.charge_day !== undefined ? summary.charge_day : 0,
+                    dischargeDay: summary.discharge_day !== undefined ? summary.discharge_day : 0,
+                    loadDay: summary.total_load_day !== undefined ? summary.total_load_day : (summary.load_day || 0),
+                    gridDay: summary.grid_day !== undefined ? summary.grid_day : 0,
+                    essentialDay: summary.essential_day !== undefined ? summary.essential_day : 0
                 };
                 
                 // Cache the data
@@ -1080,13 +1081,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     
                     if (haData.success && haData.summary) {
                         const summary = haData.summary;
+                        // Use !== undefined to handle 0 values correctly
                         const cacheData = {
-                            pvDay: summary.pv_day || 0,
-                            chargeDay: summary.charge_day || 0,
-                            dischargeDay: summary.discharge_day || 0,
-                            loadDay: summary.total_load_day || summary.load_day || 0,
-                            gridDay: summary.grid_day || 0,
-                            essentialDay: summary.essential_day || 0
+                            pvDay: summary.pv_day !== undefined ? summary.pv_day : 0,
+                            chargeDay: summary.charge_day !== undefined ? summary.charge_day : 0,
+                            dischargeDay: summary.discharge_day !== undefined ? summary.discharge_day : 0,
+                            loadDay: summary.total_load_day !== undefined ? summary.total_load_day : (summary.load_day || 0),
+                            gridDay: summary.grid_day !== undefined ? summary.grid_day : 0,
+                            essentialDay: summary.essential_day !== undefined ? summary.essential_day : 0
                         };
                         
                         // Cache and update
