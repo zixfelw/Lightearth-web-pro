@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13253 - Fixed 0 value handling for daily-energy
+ * Version: 13254 - Support both lightearth & temperature-soc-power API formats
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1003,16 +1003,21 @@ document.addEventListener('DOMContentLoaded', function () {
             const data = await response.json();
             console.log('📥 [Daily Energy] Response:', data);
             
-            if (data.success && data.summary) {
-                const summary = data.summary;
+            // Support both API formats:
+            // 1. lightearth worker: data.today { pv, load, gridIn, charge, discharge, essential }
+            // 2. temperature-soc-power worker: data.summary { pv_day, load_day, grid_day, charge_day, discharge_day, essential_day }
+            const source = data.today || data.summary;
+            
+            if (data.success && source) {
                 // Use !== undefined to handle 0 values correctly
+                // Map both formats to unified cacheData
                 const cacheData = {
-                    pvDay: summary.pv_day !== undefined ? summary.pv_day : 0,
-                    chargeDay: summary.charge_day !== undefined ? summary.charge_day : 0,
-                    dischargeDay: summary.discharge_day !== undefined ? summary.discharge_day : 0,
-                    loadDay: summary.total_load_day !== undefined ? summary.total_load_day : (summary.load_day || 0),
-                    gridDay: summary.grid_day !== undefined ? summary.grid_day : 0,
-                    essentialDay: summary.essential_day !== undefined ? summary.essential_day : 0
+                    pvDay: source.pv !== undefined ? source.pv : (source.pv_day !== undefined ? source.pv_day : 0),
+                    chargeDay: source.charge !== undefined ? source.charge : (source.charge_day !== undefined ? source.charge_day : 0),
+                    dischargeDay: source.discharge !== undefined ? source.discharge : (source.discharge_day !== undefined ? source.discharge_day : 0),
+                    loadDay: source.load !== undefined ? source.load : (source.total_load_day !== undefined ? source.total_load_day : (source.load_day || 0)),
+                    gridDay: source.gridIn !== undefined ? source.gridIn : (source.grid_day !== undefined ? source.grid_day : 0),
+                    essentialDay: source.essential !== undefined ? source.essential : (source.essential_day !== undefined ? source.essential_day : 0)
                 };
                 
                 // Cache the data
@@ -1079,16 +1084,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (haResponse.ok) {
                     const haData = await haResponse.json();
                     
-                    if (haData.success && haData.summary) {
-                        const summary = haData.summary;
+                    // Support both API formats (same as fetchRealtimeDataForSummary)
+                    const source = haData.today || haData.summary;
+                    
+                    if (haData.success && source) {
                         // Use !== undefined to handle 0 values correctly
                         const cacheData = {
-                            pvDay: summary.pv_day !== undefined ? summary.pv_day : 0,
-                            chargeDay: summary.charge_day !== undefined ? summary.charge_day : 0,
-                            dischargeDay: summary.discharge_day !== undefined ? summary.discharge_day : 0,
-                            loadDay: summary.total_load_day !== undefined ? summary.total_load_day : (summary.load_day || 0),
-                            gridDay: summary.grid_day !== undefined ? summary.grid_day : 0,
-                            essentialDay: summary.essential_day !== undefined ? summary.essential_day : 0
+                            pvDay: source.pv !== undefined ? source.pv : (source.pv_day !== undefined ? source.pv_day : 0),
+                            chargeDay: source.charge !== undefined ? source.charge : (source.charge_day !== undefined ? source.charge_day : 0),
+                            dischargeDay: source.discharge !== undefined ? source.discharge : (source.discharge_day !== undefined ? source.discharge_day : 0),
+                            loadDay: source.load !== undefined ? source.load : (source.total_load_day !== undefined ? source.total_load_day : (source.load_day || 0)),
+                            gridDay: source.gridIn !== undefined ? source.gridIn : (source.grid_day !== undefined ? source.grid_day : 0),
+                            essentialDay: source.essential !== undefined ? source.essential : (source.essential_day !== undefined ? source.essential_day : 0)
                         };
                         
                         // Cache and update
