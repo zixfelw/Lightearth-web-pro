@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13262 - Solar Dashboard uses Cloudflare Worker instead of Railway backend
+ * Version: 13263 - Fallback APIs with 10s polling when using backup endpoints
  * 
  * Features:
  * - Real-time data via SignalR
@@ -10,15 +10,58 @@
  * - Energy flow visualization
  * - Chart.js visualizations
  * - Mobile optimized interface
+ * - Fallback API support with automatic failover
  */
 
 // Global constants - defined outside DOMContentLoaded to avoid TDZ issues
-// Cloudflare Worker APIs - FREE, direct to HA (ZERO Railway egress cost)
+// PRIMARY Cloudflare Worker APIs - FREE, direct to HA (ZERO Railway egress cost)
 const CLOUDFLARE_WORKER_API = 'https://lightearth.applike098.workers.dev';
-const CLOUDFLARE_WORKER_TSP = 'https://temperature-soc-power.applike098.workers.dev';  // Temperature, SOC, Power history
-// Railway APIs - fallback only
-const SOC_API_PRIMARY = CLOUDFLARE_WORKER_TSP + '/api/realtime/soc-history';  // FREE via Cloudflare Worker
-const POWER_HISTORY_API = CLOUDFLARE_WORKER_TSP + '/api/realtime/power-history';  // FREE via Cloudflare Worker
+const CLOUDFLARE_WORKER_TSP = 'https://temperature-soc-power.applike098.workers.dev';
+
+// FALLBACK Cloudflare Worker APIs - Use when primary fails (polling 10s instead of 5s)
+const FALLBACK_WORKER_API = 'https://lightearth-proxy.minhlongt358.workers.dev';
+const FALLBACK_WORKER_TSP = 'https://temperature-soc-power.minhlongt358.workers.dev';
+
+// API State Management
+let usingFallbackAPI = false;
+let primaryAPIFailCount = 0;
+const MAX_PRIMARY_FAILS = 3;  // Switch to fallback after 3 consecutive failures
+const POLLING_INTERVAL_PRIMARY = 5000;  // 5 seconds for primary API
+const POLLING_INTERVAL_FALLBACK = 10000;  // 10 seconds for fallback API
+
+// Get current API endpoints based on fallback state
+function getCurrentWorkerAPI() {
+    return usingFallbackAPI ? FALLBACK_WORKER_API : CLOUDFLARE_WORKER_API;
+}
+
+function getCurrentWorkerTSP() {
+    return usingFallbackAPI ? FALLBACK_WORKER_TSP : CLOUDFLARE_WORKER_TSP;
+}
+
+function getCurrentPollingInterval() {
+    return usingFallbackAPI ? POLLING_INTERVAL_FALLBACK : POLLING_INTERVAL_PRIMARY;
+}
+
+// Switch to fallback API
+function switchToFallbackAPI() {
+    if (!usingFallbackAPI) {
+        usingFallbackAPI = true;
+        console.warn('⚠️ Switching to FALLBACK API (polling interval: 10s)');
+        console.log('🔄 Fallback endpoints:', FALLBACK_WORKER_API, FALLBACK_WORKER_TSP);
+    }
+}
+
+// Try to switch back to primary API
+function tryPrimaryAPI() {
+    if (usingFallbackAPI) {
+        console.log('🔄 Trying to switch back to PRIMARY API...');
+        usingFallbackAPI = false;
+        primaryAPIFailCount = 0;
+    }
+}
+
+// Note: SOC and Power History APIs now use getCurrentWorkerTSP() for fallback support
+// See getSocApiUrl() and getPowerHistoryApiUrl() functions
 
 // ========================================
 // GLOBAL FUNCTIONS - Available immediately for onclick handlers
@@ -173,9 +216,11 @@ document.addEventListener('DOMContentLoaded', function () {
         year: (deviceId) => `${currentOrigin}/api/year/${deviceId}`,
         historyYear: (deviceId) => `${currentOrigin}/api/history-year/${deviceId}`,
         // Cloud endpoints - FREE via Cloudflare Workers (ZERO Railway egress)
-        cloudPowerHistory: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/realtime/power-history/${deviceId}?date=${date}`,
-        cloudSocHistory: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/realtime/soc-history/${deviceId}?date=${date}`,
-        cloudTemperature: (deviceId, date) => `${CLOUDFLARE_WORKER_TSP}/api/cloud/temperature/${deviceId}/${date}`,
+        // Uses getCurrentWorkerTSP() for automatic fallback support
+        cloudPowerHistory: (deviceId, date) => `${getCurrentWorkerTSP()}/api/realtime/power-history/${deviceId}?date=${date}`,
+        cloudSocHistory: (deviceId, date) => `${getCurrentWorkerTSP()}/api/realtime/soc-history/${deviceId}?date=${date}`,
+        cloudTemperature: (deviceId, date) => `${getCurrentWorkerTSP()}/api/cloud/temperature/${deviceId}/${date}`,
+        cloudPowerPeak: (deviceId, date) => `${getCurrentWorkerTSP()}/api/realtime/power-peak/${deviceId}?date=${date}`,
         // These still use Railway (low frequency, not worth separate worker)
         cloudStates: (deviceId) => `${currentOrigin}/api/cloud/states/${deviceId}`,
         cloudDeviceInfo: (deviceId) => `${currentOrigin}/api/cloud/device-info/${deviceId}`
@@ -306,12 +351,21 @@ document.addEventListener('DOMContentLoaded', function () {
     
     function getRealtimeApiUrl(deviceId) {
         // Use Cloudflare Worker for realtime API - 100% FREE (no Railway egress)
-        return `${CLOUDFLARE_WORKER_API}/api/realtime/device/${deviceId}`;
+        // Automatically use fallback API if primary fails
+        const baseUrl = getCurrentWorkerAPI();
+        return `${baseUrl}/api/realtime/device/${deviceId}`;
     }
     
-    // SOC API URL - Use Railway API (from HA via Cloudflare Tunnel)
+    // SOC API URL - Use Cloudflare Worker (with fallback support)
     function getSocApiUrl(deviceId, date) {
-        return `${SOC_API_PRIMARY}/${deviceId}?date=${date}`;
+        const baseUrl = getCurrentWorkerTSP();
+        return `${baseUrl}/api/realtime/soc-history/${deviceId}?date=${date}`;
+    }
+    
+    // Power History API URL (with fallback support)
+    function getPowerHistoryApiUrl(deviceId, date) {
+        const baseUrl = getCurrentWorkerTSP();
+        return `${baseUrl}/api/realtime/power-history/${deviceId}?date=${date}`;
     }
     
     // Store previous values for blink detection
@@ -636,16 +690,31 @@ document.addEventListener('DOMContentLoaded', function () {
             clearInterval(realtimePollingInterval);
         }
         
-        console.log(`🔄 Starting realtime polling for device: ${deviceId} (every 5 seconds)`);
+        const pollingInterval = getCurrentPollingInterval();
+        const apiType = usingFallbackAPI ? 'FALLBACK' : 'PRIMARY';
+        console.log(`🔄 Starting realtime polling for device: ${deviceId} (every ${pollingInterval/1000}s - ${apiType} API)`);
         
         // Fetch immediately
         fetchRealtimeData(deviceId);
         
-        // Poll every 5 seconds for real-time updates
-        // Reduced from 3s to 5s to minimize API requests and egress costs
+        // Poll based on current API state
+        // Primary: 5 seconds, Fallback: 10 seconds
         realtimePollingInterval = setInterval(() => {
             fetchRealtimeData(deviceId);
-        }, 5000);
+        }, pollingInterval);
+    }
+    
+    // Restart polling with new interval (when switching between primary/fallback)
+    function restartPollingWithNewInterval(deviceId) {
+        if (realtimePollingInterval) {
+            clearInterval(realtimePollingInterval);
+            const pollingInterval = getCurrentPollingInterval();
+            const apiType = usingFallbackAPI ? 'FALLBACK' : 'PRIMARY';
+            console.log(`🔄 Restarting polling (${pollingInterval/1000}s - ${apiType} API)`);
+            realtimePollingInterval = setInterval(() => {
+                fetchRealtimeData(deviceId);
+            }, pollingInterval);
+        }
     }
     
     function stopRealtimePolling() {
@@ -657,13 +726,41 @@ document.addEventListener('DOMContentLoaded', function () {
     
     async function fetchRealtimeData(deviceId) {
         try {
-            // Use configured API source
+            // Use configured API source (with fallback support)
             const apiUrl = getRealtimeApiUrl(deviceId);
-            console.log(`📡 Fetching from ${API_SOURCES[currentApiSource].name}:`, apiUrl);
-            const response = await fetch(apiUrl);
+            const apiType = usingFallbackAPI ? 'FALLBACK' : 'PRIMARY';
+            console.log(`📡 Fetching from ${apiType} API:`, apiUrl);
+            
+            const response = await fetch(apiUrl, { timeout: 8000 });
+            
             if (!response.ok) {
                 console.error(`❌ API error ${response.status}: ${response.statusText} for ${apiUrl}`);
+                
+                // Track failures for primary API
+                if (!usingFallbackAPI) {
+                    primaryAPIFailCount++;
+                    console.warn(`⚠️ Primary API fail count: ${primaryAPIFailCount}/${MAX_PRIMARY_FAILS}`);
+                    
+                    if (primaryAPIFailCount >= MAX_PRIMARY_FAILS) {
+                        switchToFallbackAPI();
+                        restartPollingWithNewInterval(deviceId);
+                        // Retry immediately with fallback
+                        return fetchRealtimeData(deviceId);
+                    }
+                }
                 return;
+            }
+            
+            // Success - reset fail count and try primary if using fallback
+            if (!usingFallbackAPI) {
+                primaryAPIFailCount = 0;
+            } else {
+                // Every 5 minutes, try switching back to primary
+                if (Math.random() < 0.03) {  // ~3% chance per request = ~once per 5 min at 10s interval
+                    console.log('🔄 Testing primary API availability...');
+                    tryPrimaryAPI();
+                    restartPollingWithNewInterval(deviceId);
+                }
             }
             
             const data = await response.json();
@@ -1139,15 +1236,15 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log('🔄 Force refresh: Skipping cache, fetching fresh data...');
         }
         
-        // PRIORITY 1: Try Railway Power History API first (most reliable, no region block)
+        // PRIORITY 1: Try Cloudflare Worker Power History API (with fallback support)
         try {
             // Add cache-busting timestamp to force fresh fetch on F5
             const cacheBuster = Date.now();
-            const railwayPowerUrl = `${POWER_HISTORY_API}/${deviceId}?date=${queryDate}&_t=${cacheBuster}`;
-            console.log("📊📊📊 [POWER CHART] Fetching from Railway API:", railwayPowerUrl);
+            const powerHistoryUrl = getPowerHistoryApiUrl(deviceId, queryDate) + `&_t=${cacheBuster}`;
+            console.log("📊📊📊 [POWER CHART] Fetching from Worker API:", powerHistoryUrl);
             
             // Force no-cache to ensure fresh data on F5
-            const railwayResponse = await fetch(railwayPowerUrl, {
+            const railwayResponse = await fetch(powerHistoryUrl, {
                 method: 'GET',
                 cache: 'no-store',
                 headers: {
@@ -1198,7 +1295,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // STEP 3: Fetch ACCURATE peak values from dedicated power-peak endpoint
         // This scans ALL raw data (6000+ points) for accurate peak detection
         try {
-            const peakUrl = `${CLOUDFLARE_WORKER_TSP}/api/realtime/power-peak/${deviceId}?date=${queryDate}`;
+            const peakUrl = API_ENDPOINTS.cloudPowerPeak(deviceId, queryDate);
             console.log('🎯 [Power Peak] Fetching accurate peaks from:', peakUrl);
             
             const peakResponse = await fetch(peakUrl, { 
@@ -2178,14 +2275,14 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         
-        // Fetch fresh data
-        const railwayUrl = `${SOC_API_PRIMARY}/${deviceId}?date=${date}&_t=${now}`;
+        // Fetch fresh data (with fallback support)
+        const socUrl = getSocApiUrl(deviceId, date) + `&_t=${now}`;
         
         let data = null;
-        console.log('🔋 Fetching fresh SOC data from:', railwayUrl);
+        console.log('🔋 Fetching fresh SOC data from:', socUrl);
         
         try {
-            const response = await fetch(railwayUrl, {
+            const response = await fetch(socUrl, {
                 method: 'GET',
                 cache: 'no-store',
                 headers: {
