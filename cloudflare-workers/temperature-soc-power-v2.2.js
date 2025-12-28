@@ -1,5 +1,6 @@
 /**
- * Temperature-SOC-Power Worker v2.1
+ * Temperature-SOC-Power Worker v2.2
+ * - NEW: /api/realtime/power-peak/{deviceId}?date={date} - Scan ALL raw data for accurate peak values
  * - Added /api/realtime/daily-energy/{deviceId} for Năng Lượng - Pin Lưu Trữ - Nguồn Điện
  * - All other endpoints from v1.7
  * - Full CORS support
@@ -193,6 +194,107 @@ async function getTemperatureHistory(deviceId, date) {
   return { success: true, deviceId, date, timeline: series, data: series, count: series.length, min, max, avg };
 }
 
+// NEW v2.2: Power Peak - Scan ALL raw data for accurate peak values
+// Returns max values and exact times for: PV, Load, Grid, Charge, Discharge
+async function getPowerPeak(deviceId, date) {
+  const deviceLower = deviceId.toLowerCase();
+  
+  // 5 entities to scan
+  const entities = [
+    `sensor.device_${deviceLower}_pv_power`,
+    `sensor.device_${deviceLower}_load_power`,
+    `sensor.device_${deviceLower}_grid_power`,
+    `sensor.device_${deviceLower}_battery_power`,
+    `sensor.device_${deviceLower}_ac_output_power`
+  ];
+  
+  // Query full day: previous day 17:00 UTC to current day 16:59 UTC (= 00:00 to 23:59 Vietnam time)
+  const startDate = new Date(date);
+  startDate.setDate(startDate.getDate() - 1);
+  const startTime = `${startDate.toISOString().split('T')[0]}T17:00:00`;
+  const endTime = `${date}T16:59:59`;
+  
+  const data = await fetchHA(
+    `/api/history/period/${startTime}?filter_entity_id=${entities.join(',')}&end_time=${endTime}`
+  );
+  
+  if (!data || data.length === 0) {
+    return { success: true, peaks: null, message: 'No power data', dataPoints: 0 };
+  }
+  
+  // Initialize peak tracking
+  const peaks = {
+    pv: { value: 0, time: null, timeStr: '--:--' },
+    load: { value: 0, time: null, timeStr: '--:--' },
+    grid: { value: 0, time: null, timeStr: '--:--' },
+    charge: { value: 0, time: null, timeStr: '--:--' },    // battery > 0
+    discharge: { value: 0, time: null, timeStr: '--:--' }  // battery < 0 (absolute)
+  };
+  
+  let totalDataPoints = 0;
+  const entityNames = ['pv', 'load', 'grid', 'battery', 'backup'];
+  
+  // Format Vietnam time string
+  const formatVNTime = (isoTime) => {
+    const vnTime = toVietnamTime(isoTime);
+    return `${vnTime.getUTCHours().toString().padStart(2, '0')}:${vnTime.getUTCMinutes().toString().padStart(2, '0')}`;
+  };
+  
+  // Scan ALL data points
+  data.forEach((entityData, index) => {
+    if (!entityData || entityData.length === 0) return;
+    
+    const entityName = entityNames[index];
+    
+    entityData.forEach(item => {
+      // Only process data for the requested date (Vietnam time)
+      const vnDateStr = getVietnamDateString(item.last_changed);
+      if (vnDateStr !== date) return;
+      
+      const value = parseFloat(item.state);
+      if (isNaN(value)) return;
+      
+      totalDataPoints++;
+      
+      if (entityName === 'pv') {
+        if (value > peaks.pv.value) {
+          peaks.pv = { value, time: item.last_changed, timeStr: formatVNTime(item.last_changed) };
+        }
+      } else if (entityName === 'load') {
+        if (value > peaks.load.value) {
+          peaks.load = { value, time: item.last_changed, timeStr: formatVNTime(item.last_changed) };
+        }
+      } else if (entityName === 'grid') {
+        if (value > peaks.grid.value) {
+          peaks.grid = { value, time: item.last_changed, timeStr: formatVNTime(item.last_changed) };
+        }
+      } else if (entityName === 'battery') {
+        // Positive = charging, Negative = discharging
+        if (value > 0 && value > peaks.charge.value) {
+          peaks.charge = { value, time: item.last_changed, timeStr: formatVNTime(item.last_changed) };
+        }
+        if (value < 0 && Math.abs(value) > peaks.discharge.value) {
+          peaks.discharge = { value: Math.abs(value), time: item.last_changed, timeStr: formatVNTime(item.last_changed) };
+        }
+      }
+    });
+  });
+  
+  return {
+    success: true,
+    deviceId,
+    date,
+    dataPoints: totalDataPoints,
+    peaks: {
+      pv: { max: Math.round(peaks.pv.value), time: peaks.pv.timeStr },
+      load: { max: Math.round(peaks.load.value), time: peaks.load.timeStr },
+      grid: { max: Math.round(peaks.grid.value), time: peaks.grid.timeStr },
+      charge: { max: Math.round(peaks.charge.value), time: peaks.charge.timeStr },
+      discharge: { max: Math.round(peaks.discharge.value), time: peaks.discharge.timeStr }
+    }
+  };
+}
+
 // NEW: Daily Energy Summary - cho Năng Lượng, Pin Lưu Trữ, Nguồn Điện
 async function getDailyEnergy(deviceId) {
   const deviceLower = deviceId.toLowerCase();
@@ -278,7 +380,7 @@ export default {
       if (path === '/' || path === '') {
         return jsonResponse({
           status: 'ok',
-          version: '2.1',
+          version: '2.2',
           service: 'temperature-soc-power-proxy',
           tunnel: HA_TUNNEL_URL,
           timezone: 'UTC+7 (Vietnam)',
@@ -292,10 +394,19 @@ export default {
           endpoints: [
             '/api/realtime/soc-history/{deviceId}?date={date}',
             '/api/realtime/power-history/{deviceId}?date={date}',
+            '/api/realtime/power-peak/{deviceId}?date={date}',
             '/api/realtime/daily-energy/{deviceId}',
             '/api/cloud/temperature/{deviceId}/{date}'
           ]
         }, origin);
+      }
+      
+      // Power Peak (NEW in v2.2) - Scan ALL raw data for accurate peak values
+      const peakMatch = path.match(/^\/api\/realtime\/power-peak\/([^\/]+)$/);
+      if (peakMatch) {
+        const deviceId = peakMatch[1];
+        const date = url.searchParams.get('date') || getVietnamToday();
+        return jsonResponse(await getPowerPeak(deviceId, date), origin);
       }
       
       // Daily Energy (NEW in v1.8)
