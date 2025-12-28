@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13255 - Fixed power history format (t/bat) for peak stats
+ * Version: 13256 - Use Worker power-peak API for accurate peak stats (scan ALL raw data)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1194,6 +1194,82 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!chartDataLoaded) {
             console.log("ℹ️ No chart data yet - PowerHistoryCollector is gathering data every 5 minutes");
         }
+        
+        // STEP 3: Fetch ACCURATE peak values from dedicated power-peak endpoint
+        // This scans ALL raw data (6000+ points) for accurate peak detection
+        try {
+            const peakUrl = `${CLOUDFLARE_WORKER_TSP}/api/realtime/power-peak/${deviceId}?date=${queryDate}`;
+            console.log('🎯 [Power Peak] Fetching accurate peaks from:', peakUrl);
+            
+            const peakResponse = await fetch(peakUrl, { 
+                cache: 'no-store',
+                headers: { 'Cache-Control': 'no-cache' }
+            });
+            
+            if (peakResponse.ok) {
+                const peakData = await peakResponse.json();
+                if (peakData.success && peakData.peaks) {
+                    updatePeakStatsFromWorker(peakData.peaks);
+                    console.log(`✅ [Power Peak] Accurate peaks updated (scanned ${peakData.dataPoints} raw data points)`);
+                }
+            }
+        } catch (peakError) {
+            console.warn('⚠️ [Power Peak] API error:', peakError.message);
+        }
+    }
+    
+    // Update peak stats UI from Worker power-peak API response
+    // API format: { peaks: { pv: {max, time}, load: {max, time}, grid: {max, time}, charge: {max, time}, discharge: {max, time} }}
+    function updatePeakStatsFromWorker(peaks) {
+        if (!peaks) return;
+        
+        const updateEl = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        };
+        
+        const formatPeak = (val) => {
+            if (!val || val === 0) return '--';
+            return `${Math.round(val)} W`;
+        };
+        
+        // PV Peak
+        if (peaks.pv) {
+            updateEl('chart-pv-peak', formatPeak(peaks.pv.max));
+            updateEl('chart-pv-time', peaks.pv.time || '--:--');
+        }
+        
+        // Charge Peak (battery > 0)
+        if (peaks.charge) {
+            updateEl('chart-charge-peak', formatPeak(peaks.charge.max));
+            updateEl('chart-charge-time', peaks.charge.time || '--:--');
+        }
+        
+        // Discharge Peak (|battery| when battery < 0)
+        if (peaks.discharge) {
+            updateEl('chart-discharge-peak', formatPeak(peaks.discharge.max));
+            updateEl('chart-discharge-time', peaks.discharge.time || '--:--');
+        }
+        
+        // Load Peak
+        if (peaks.load) {
+            updateEl('chart-load-peak', formatPeak(peaks.load.max));
+            updateEl('chart-load-time', peaks.load.time || '--:--');
+        }
+        
+        // Grid Peak
+        if (peaks.grid) {
+            updateEl('chart-grid-peak', formatPeak(peaks.grid.max));
+            updateEl('chart-grid-time', peaks.grid.time || '--:--');
+        }
+        
+        console.log('📊 Peak stats updated from Worker API:', {
+            pv: `${peaks.pv?.max || 0}W @ ${peaks.pv?.time || '--:--'}`,
+            charge: `${peaks.charge?.max || 0}W @ ${peaks.charge?.time || '--:--'}`,
+            discharge: `${peaks.discharge?.max || 0}W @ ${peaks.discharge?.time || '--:--'}`,
+            load: `${peaks.load?.max || 0}W @ ${peaks.load?.time || '--:--'}`,
+            grid: `${peaks.grid?.max || 0}W @ ${peaks.grid?.time || '--:--'}`
+        });
     }
     
     // Convert Railway Power History data to chart format (288 points for 5-minute intervals)
