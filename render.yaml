@@ -1,0 +1,14 @@
+# Render.com deployment configuration
+services:
+  - type: web
+    name: solar-monitor-dashboard
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:8080

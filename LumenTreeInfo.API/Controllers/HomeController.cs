@@ -1,0 +1,2179 @@
+using System.Diagnostics;
+using LumenTreeInfo.API.Models;
+using LumenTreeInfo.Lib;
+using Microsoft.AspNetCore.Mvc;
+using Serilog;
+
+namespace LumenTreeInfo.API.Controllers;
+
+/// <summary>
+/// Controller for handling home page and device data requests
+/// </summary>
+public class HomeController : Controller
+{
+    private readonly LumentreeClient _client;
+    private readonly SolarMonitorService _solarMonitor;
+
+    /// <summary>
+    /// Initializes a new instance of the HomeController
+    /// </summary>
+    /// <param name="client">Lumentree API client</param>
+    /// <param name="solarMonitor">Solar monitor service for MQTT data</param>
+    public HomeController(LumentreeClient client, SolarMonitorService solarMonitor)
+    {
+        _client = client;
+        _solarMonitor = solarMonitor;
+    }
+
+    /// <summary>
+    /// Returns the home page view
+    /// </summary>
+    [Route("/")]
+    public IActionResult Index()
+    {
+        Log.Information("Rendering home page");
+        return View();
+    }
+
+    /// <summary>
+    /// Returns the calculator page
+    /// </summary>
+    [Route("/calculator")]
+    public IActionResult Calculator()
+    {
+        Log.Information("Rendering calculator page");
+        return PhysicalFile(
+            Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "calculator.html"),
+            "text/html"
+        );
+    }
+
+    /// <summary>
+    /// Returns the private device management page
+    /// Accessible via URL: /?deviceId=xxx/private
+    /// </summary>
+    [Route("/private")]
+    public IActionResult Private()
+    {
+        Log.Information("Rendering private device management page");
+        return View("Private");
+    }
+
+    /// <summary>
+    /// Returns the Võ Anh Phong control panel with 8 specific devices
+    /// Devices: P250617024, H250619922, H250422132, H250619857, P240514221, P240418148, P240521201, H250514035
+    /// </summary>
+    [Route("/control-voanhphong")]
+    public IActionResult ControlVoanhphong()
+    {
+        Log.Information("Rendering Võ Anh Phong control panel");
+        return View("ControlVoanhphong");
+    }
+
+    /// <summary>
+    /// Gets and returns device information and energy data
+    /// </summary>
+    /// <param name="deviceId">The device ID to get information for</param>
+    /// <param name="date">Optional date parameter (defaults to current date)</param>
+    [Route("/device/{deviceId}")]
+    public async Task<IActionResult> GetDeviceInfo(string deviceId, string? date)
+    {
+        if (string.IsNullOrEmpty(deviceId))
+        {
+            Log.Warning("Device ID is null or empty");
+            return BadRequest(new { error = "Device ID is required", code = "MISSING_DEVICE_ID" });
+        }
+
+        Log.Debug("Getting device info for device {DeviceId} with date {Date}", deviceId, date);
+
+        try
+        {
+            // Parse the date or use current date if not provided
+            var queryDate = DateTime.Now;
+            if (!string.IsNullOrEmpty(date))
+            {
+                if (DateTime.TryParse(date, out var parsedDate))
+                {
+                    queryDate = parsedDate;
+                    Log.Debug("Using parsed date: {QueryDate:yyyy-MM-dd}", queryDate);
+                }
+                else
+                {
+                    Log.Warning("Failed to parse date: {Date}, using current date instead", date);
+                }
+            }
+
+            // Get MQTT cached data for realtime display (will be merged later)
+            var mqttData = _solarMonitor.GetCachedData(deviceId);
+            
+            // DEMO MODE: Check if demo mode is requested or if this is a known demo device
+            var demoMode = Request.Query.ContainsKey("demo") || 
+                           Environment.GetEnvironmentVariable("DEMO_MODE") == "true";
+            if (demoMode || deviceId.StartsWith("DEMO"))
+            {
+                Log.Information("Returning demo data for device {DeviceId}", deviceId);
+                return Json(GenerateDemoData(deviceId, queryDate));
+            }
+            
+            // OPTION 0: Try LEHT API first (lehtapi.suntcn.com) - BEST DATA SOURCE
+            var lehtResult = await TryLehtApiFallback(deviceId, queryDate);
+            if (lehtResult != null)
+            {
+                Log.Information("Got data from LEHT API for device {DeviceId}", deviceId);
+                return Json(lehtResult);
+            }
+            
+            // OPTION 1: Try lumentree.net API (has tableValue/kWh data)
+            var lumentreeResult = await TryLumentreeNetFallback(deviceId, queryDate);
+            if (lumentreeResult != null)
+            {
+                Log.Debug("Got data from lumentree.net for device {DeviceId}", deviceId);
+                return Json(lumentreeResult);
+            }
+            
+            // OPTION 2: Try old API (lesvr.suntcn.com) - has tableValue/kWh data
+            Log.Debug("Trying legacy API for device {DeviceId}", deviceId);
+            var (deviceInfo, pvData, batData, essentialLoad, grid, load) =
+                await _client.GetAllDeviceDataAsync(deviceId, queryDate);
+
+            if (deviceInfo != null)
+            {
+                // Merge with MQTT realtime data if available
+                var result = new
+                {
+                    DeviceInfo = deviceInfo,
+                    Pv = pvData ?? CreateDefaultPvInfo(),
+                    Bat = batData ?? CreateDefaultBatData(),
+                    EssentialLoad = essentialLoad ?? CreateDefaultLoadInfo("EssentialLoad"),
+                    Grid = grid ?? CreateDefaultLoadInfo("Grid"),
+                    Load = load ?? CreateDefaultLoadInfo("HomeLoad"),
+                    BatSoc = new {
+                        TableKey = "batSoc",
+                        TableName = "电池余量百分比",
+                        TableValue = mqttData?.BatteryPercent ?? 0,
+                        TableValueInfo = new List<int>() // Empty - will be filled by SignalR realtime
+                    },
+                    RealtimeData = mqttData != null ? new {
+                        device_id = deviceId,
+                        data = new {
+                            batterySoc = mqttData.BatteryPercent,
+                            batteryVoltage = mqttData.BatteryVoltage,
+                            batteryPower = mqttData.BatteryValue,
+                            batteryStatus = mqttData.BatteryStatus,
+                            gridPowerFlow = mqttData.GridValue,
+                            homeLoad = mqttData.LoadValue,
+                            totalPvPower = mqttData.PvTotalPower,
+                            pv1Power = mqttData.Pv1Power,
+                            pv2Power = mqttData.Pv2Power,
+                            temperature = mqttData.DeviceTempValue,
+                            acOutputPower = mqttData.EssentialValue,
+                            acInputVoltage = mqttData.GridVoltageValue
+                        }
+                    } : null,
+                    DataSource = "lesvr.suntcn.com"
+                };
+                return Json(result);
+            }
+            
+            // OPTION 3: Use MQTT cached data as last resort (no tableValue/kWh)
+            if (mqttData != null)
+            {
+                Log.Debug("Using MQTT cached data for device {DeviceId} (no API data available)", deviceId);
+                return Json(BuildResponseFromMqttData(deviceId, mqttData));
+            }
+            
+            // OPTION 4: Subscribe to device and wait for MQTT data
+            Log.Information("No data available, subscribing to device {DeviceId} via MQTT and waiting for data...", deviceId);
+            _solarMonitor.AddDevice(deviceId);
+            
+            // Wait for MQTT data (up to 6 seconds)
+            for (int attempt = 1; attempt <= 6; attempt++)
+            {
+                await Task.Delay(1000);
+                mqttData = _solarMonitor.GetCachedData(deviceId);
+                if (mqttData != null)
+                {
+                    Log.Information("Got MQTT data after {Attempt}s for device {DeviceId}", attempt, deviceId);
+                    return Json(BuildResponseFromMqttData(deviceId, mqttData));
+                }
+                Log.Debug("Waiting for MQTT data... attempt {Attempt}/6", attempt);
+            }
+
+            // All options failed - Check if fallback to demo is enabled
+            var useDemoFallback = Environment.GetEnvironmentVariable("USE_DEMO_FALLBACK") == "true" ||
+                                  Request.Query.ContainsKey("fallback");
+            
+            if (useDemoFallback)
+            {
+                Log.Warning("All data sources failed for device {DeviceId}, returning demo data as fallback", deviceId);
+                var demoData = GenerateDemoData(deviceId, queryDate);
+                // Add warning to demo data
+                return Json(new {
+                    ((dynamic)demoData).DeviceInfo,
+                    ((dynamic)demoData).Pv,
+                    ((dynamic)demoData).Bat,
+                    ((dynamic)demoData).EssentialLoad,
+                    ((dynamic)demoData).Grid,
+                    ((dynamic)demoData).Load,
+                    ((dynamic)demoData).BatSoc,
+                    ((dynamic)demoData).RealtimeData,
+                    DataSource = "demo_fallback",
+                    QueryDate = queryDate.ToString("yyyy-MM-dd"),
+                    Warning = "⚠️ Không thể kết nối đến Lumentree API. Đang hiển thị dữ liệu DEMO. Nguyên nhân có thể do: 1) Server hosting bị chặn kết nối đến Trung Quốc, 2) Thiết bị offline, 3) Device ID không đúng.",
+                    ApiStatus = "unreachable"
+                });
+            }
+
+            Log.Warning("All data sources failed for device {DeviceId} after 6 seconds", deviceId);
+            return NotFound(new { 
+                error = $"Không tìm thấy thiết bị \"{deviceId}\". Thiết bị có thể offline hoặc Device ID không đúng.",
+                code = "DEVICE_NOT_FOUND",
+                deviceId = deviceId,
+                suggestions = new[] {
+                    "Kiểm tra lại Device ID - ID thường bắt đầu bằng P, H hoặc các ký tự khác theo loại thiết bị",
+                    "Đảm bảo thiết bị đang online và kết nối internet",
+                    "Thử refresh trang sau vài giây - lần đầu tiên kết nối có thể cần thêm thời gian",
+                    "Kiểm tra xem thiết bị có hiển thị trên app Lumentree không",
+                    $"Thử test connectivity tại: /debug/connectivity?deviceId={deviceId}",
+                    "Thêm ?fallback=true vào URL để xem demo data khi API không khả dụng"
+                },
+                help = "Nếu bạn mới mua thiết bị, vui lòng đợi 5-10 phút để hệ thống đồng bộ dữ liệu. Với thiết bị đã kích hoạt, hãy thử refresh lại trang sau vài giây.",
+                apiVersion = "3.2",
+                mqttStatus = "subscribed_waiting_for_data",
+                fallbackUrl = $"/device/{deviceId}?fallback=true"
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error occurred while getting device data for {DeviceId}", deviceId);
+            return StatusCode(500, new { 
+                error = "Đã xảy ra lỗi khi xử lý yêu cầu. Vui lòng thử lại sau.",
+                code = "INTERNAL_ERROR",
+                details = ex.Message
+            });
+        }
+    }
+    
+    /// <summary>
+    /// Build API response from MQTT cached data
+    /// </summary>
+    private object BuildResponseFromMqttData(string deviceId, DeviceRealTimeData mqttData)
+    {
+        var emptyChartData = new List<int>(new int[288]);
+        
+        return new {
+            DeviceInfo = new {
+                DeviceId = deviceId,
+                DeviceType = "Lumentree Inverter",
+                OnlineStatus = 1,
+                RemarkName = "",
+                ErrorStatus = (string?)null
+            },
+            Pv = new {
+                TableKey = "pv",
+                TableName = "PV发电量",
+                TableValue = 0,
+                TableValueInfo = emptyChartData
+            },
+            Bat = new {
+                Bats = new[] {
+                    new { TableName = "电池充电电量", TableValue = 0, TableKey = "bat" },
+                    new { TableName = "电池放电电量", TableValue = 0, TableKey = "batF" }
+                },
+                TableValueInfo = emptyChartData
+            },
+            EssentialLoad = new {
+                TableKey = "essentialLoad",
+                TableName = "不断电负载耗电量",
+                TableValue = 0,
+                TableValueInfo = emptyChartData
+            },
+            Grid = new {
+                TableKey = "grid",
+                TableName = "电网输入电量",
+                TableValue = 0,
+                TableValueInfo = emptyChartData
+            },
+            Load = new {
+                TableKey = "homeload",
+                TableName = "家庭负载耗电量",
+                TableValue = 0,
+                TableValueInfo = emptyChartData
+            },
+            BatSoc = new {
+                TableKey = "batSoc",
+                TableName = "电池余量百分比",
+                TableValue = mqttData.BatteryPercent,
+                TableValueInfo = emptyChartData
+            },
+            RealtimeData = new {
+                device_id = deviceId,
+                data = new {
+                    batterySoc = mqttData.BatteryPercent,
+                    batteryVoltage = mqttData.BatteryVoltage ?? 0,
+                    batteryPower = mqttData.BatteryValue,
+                    batteryStatus = mqttData.BatteryStatus ?? (mqttData.BatteryValue > 0 ? "Discharging" : "Charging"),
+                    gridPowerFlow = mqttData.GridValue,
+                    gridStatus = mqttData.GridValue > 0 ? "Importing" : "Exporting",
+                    homeLoad = mqttData.LoadValue,
+                    totalPvPower = mqttData.PvTotalPower,
+                    pv1Power = mqttData.Pv1Power,
+                    pv2Power = mqttData.Pv2Power ?? 0,
+                    temperature = mqttData.DeviceTempValue,
+                    acOutputPower = mqttData.EssentialValue,
+                    acInputVoltage = mqttData.GridVoltageValue
+                },
+                cells = new {
+                    averageVoltage = 0,
+                    cellVoltages = new Dictionary<string, double>(),
+                    numberOfCells = 0
+                }
+            },
+            DataSource = "mqtt",
+            Timestamp = mqttData.Timestamp
+        };
+    }
+    
+    /// <summary>
+    /// Fallback to lumentree.net API when primary API fails
+    /// </summary>
+    private async Task<object?> TryLumentreeNetFallback(string deviceId, DateTime queryDate)
+    {
+        try
+        {
+            using var httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(15);
+            
+            // Add headers to bypass Cloudflare
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+            httpClient.DefaultRequestHeaders.Add("Accept", "application/json, text/plain, */*");
+            httpClient.DefaultRequestHeaders.Add("Accept-Language", "en-US,en;q=0.9,vi;q=0.8");
+            httpClient.DefaultRequestHeaders.Add("Referer", "https://lumentree.net/");
+            httpClient.DefaultRequestHeaders.Add("Origin", "https://lumentree.net");
+            
+            // Get realtime data from lumentree.net
+            var realtimeUrl = $"https://lumentree.net/api/realtime/{deviceId}";
+            var realtimeResponse = await httpClient.GetAsync(realtimeUrl);
+            
+            if (!realtimeResponse.IsSuccessStatusCode)
+            {
+                Log.Warning("Lumentree.net fallback failed with status {StatusCode}", realtimeResponse.StatusCode);
+                return null;
+            }
+            
+            var realtimeJson = await realtimeResponse.Content.ReadAsStringAsync();
+            var realtimeData = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(realtimeJson);
+            
+            // Check if we got valid data
+            if (!realtimeData.TryGetProperty("device_id", out _))
+            {
+                Log.Warning("Lumentree.net fallback returned invalid data");
+                return null;
+            }
+            
+            // Build response compatible with frontend
+            var deviceInfo = new {
+                DeviceId = deviceId,
+                DeviceType = "Lumentree Inverter",
+                OnlineStatus = 1,
+                RemarkName = "",
+                ErrorStatus = (string?)null
+            };
+            
+            // Create empty chart data (288 points for 24 hours at 5-min intervals)
+            var emptyChartData = new List<int>(new int[288]);
+            
+            return new {
+                DeviceInfo = deviceInfo,
+                Pv = new {
+                    TableKey = "pv",
+                    TableName = "PV发电量",
+                    TableValue = 0,
+                    TableValueInfo = emptyChartData
+                },
+                Bat = new {
+                    Bats = new[] {
+                        new { TableName = "电池充电电量", TableValue = 0, TableKey = "bat" },
+                        new { TableName = "电池放电电量", TableValue = 0, TableKey = "batF" }
+                    },
+                    TableValueInfo = emptyChartData
+                },
+                EssentialLoad = new {
+                    TableKey = "essentialLoad",
+                    TableName = "不断电负载耗电量",
+                    TableValue = 0,
+                    TableValueInfo = emptyChartData
+                },
+                Grid = new {
+                    TableKey = "grid",
+                    TableName = "电网输入电量",
+                    TableValue = 0,
+                    TableValueInfo = emptyChartData
+                },
+                Load = new {
+                    TableKey = "homeload",
+                    TableName = "家庭负载耗电量",
+                    TableValue = 0,
+                    TableValueInfo = emptyChartData
+                },
+                BatSoc = new {
+                    TableKey = "batSoc",
+                    TableName = "电池余量百分比",
+                    TableValue = 0,
+                    TableValueInfo = emptyChartData
+                },
+                // Include realtime data for frontend to use
+                RealtimeData = realtimeData,
+                DataSource = "lumentree.net"
+            };
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error in lumentree.net fallback for device {DeviceId}", deviceId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Fallback to LEHT API (lehtapi.suntcn.com) - PRIMARY DATA SOURCE
+    /// </summary>
+    private async Task<object?> TryLehtApiFallback(string deviceId, DateTime queryDate)
+    {
+        try
+        {
+            var lehtClient = new LehtApiClient();
+            var loggedIn = await lehtClient.LoginAsync("zixfel", "Minhlong4244@");
+            
+            if (!loggedIn)
+            {
+                Log.Warning("LEHT API login failed");
+                return null;
+            }
+            
+            var dayStr = queryDate.ToString("yyyy-MM-dd");
+            var dayData = await lehtClient.GetAllDayDataAsync(deviceId, dayStr);
+            
+            if (dayData == null)
+            {
+                Log.Warning("LEHT API returned no data for device {DeviceId}", deviceId);
+                return null;
+            }
+            
+            // Get device info (model type) from LEHT API
+            var lehtDeviceInfo = await lehtClient.GetDeviceInfoAsync(deviceId);
+            
+            // Get Battery SOC data separately (it's in a different endpoint)
+            var batSocData = await lehtClient.GetBatSocAsync(deviceId, dayStr);
+            
+            // Build response compatible with frontend
+            var deviceInfo = new {
+                DeviceId = deviceId,
+                DeviceType = lehtDeviceInfo?.DeviceType ?? "Lumentree Inverter",
+                OnlineStatus = lehtDeviceInfo?.DeviceStatus ?? 1,
+                RemarkName = lehtDeviceInfo?.RemarkName ?? "",
+                ErrorStatus = (string?)null
+            };
+            
+            // Convert tableValueInfo from double to int
+            var pvValueInfo = dayData.Pv?.TableValueInfo?.Select(v => (int)v).ToList() ?? new List<int>();
+            var batValueInfo = dayData.Bat?.TableValueInfo?.Select(v => (int)v).ToList() ?? new List<int>();
+            var gridValueInfo = dayData.Grid?.TableValueInfo?.Select(v => (int)v).ToList() ?? new List<int>();
+            var homeloadValueInfo = dayData.Homeload?.TableValueInfo?.Select(v => (int)v).ToList() ?? new List<int>();
+            var essentialLoadValueInfo = dayData.EssentialLoad?.TableValueInfo?.Select(v => (int)v).ToList() ?? new List<int>();
+            var batSocValueInfo = batSocData?.BatSoc?.TableValueInfo ?? new List<int>();
+            
+            return new {
+                DeviceInfo = deviceInfo,
+                Pv = new {
+                    TableKey = dayData.Pv?.TableKey ?? "pv",
+                    TableName = dayData.Pv?.TableName ?? "PV发电量",
+                    TableValue = (int)(dayData.Pv?.TableValue ?? 0),
+                    TableValueInfo = pvValueInfo
+                },
+                Bat = new {
+                    Bats = new[] {
+                        new { TableName = dayData.Bat?.TableName ?? "电池充电电量", TableValue = (int)(dayData.Bat?.TableValue ?? 0), TableKey = "bat" },
+                        new { TableName = "电池放电电量", TableValue = 0, TableKey = "batF" }
+                    },
+                    TableValueInfo = batValueInfo
+                },
+                EssentialLoad = new {
+                    TableKey = dayData.EssentialLoad?.TableKey ?? "essentialLoad",
+                    TableName = dayData.EssentialLoad?.TableName ?? "不断电负载耗电量",
+                    TableValue = (int)(dayData.EssentialLoad?.TableValue ?? 0),
+                    TableValueInfo = essentialLoadValueInfo
+                },
+                Grid = new {
+                    TableKey = dayData.Grid?.TableKey ?? "grid",
+                    TableName = dayData.Grid?.TableName ?? "电网输入电量",
+                    TableValue = (int)(dayData.Grid?.TableValue ?? 0),
+                    TableValueInfo = gridValueInfo
+                },
+                Load = new {
+                    TableKey = dayData.Homeload?.TableKey ?? "homeload",
+                    TableName = dayData.Homeload?.TableName ?? "家庭负载耗电量",
+                    TableValue = (int)(dayData.Homeload?.TableValue ?? 0),
+                    TableValueInfo = homeloadValueInfo
+                },
+                BatSoc = new {
+                    TableKey = batSocData?.BatSoc?.TableKey ?? "batSoc",
+                    TableName = batSocData?.BatSoc?.TableName ?? "电池余量百分比",
+                    TableValue = batSocValueInfo.Count > 0 ? batSocValueInfo.Last() : 0,
+                    TableValueInfo = batSocValueInfo
+                },
+                DataSource = "lehtapi.suntcn.com",
+                QueryDate = dayStr
+            };
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error in LEHT API fallback for device {DeviceId}", deviceId);
+            return null;
+        }
+    }
+    
+    /// <summary>
+    /// Creates a default PV info object for cases when data is not available
+    /// </summary>
+    private static LumenTreeInfo.Lib.Models.LumentreeApiModels.PVInfo CreateDefaultPvInfo()
+    {
+        return new LumenTreeInfo.Lib.Models.LumentreeApiModels.PVInfo
+        {
+            TableKey = "pv",
+            TableName = "PV",
+            TableValue = 0,
+            TableValueInfo = new List<int>()
+        };
+    }
+
+    /// <summary>
+    /// Creates a default battery data object for cases when data is not available
+    /// </summary>
+    private static LumenTreeInfo.Lib.Models.LumentreeApiModels.BatData CreateDefaultBatData()
+    {
+        return new LumenTreeInfo.Lib.Models.LumentreeApiModels.BatData
+        {
+            Bats = new List<LumenTreeInfo.Lib.Models.LumentreeApiModels.BatInfo>
+            {
+                new LumenTreeInfo.Lib.Models.LumentreeApiModels.BatInfo { TableName = "Charge", TableKey = "charge", TableValue = 0 },
+                new LumenTreeInfo.Lib.Models.LumentreeApiModels.BatInfo { TableName = "Discharge", TableKey = "discharge", TableValue = 0 }
+            },
+            TableValueInfo = new List<int>()
+        };
+    }
+
+    /// <summary>
+    /// Creates a default load info object for cases when data is not available
+    /// </summary>
+    private static LumenTreeInfo.Lib.Models.LumentreeApiModels.LoadInfo CreateDefaultLoadInfo(string name)
+    {
+        return new LumenTreeInfo.Lib.Models.LumentreeApiModels.LoadInfo
+        {
+            TableKey = name.ToLower(),
+            TableName = name,
+            TableValue = 0,
+            TableValueInfo = new List<int>()
+        };
+    }
+
+    /// <summary>
+    /// Gets today's energy summary for a device
+    /// </summary>
+    /// <param name="deviceId">The device ID</param>
+    [Route("/device/{deviceId}/today")]
+    public async Task<IActionResult> GetTodayData(string deviceId)
+    {
+        if (string.IsNullOrEmpty(deviceId))
+        {
+            return BadRequest("Device ID is required");
+        }
+
+        try
+        {
+            var (deviceInfo, pvData, batData, essentialLoad, grid, load) =
+                await _client.GetAllDeviceDataAsync(deviceId, DateTime.Now);
+
+            if (pvData == null)
+            {
+                return NotFound($"No data found for device {deviceId}");
+            }
+
+            var result = new
+            {
+                DeviceId = deviceId,
+                Date = DateTime.Now.ToString("yyyy-MM-dd"),
+                SolarKwh = (pvData.TableValue) / 10.0,
+                LoadKwh = (load?.TableValue ?? 0) / 10.0,
+                GridKwh = (grid?.TableValue ?? 0) / 10.0,
+                BatChargeKwh = batData?.Bats != null && batData.Bats.Count > 0 
+                    ? (batData.Bats[0].TableValue) / 10.0 : 0,
+                BatDischargeKwh = batData?.Bats != null && batData.Bats.Count > 1 
+                    ? (batData.Bats[1].TableValue) / 10.0 : 0,
+                EssentialLoadKwh = (essentialLoad?.TableValue ?? 0) / 10.0
+            };
+
+            return Json(result);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error getting today data for {DeviceId}", deviceId);
+            return StatusCode(500, "An error occurred");
+        }
+    }
+
+    /// <summary>
+    /// Gets summary data for a device within a date range
+    /// </summary>
+    /// <param name="deviceId">The device ID</param>
+    /// <param name="from">Start date (yyyy-MM-dd)</param>
+    /// <param name="to">End date (yyyy-MM-dd)</param>
+    [Route("/device/{deviceId}/summary")]
+    public async Task<IActionResult> GetSummaryData(string deviceId, string? from, string? to)
+    {
+        if (string.IsNullOrEmpty(deviceId))
+        {
+            return BadRequest("Device ID is required");
+        }
+
+        try
+        {
+            var fromDate = string.IsNullOrEmpty(from) 
+                ? DateTime.Now.AddMonths(-1) 
+                : DateTime.Parse(from);
+            var toDate = string.IsNullOrEmpty(to) 
+                ? DateTime.Now 
+                : DateTime.Parse(to);
+
+            var dailyData = new List<object>();
+            var monthlyTotals = new Dictionary<string, (double load, double grid, double pv, int days)>();
+
+            for (var date = fromDate; date <= toDate; date = date.AddDays(1))
+            {
+                try
+                {
+                    var (deviceInfo, pvData, batData, essentialLoad, grid, load) =
+                        await _client.GetAllDeviceDataAsync(deviceId, date);
+
+                    if (pvData != null)
+                    {
+                        var monthKey = date.ToString("yyyy-MM");
+                        var loadKwh = (load?.TableValue ?? 0) / 10.0;
+                        var gridKwh = (grid?.TableValue ?? 0) / 10.0;
+                        var pvKwh = (pvData.TableValue) / 10.0;
+
+                        if (!monthlyTotals.ContainsKey(monthKey))
+                        {
+                            monthlyTotals[monthKey] = (0, 0, 0, 0);
+                        }
+
+                        var current = monthlyTotals[monthKey];
+                        monthlyTotals[monthKey] = (
+                            current.load + loadKwh,
+                            current.grid + gridKwh,
+                            current.pv + pvKwh,
+                            current.days + 1
+                        );
+
+                        dailyData.Add(new
+                        {
+                            Date = date.ToString("yyyy-MM-dd"),
+                            LoadKwh = loadKwh,
+                            GridKwh = gridKwh,
+                            PvKwh = pvKwh
+                        });
+                    }
+                }
+                catch
+                {
+                    // Skip days with no data
+                }
+            }
+
+            var monthlyData = monthlyTotals.Select(m => new
+            {
+                Month = m.Key,
+                Load = Math.Round(m.Value.load, 1),
+                Grid = Math.Round(m.Value.grid, 1),
+                Pv = Math.Round(m.Value.pv, 1),
+                Days = m.Value.days
+            }).OrderBy(m => m.Month).ToList();
+
+            return Json(new
+            {
+                DeviceId = deviceId,
+                FromDate = fromDate.ToString("yyyy-MM-dd"),
+                ToDate = toDate.ToString("yyyy-MM-dd"),
+                TotalDays = dailyData.Count,
+                MonthlyData = monthlyData,
+                DailyData = dailyData
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error getting summary data for {DeviceId}", deviceId);
+            return StatusCode(500, "An error occurred");
+        }
+    }
+
+    /// <summary>
+    /// Gets monthly data for calculator (proxy to lumentree.net API)
+    /// Returns data in the same format as lumentree.net/api/monthly/{deviceId}
+    /// </summary>
+    /// <param name="deviceId">The device ID</param>
+    [Route("/device/{deviceId}/monthly")]
+    public async Task<IActionResult> GetMonthlyData(string deviceId)
+    {
+        if (string.IsNullOrEmpty(deviceId))
+        {
+            return BadRequest("Device ID is required");
+        }
+
+        try
+        {
+            Log.Information("Fetching monthly data from lumentree.net for device {DeviceId}", deviceId);
+            
+            using var httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(30);
+            
+            // Fetch directly from lumentree.net API
+            var apiUrl = $"https://lumentree.net/api/monthly/{deviceId}";
+            
+            var response = await httpClient.GetAsync(apiUrl);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                Log.Warning("Lumentree API returned {StatusCode} for device {DeviceId}", 
+                    response.StatusCode, deviceId);
+                return StatusCode((int)response.StatusCode, "Failed to fetch data from Lumentree");
+            }
+            
+            var content = await response.Content.ReadAsStringAsync();
+            
+            // Parse and return the JSON directly
+            var data = System.Text.Json.JsonSerializer.Deserialize<object>(content);
+            
+            Log.Information("Successfully fetched monthly data for device {DeviceId}", deviceId);
+            return Json(data);
+        }
+        catch (HttpRequestException ex)
+        {
+            Log.Error(ex, "HTTP error fetching monthly data for {DeviceId}", deviceId);
+            return StatusCode(502, $"Failed to connect to Lumentree API: {ex.Message}");
+        }
+        catch (TaskCanceledException ex)
+        {
+            Log.Error(ex, "Timeout fetching monthly data for {DeviceId}", deviceId);
+            return StatusCode(504, "Request to Lumentree API timed out");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error getting monthly data for {DeviceId}", deviceId);
+            return StatusCode(500, "An error occurred while fetching monthly data");
+        }
+    }
+
+    /// <summary>
+    /// Gets SOC timeline data from lumentree.net API for SOC chart
+    /// Proxy to https://lumentree.net/api/soc/{deviceId}/{date}
+    /// Returns timeline array with {soc, t} for each 5-minute interval
+    /// </summary>
+    /// <param name="deviceId">The device ID</param>
+    /// <param name="date">Date in format yyyy-MM-dd</param>
+    [Route("/device/{deviceId}/soc")]
+    public async Task<IActionResult> GetSOCData(string deviceId, string? date)
+    {
+        if (string.IsNullOrEmpty(deviceId))
+        {
+            return BadRequest("Device ID is required");
+        }
+
+        try
+        {
+            // Use provided date or current date
+            var queryDate = string.IsNullOrEmpty(date) 
+                ? DateTime.Now.ToString("yyyy-MM-dd") 
+                : date;
+            
+            Log.Information("Fetching SOC data for device {DeviceId} on {Date}", deviceId, queryDate);
+            
+            // Try Cloud first (best source for real-time data)
+            try
+            {
+                var haUrl = Environment.GetEnvironmentVariable("HomeAssistant__Url");
+                var haToken = Environment.GetEnvironmentVariable("HomeAssistant__Token");
+                
+                if (!string.IsNullOrEmpty(haUrl) && !string.IsNullOrEmpty(haToken))
+                {
+                    var haClient = new MultiDeviceHomeAssistantClient(haUrl, haToken);
+                    
+                    // Parse the date
+                    if (DateTime.TryParse(queryDate, out var targetDate))
+                    {
+                        var haHistory = await haClient.GetSocHistoryAsync(deviceId, targetDate);
+                        
+                        if (haHistory != null && haHistory.Count > 0)
+                        {
+                            Log.Information("Successfully fetched SOC data from Cloud for device {DeviceId}: {Count} points", 
+                                deviceId, haHistory.Count);
+                            
+                            return Json(new {
+                                success = true,
+                                deviceId = deviceId.ToUpper(),
+                                date = queryDate,
+                                dataSource = "LightEarthCloud",
+                                timeline = haHistory
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Cloud failed for SOC data, trying LEHT API");
+            }
+            
+            // Try LEHT API second
+            try
+            {
+                var lehtClient = new LehtApiClient();
+                var loggedIn = await lehtClient.LoginAsync("zixfel", "Minhlong4244@");
+                
+                if (loggedIn)
+                {
+                    var batSocData = await lehtClient.GetBatSocAsync(deviceId, queryDate);
+                    
+                    if (batSocData?.BatSoc?.TableValueInfo != null && batSocData.BatSoc.TableValueInfo.Count > 0)
+                    {
+                        // Convert to timeline format [{soc, t}, ...]
+                        var timeline = new List<object>();
+                        var baseTime = DateTime.Parse(queryDate);
+                        
+                        for (int i = 0; i < batSocData.BatSoc.TableValueInfo.Count; i++)
+                        {
+                            var time = baseTime.AddMinutes(i * 5);
+                            timeline.Add(new {
+                                soc = batSocData.BatSoc.TableValueInfo[i],
+                                t = time.ToString("HH:mm")
+                            });
+                        }
+                        
+                        Log.Information("Successfully fetched SOC data from LEHT API for device {DeviceId}", deviceId);
+                        return Json(new {
+                            success = true,
+                            deviceId = deviceId,
+                            date = queryDate,
+                            dataSource = "lehtapi.suntcn.com",
+                            timeline = timeline
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "LEHT API failed for SOC data, falling back to lumentree.net");
+            }
+            
+            // Fallback to lumentree.net
+            using var httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(15);
+            
+            var apiUrl = $"https://lumentree.net/api/soc/{deviceId}/{queryDate}";
+            var response = await httpClient.GetAsync(apiUrl);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                Log.Warning("Lumentree SOC API returned {StatusCode} for device {DeviceId}", 
+                    response.StatusCode, deviceId);
+                return Json(new { success = false, error = "Failed to fetch SOC data", deviceId = deviceId });
+            }
+            
+            var content = await response.Content.ReadAsStringAsync();
+            
+            // Parse and wrap with success field
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(content);
+                var timeline = doc.RootElement.Clone();
+                
+                Log.Information("Successfully fetched SOC data from lumentree.net for device {DeviceId}", deviceId);
+                return Json(new {
+                    success = true,
+                    deviceId = deviceId,
+                    date = queryDate,
+                    dataSource = "lumentree.net",
+                    timeline = timeline
+                });
+            }
+            catch
+            {
+                // If parsing fails, return raw data
+                var data = System.Text.Json.JsonSerializer.Deserialize<object>(content);
+                return Json(data);
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            Log.Error(ex, "HTTP error fetching SOC data for {DeviceId}", deviceId);
+            return StatusCode(502, $"Failed to connect to API: {ex.Message}");
+        }
+        catch (TaskCanceledException ex)
+        {
+            Log.Error(ex, "Timeout fetching SOC data for {DeviceId}", deviceId);
+            return StatusCode(504, "Request timed out");
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error getting SOC data for {DeviceId}", deviceId);
+            return StatusCode(500, "An error occurred while fetching SOC data");
+        }
+    }
+
+    /// <summary>
+    /// Gets SOC timeline data using format /api/soc/{deviceId}/{date}
+    /// Primary source: lehtapi.suntcn.com
+    /// Returns timeline array with {soc, t} for each 5-minute interval
+    /// </summary>
+    /// <param name="deviceId">The device ID</param>
+    /// <param name="date">Date in format yyyy-MM-dd</param>
+    [Route("/api/soc/{deviceId}/{date}")]
+    public async Task<IActionResult> GetSOCDataByPath(string deviceId, string date)
+    {
+        return await GetSOCData(deviceId, date);
+    }
+
+    // ========================================
+    // LEGACY LIGHTEARTH API ENDPOINTS
+    // Proxy to official LightEarth API (lehtapi.suntcn.com)
+    // ========================================
+
+    /// <summary>
+    /// Get battery day data from LightEarth API
+    /// </summary>
+    [Route("/api/bat/{deviceId}/{date}")]
+    public async Task<IActionResult> GetBatData(string deviceId, string date)
+    {
+        try
+        {
+            if (!DateTime.TryParse(date, out var queryDate))
+                return Json(new { success = false, error = "Invalid date format" });
+
+            var token = await _client.GenerateToken(deviceId);
+            if (string.IsNullOrEmpty(token))
+                return Json(new { success = false, error = "Token generation failed" });
+
+            var data = await _client.GetBatDayDataAsync(deviceId, queryDate, token);
+            return Json(new { success = true, data });
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"GetBatData error: {ex.Message}");
+            return Json(new { success = false, error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get PV day data from LightEarth API
+    /// </summary>
+    [Route("/api/pv/{deviceId}/{date}")]
+    public async Task<IActionResult> GetPvData(string deviceId, string date)
+    {
+        try
+        {
+            if (!DateTime.TryParse(date, out var queryDate))
+                return Json(new { success = false, error = "Invalid date format" });
+
+            var token = await _client.GenerateToken(deviceId);
+            if (string.IsNullOrEmpty(token))
+                return Json(new { success = false, error = "Token generation failed" });
+
+            var data = await _client.GetPvDayDataAsync(deviceId, queryDate, token);
+            return Json(new { success = true, data });
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"GetPvData error: {ex.Message}");
+            return Json(new { success = false, error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get other day data from LightEarth API (grid, load, etc.)
+    /// </summary>
+    [Route("/api/other/{deviceId}/{date}")]
+    public async Task<IActionResult> GetOtherData(string deviceId, string date)
+    {
+        try
+        {
+            if (!DateTime.TryParse(date, out var queryDate))
+                return Json(new { success = false, error = "Invalid date format" });
+
+            var token = await _client.GenerateToken(deviceId);
+            if (string.IsNullOrEmpty(token))
+                return Json(new { success = false, error = "Token generation failed" });
+
+            var data = await _client.GetOtherDayDataAsync(deviceId, queryDate, token);
+            return Json(new { success = true, data });
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"GetOtherData error: {ex.Message}");
+            return Json(new { success = false, error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get monthly energy data - returns synced data from HA
+    /// </summary>
+    [Route("/api/month/{deviceId}")]
+    public IActionResult GetMonthData(string deviceId)
+    {
+        // Load synced data
+        LoadSyncedDataFromFile();
+        
+        if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
+        {
+            // Return current month data from synced device
+            return Json(new { 
+                success = true, 
+                deviceId = deviceId,
+                source = "synced",
+                message = "Monthly data from synced realtime - use /device/{deviceId} for full monthly charts"
+            });
+        }
+        
+        return Json(new { success = false, error = $"Device {deviceId} not found" });
+    }
+
+    /// <summary>
+    /// Get yearly energy data - returns synced data from HA
+    /// </summary>
+    [Route("/api/year/{deviceId}")]
+    public IActionResult GetYearData(string deviceId)
+    {
+        // Load synced data
+        LoadSyncedDataFromFile();
+        
+        if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
+        {
+            return Json(new { 
+                success = true, 
+                deviceId = deviceId,
+                source = "synced",
+                message = "Yearly data from synced realtime - use /device/{deviceId} for full yearly charts"
+            });
+        }
+        
+        return Json(new { success = false, error = $"Device {deviceId} not found" });
+    }
+
+    /// <summary>
+    /// Get historical yearly data
+    /// </summary>
+    [Route("/api/history-year/{deviceId}")]
+    public IActionResult GetHistoryYearData(string deviceId)
+    {
+        // Load synced data
+        LoadSyncedDataFromFile();
+        
+        if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
+        {
+            return Json(new { 
+                success = true, 
+                deviceId = deviceId,
+                source = "synced",
+                message = "History year data - use /device/{deviceId} for full historical charts"
+            });
+        }
+        
+        return Json(new { success = false, error = $"Device {deviceId} not found" });
+    }
+
+    // ========================================
+    // CLOUD DEVICE MANAGEMENT ENDPOINTS
+    // ========================================
+
+    /// <summary>
+    /// Gets all devices registered in LightEarth Cloud
+    /// Returns list of device IDs with their current status
+    /// </summary>
+    [Route("/api/cloud/devices")]
+    public async Task<IActionResult> GetCloudDevices()
+    {
+        try
+        {
+            // Load from file if not loaded yet (after restart)
+            LoadSyncedDataFromFile();
+            
+            // First, try to use synced realtime data (has online status + power data)
+            if (_syncedRealtimeData != null && _syncedRealtimeData.Count > 0)
+            {
+                var onlineCount = _syncedRealtimeData.Values.Count(d => d.IsOnline);
+                var totalPv = _syncedRealtimeData.Values.Where(d => d.IsOnline).Sum(d => d.PvPower);
+                var totalLoad = _syncedRealtimeData.Values.Where(d => d.IsOnline).Sum(d => d.LoadPower);
+                var avgSoc = _syncedRealtimeData.Values.Where(d => d.IsOnline && d.Soc > 0).Select(d => (double)d.Soc).DefaultIfEmpty(0).Average();
+
+                Log.Information($"Using {_syncedRealtimeData.Count} synced devices ({onlineCount} online)");
+                return Json(new {
+                    success = true,
+                    count = _syncedRealtimeData.Count,
+                    onlineCount = onlineCount,
+                    totalPvPower = totalPv,
+                    totalLoadPower = totalLoad,
+                    averageSoc = Math.Round(avgSoc, 1),
+                    devices = _syncedRealtimeData.Values.OrderBy(d => d.DeviceId).Select(d => new { 
+                        deviceId = d.DeviceId, 
+                        isOnline = d.IsOnline,
+                        inverterModel = d.InverterModel,
+                        lastUpdate = d.LastUpdate,
+                        source = "synced",
+                        // Nested realtime data (for frontend compatibility)
+                        realtime = new {
+                            batterySoc = d.Soc,
+                            pvPower = d.PvPower,
+                            batteryPower = d.BatteryPower,
+                            loadPower = d.LoadPower,
+                            gridPower = d.GridPower,
+                            temperature = d.Temperature,
+                            temperatureMin = d.TemperatureMin,
+                            temperatureMax = d.TemperatureMax,
+                            temperatureMinTime = d.TemperatureMinTime,
+                            temperatureMaxTime = d.TemperatureMaxTime,
+                            batteryStatus = d.BatteryStatus,
+                            gridStatus = d.GridStatus
+                        },
+                        // Nested daily energy data
+                        dailyEnergy = new {
+                            pvDay = d.PvDay,
+                            chargeDay = d.ChargeDay,
+                            dischargeDay = d.DischargeDay,
+                            loadDay = d.LoadDay,
+                            gridDay = d.GridDay,
+                            exportDay = d.ExportDay
+                        }
+                    }),
+                    lastSyncTime = _lastRealtimeSyncTime,
+                    source = "local_sync"
+                });
+            }
+
+            // No synced data available - return empty with instructions
+            // NOTE: HA direct connection disabled to prevent tunnel spam
+            // Use PowerShell script to sync data from local HA
+            Log.Information("No synced data available. Run sync-realtime script.");
+            return Json(new { 
+                success = false, 
+                error = "No synced data. Please run sync-realtime PowerShell script from local network.",
+                devices = new List<object>(),
+                instructions = "Run the PowerShell sync script on a machine that can access HA locally (192.168.1.41:8123)"
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error getting Cloud devices");
+            return Json(new { 
+                success = false, 
+                error = ex.Message,
+                devices = new List<object>()
+            });
+        }
+    }
+
+    /// <summary>
+    /// Sync devices from local HA to Railway (called from local script)
+    /// This allows Railway to know about all devices without connecting to HA directly
+    /// </summary>
+    [HttpPost]
+    [Route("/api/cloud/sync-devices")]
+    public IActionResult SyncDevicesFromLocal([FromBody] SyncDevicesRequest request)
+    {
+        try
+        {
+            if (request?.Devices == null || request.Devices.Count == 0)
+            {
+                return Json(new { success = false, error = "No devices provided" });
+            }
+
+            // Store devices in static list for later use
+            _syncedDevices = request.Devices.ToList();
+            _lastSyncTime = DateTime.UtcNow;
+
+            Log.Information($"Synced {_syncedDevices.Count} devices from local HA");
+            
+            return Json(new { 
+                success = true, 
+                message = $"Synced {_syncedDevices.Count} devices",
+                devices = _syncedDevices,
+                syncedAt = _lastSyncTime
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error syncing devices");
+            return Json(new { success = false, error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get list of synced devices (from local HA sync)
+    /// </summary>
+    [Route("/api/cloud/synced-devices")]
+    public IActionResult GetSyncedDevices()
+    {
+        return Json(new {
+            success = true,
+            count = _syncedDevices?.Count ?? 0,
+            devices = _syncedDevices ?? new List<string>(),
+            lastSyncTime = _lastSyncTime
+        });
+    }
+
+    // Static storage for synced devices
+    private static List<string> _syncedDevices = new List<string>();
+    private static DateTime? _lastSyncTime = null;
+    private static Dictionary<string, SyncedDeviceData> _syncedRealtimeData = new Dictionary<string, SyncedDeviceData>();
+    private static DateTime? _lastRealtimeSyncTime = null;
+    private static bool _dataLoaded = false;
+    private static readonly object _fileLock = new object();
+    private const string SYNC_DATA_FILE = "synced_realtime_data.json";
+    
+    // Static storage for chart data (keyed by deviceId_date)
+    private static Dictionary<string, SyncedChartData> _syncedChartData = new Dictionary<string, SyncedChartData>();
+    private const string CHART_DATA_FILE = "synced_chart_data.json";
+
+    /// <summary>
+    /// Persist synced data to file for recovery after restart
+    /// </summary>
+    private static void SaveSyncedDataToFile()
+    {
+        try
+        {
+            lock (_fileLock)
+            {
+                var data = new {
+                    devices = _syncedRealtimeData,
+                    lastSyncTime = _lastRealtimeSyncTime,
+                    savedAt = DateTime.UtcNow
+                };
+                var json = System.Text.Json.JsonSerializer.Serialize(data);
+                System.IO.File.WriteAllText(SYNC_DATA_FILE, json);
+                Log.Debug($"Saved {_syncedRealtimeData.Count} devices to {SYNC_DATA_FILE}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"Failed to save synced data to file: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Load synced data from file on startup
+    /// </summary>
+    private static void LoadSyncedDataFromFile()
+    {
+        if (_dataLoaded) return;
+        
+        try
+        {
+            lock (_fileLock)
+            {
+                if (_dataLoaded) return;
+                
+                if (System.IO.File.Exists(SYNC_DATA_FILE))
+                {
+                    var json = System.IO.File.ReadAllText(SYNC_DATA_FILE);
+                    var doc = System.Text.Json.JsonDocument.Parse(json);
+                    
+                    if (doc.RootElement.TryGetProperty("devices", out var devicesElement))
+                    {
+                        var devices = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, SyncedDeviceData>>(devicesElement.GetRawText());
+                        if (devices != null && devices.Count > 0)
+                        {
+                            _syncedRealtimeData = devices;
+                            Log.Information($"Loaded {devices.Count} devices from {SYNC_DATA_FILE}");
+                        }
+                    }
+                    
+                    if (doc.RootElement.TryGetProperty("lastSyncTime", out var syncTimeElement))
+                    {
+                        _lastRealtimeSyncTime = syncTimeElement.GetDateTime();
+                    }
+                }
+                
+                _dataLoaded = true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning($"Failed to load synced data from file: {ex.Message}");
+            _dataLoaded = true;
+        }
+    }
+
+    public class SyncDevicesRequest
+    {
+        public List<string> Devices { get; set; } = new List<string>();
+    }
+
+    public class SyncedDeviceData
+    {
+        public string DeviceId { get; set; } = "";
+        public bool IsOnline { get; set; }
+        
+        // Realtime Power (W)
+        public int Soc { get; set; }
+        public int PvPower { get; set; }
+        public int BatteryPower { get; set; }  // Positive=charging, Negative=discharging
+        public int LoadPower { get; set; }
+        public int GridPower { get; set; }     // Positive=import, Negative=export
+        
+        // Daily Energy (kWh)
+        public double PvDay { get; set; }       // PV production today
+        public double ChargeDay { get; set; }   // Battery charge today
+        public double DischargeDay { get; set; } // Battery discharge today
+        public double LoadDay { get; set; }     // Load consumption today
+        public double GridDay { get; set; }     // Grid import today
+        public double ExportDay { get; set; }   // Grid export today
+        
+        // Additional info
+        public double Temperature { get; set; }
+        public double TemperatureMin { get; set; }  // Min temperature today
+        public double TemperatureMax { get; set; }  // Max temperature today
+        public string TemperatureMinTime { get; set; } = "--:--";  // Time of min temp (HH:mm)
+        public string TemperatureMaxTime { get; set; } = "--:--";  // Time of max temp (HH:mm)
+        public string BatteryStatus { get; set; } = "";  // charging/discharging/idle
+        public string GridStatus { get; set; } = "";     // importing/exporting/idle
+        public string InverterModel { get; set; } = "";  // e.g. "SUNT-8.0kW-HP"
+        
+        public DateTime LastUpdate { get; set; }
+    }
+
+    public class SyncRealtimeRequest
+    {
+        public List<SyncedDeviceData> Devices { get; set; } = new List<SyncedDeviceData>();
+    }
+
+    // Chart data models for SOC and Energy history
+    public class ChartDataPoint
+    {
+        public string Time { get; set; } = "";  // HH:mm format
+        public double Value { get; set; }
+    }
+
+    public class EnergyChartDataPoint
+    {
+        public string Time { get; set; } = "";  // HH:mm format
+        public double Pv { get; set; }
+        public double Load { get; set; }
+        public double Grid { get; set; }
+        public double Battery { get; set; }
+    }
+
+    public class SyncedChartData
+    {
+        public string DeviceId { get; set; } = "";
+        public string Date { get; set; } = "";  // YYYY-MM-DD
+        public List<ChartDataPoint> SocTimeline { get; set; } = new List<ChartDataPoint>();
+        public List<EnergyChartDataPoint> EnergyTimeline { get; set; } = new List<EnergyChartDataPoint>();
+        public DateTime LastUpdate { get; set; }
+    }
+
+    public class SyncChartDataRequest
+    {
+        public string DeviceId { get; set; } = "";
+        public string Date { get; set; } = "";
+        public List<ChartDataPoint>? SocTimeline { get; set; }
+        public List<EnergyChartDataPoint>? EnergyTimeline { get; set; }
+    }
+
+    /// <summary>
+    /// Sync realtime data from local HA script (push every 5 minutes)
+    /// Endpoint: POST /api/cloud/sync-realtime
+    /// </summary>
+    [HttpPost]
+    [Route("/api/cloud/sync-realtime")]
+    public IActionResult SyncRealtimeFromLocal([FromBody] SyncRealtimeRequest request)
+    {
+        try
+        {
+            if (request?.Devices == null || request.Devices.Count == 0)
+            {
+                return Json(new { success = false, error = "No devices data provided" });
+            }
+
+            foreach (var device in request.Devices)
+            {
+                device.LastUpdate = DateTime.UtcNow;
+                _syncedRealtimeData[device.DeviceId] = device;
+            }
+            
+            _lastRealtimeSyncTime = DateTime.UtcNow;
+
+            // Save to file for persistence across restarts
+            SaveSyncedDataToFile();
+
+            var onlineCount = _syncedRealtimeData.Values.Count(d => d.IsOnline);
+            var totalPv = _syncedRealtimeData.Values.Where(d => d.IsOnline).Sum(d => d.PvPower);
+            var totalLoad = _syncedRealtimeData.Values.Where(d => d.IsOnline).Sum(d => d.LoadPower);
+
+            Log.Information($"Synced realtime: {request.Devices.Count} devices, {onlineCount} online, PV={totalPv}W, Load={totalLoad}W");
+            
+            return Json(new { 
+                success = true, 
+                message = $"Synced {request.Devices.Count} devices",
+                onlineCount = onlineCount,
+                totalPvPower = totalPv,
+                totalLoadPower = totalLoad,
+                syncedAt = _lastRealtimeSyncTime
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error syncing realtime data");
+            return Json(new { success = false, error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get synced realtime data for all devices
+    /// </summary>
+    [Route("/api/cloud/synced-realtime")]
+    public IActionResult GetSyncedRealtimeData()
+    {
+        // Load from file if not loaded yet (after restart)
+        LoadSyncedDataFromFile();
+        
+        var onlineCount = _syncedRealtimeData.Values.Count(d => d.IsOnline);
+        return Json(new {
+            success = true,
+            count = _syncedRealtimeData.Count,
+            onlineCount = onlineCount,
+            devices = _syncedRealtimeData.Values.OrderBy(d => d.DeviceId).ToList(),
+            lastSyncTime = _lastRealtimeSyncTime
+        });
+    }
+
+    /// <summary>
+    /// Get realtime data for all devices (used by frontend dashboard)
+    /// Returns data from synced realtime (pushed by local HA script)
+    /// Endpoint: /api/realtime/all
+    /// </summary>
+    [Route("/api/realtime/all")]
+    public IActionResult GetRealtimeAll()
+    {
+        // Load from file if not loaded yet (after restart)
+        LoadSyncedDataFromFile();
+        
+        // Return synced data from local HA push
+        var devices = _syncedRealtimeData.Values
+            .OrderBy(d => d.DeviceId)
+            .Select(d => new {
+                deviceId = d.DeviceId,
+                isOnline = d.IsOnline,
+                lastUpdate = d.LastUpdate,
+                realtime = new {
+                    pvPower = d.PvPower,
+                    batteryPower = d.BatteryPower,
+                    batterySoc = d.Soc,
+                    gridPower = d.GridPower,
+                    loadPower = d.LoadPower,
+                    temperature = d.Temperature,
+                    temperatureMin = d.TemperatureMin,
+                    temperatureMax = d.TemperatureMax,
+                    batteryStatus = d.BatteryStatus,
+                    gridStatus = d.GridStatus
+                },
+                daily = new {
+                    pvDay = d.PvDay,
+                    chargeDay = d.ChargeDay,
+                    dischargeDay = d.DischargeDay,
+                    loadDay = d.LoadDay,
+                    gridDay = d.GridDay,
+                    exportDay = d.ExportDay
+                }
+            })
+            .ToList();
+
+        var onlineDevices = _syncedRealtimeData.Values.Where(d => d.IsOnline);
+        
+        return Json(new {
+            success = true,
+            count = devices.Count,
+            onlineCount = onlineDevices.Count(),
+            totalPvPower = onlineDevices.Sum(d => d.PvPower),
+            totalLoadPower = onlineDevices.Sum(d => d.LoadPower),
+            totalBatteryPower = onlineDevices.Sum(d => d.BatteryPower),
+            totalGridPower = onlineDevices.Sum(d => d.GridPower),
+            avgSoc = onlineDevices.Any() ? Math.Round(onlineDevices.Average(d => d.Soc), 1) : 0,
+            devices = devices,
+            lastSyncTime = _lastRealtimeSyncTime,
+            timestamp = DateTime.Now
+        });
+    }
+
+    /// <summary>
+    /// Get realtime data for a specific device
+    /// Endpoint: /api/realtime/device/{deviceId}
+    /// </summary>
+    [Route("/api/realtime/device/{deviceId}")]
+    public IActionResult GetRealtimeDevice(string deviceId)
+    {
+        // Load from file if not loaded yet (after restart)
+        LoadSyncedDataFromFile();
+        
+        if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
+        {
+            return Json(new {
+                success = true,
+                deviceId = device.DeviceId,
+                isOnline = device.IsOnline,
+                lastUpdate = device.LastUpdate,
+                realtime = new {
+                    pvPower = device.PvPower,
+                    batteryPower = device.BatteryPower,
+                    batterySoc = device.Soc,
+                    gridPower = device.GridPower,
+                    loadPower = device.LoadPower,
+                    temperature = device.Temperature,
+                    temperatureMin = device.TemperatureMin,
+                    temperatureMax = device.TemperatureMax,
+                    batteryStatus = device.BatteryStatus,
+                    gridStatus = device.GridStatus
+                },
+                daily = new {
+                    pvDay = device.PvDay,
+                    chargeDay = device.ChargeDay,
+                    dischargeDay = device.DischargeDay,
+                    loadDay = device.LoadDay,
+                    gridDay = device.GridDay,
+                    exportDay = device.ExportDay
+                }
+            });
+        }
+
+        return Json(new {
+            success = false,
+            error = $"Device {deviceId} not found in synced data",
+            deviceId = deviceId
+        });
+    }
+
+    /// <summary>
+    /// Get temperature history (min/max) for a device on a specific date
+    /// Returns data from synced realtime (pushed by local HA script)
+    /// Endpoint: /api/cloud/temperature/{deviceId}/{date}
+    /// </summary>
+    [Route("/api/cloud/temperature/{deviceId}/{date}")]
+    public IActionResult GetCloudTemperature(string deviceId, string date)
+    {
+        // Load from file if not loaded yet
+        LoadSyncedDataFromFile();
+        
+        if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
+        {
+            return Json(new {
+                success = true,
+                deviceId = device.DeviceId,
+                date = date,
+                min = device.TemperatureMin,
+                max = device.TemperatureMax,
+                current = device.Temperature,
+                minTime = device.TemperatureMinTime ?? "--:--",
+                maxTime = device.TemperatureMaxTime ?? "--:--",
+                count = 1,
+                source = "synced"
+            });
+        }
+
+        return Json(new {
+            success = false,
+            error = $"Device {deviceId} not found in synced data",
+            deviceId = deviceId
+        });
+    }
+
+    /// <summary>
+    /// Gets device info (inverter model) from synced data
+    /// Endpoint: /api/cloud/device-info/{deviceId}
+    /// </summary>
+    [Route("/api/cloud/device-info/{deviceId}")]
+    public IActionResult GetCloudDeviceInfo(string deviceId)
+    {
+        // Load from file if not loaded yet
+        LoadSyncedDataFromFile();
+        
+        if (_syncedRealtimeData.TryGetValue(deviceId.ToUpper(), out var device))
+        {
+            return Json(new {
+                success = true,
+                deviceId = device.DeviceId,
+                model = device.InverterModel,
+                friendly_name = !string.IsNullOrEmpty(device.InverterModel) 
+                    ? $"{device.InverterModel} Device Temperature" 
+                    : null,
+                source = "synced"
+            });
+        }
+
+        return Json(new {
+            success = false,
+            error = $"Device {deviceId} not found in synced data",
+            deviceId = deviceId
+        });
+    }
+
+    /// <summary>
+    /// Sync chart data (SOC + Energy) from local HA script
+    /// Endpoint: POST /api/cloud/sync-chart
+    /// </summary>
+    [HttpPost]
+    [Route("/api/cloud/sync-chart")]
+    public IActionResult SyncChartData([FromBody] SyncChartDataRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(request?.DeviceId) || string.IsNullOrEmpty(request?.Date))
+            {
+                return Json(new { success = false, error = "DeviceId and Date are required" });
+            }
+
+            var key = $"{request.DeviceId.ToUpper()}_{request.Date}";
+            
+            var chartData = new SyncedChartData
+            {
+                DeviceId = request.DeviceId.ToUpper(),
+                Date = request.Date,
+                SocTimeline = request.SocTimeline ?? new List<ChartDataPoint>(),
+                EnergyTimeline = request.EnergyTimeline ?? new List<EnergyChartDataPoint>(),
+                LastUpdate = DateTime.UtcNow
+            };
+
+            _syncedChartData[key] = chartData;
+            SaveChartDataToFile();
+
+            Log.Information($"Synced chart data for {request.DeviceId} on {request.Date}: SOC={chartData.SocTimeline.Count} points, Energy={chartData.EnergyTimeline.Count} points");
+
+            return Json(new {
+                success = true,
+                deviceId = request.DeviceId,
+                date = request.Date,
+                socPoints = chartData.SocTimeline.Count,
+                energyPoints = chartData.EnergyTimeline.Count
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error syncing chart data");
+            return Json(new { success = false, error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Get SOC history chart data from synced HA data
+    /// Endpoint: /api/cloud/soc-history/{deviceId}/{date}
+    /// </summary>
+    [Route("/api/cloud/soc-history/{deviceId}/{date}")]
+    public IActionResult GetCloudSocHistory(string deviceId, string date)
+    {
+        LoadChartDataFromFile();
+        
+        var key = $"{deviceId.ToUpper()}_{date}";
+        
+        if (_syncedChartData.TryGetValue(key, out var chartData) && chartData.SocTimeline.Count > 0)
+        {
+            return Json(new {
+                success = true,
+                deviceId = chartData.DeviceId,
+                date = chartData.Date,
+                timeline = chartData.SocTimeline.Select(p => new { time = p.Time, soc = p.Value }),
+                count = chartData.SocTimeline.Count,
+                source = "synced"
+            });
+        }
+
+        return Json(new {
+            success = false,
+            error = $"No SOC data for device {deviceId} on {date}",
+            deviceId = deviceId,
+            date = date
+        });
+    }
+
+    /// <summary>
+    /// Get Energy history chart data from synced HA data
+    /// Endpoint: /api/cloud/energy-history/{deviceId}/{date}
+    /// Alias: /api/cloud/power-history/{deviceId}/{date}
+    /// </summary>
+    [Route("/api/cloud/energy-history/{deviceId}/{date}")]
+    [Route("/api/cloud/power-history/{deviceId}/{date}")]
+    public IActionResult GetCloudEnergyHistory(string deviceId, string date)
+    {
+        LoadChartDataFromFile();
+        
+        var key = $"{deviceId.ToUpper()}_{date}";
+        
+        if (_syncedChartData.TryGetValue(key, out var chartData) && chartData.EnergyTimeline.Count > 0)
+        {
+            return Json(new {
+                success = true,
+                deviceId = chartData.DeviceId,
+                date = chartData.Date,
+                timeline = chartData.EnergyTimeline.Select(p => new { 
+                    time = p.Time, 
+                    pv = p.Pv, 
+                    load = p.Load, 
+                    grid = p.Grid, 
+                    battery = p.Battery 
+                }),
+                count = chartData.EnergyTimeline.Count,
+                source = "synced"
+            });
+        }
+
+        return Json(new {
+            success = false,
+            error = $"No energy data for device {deviceId} on {date}",
+            deviceId = deviceId,
+            date = date
+        });
+    }
+
+    /// <summary>
+    /// Save chart data to file for persistence
+    /// </summary>
+    private static void SaveChartDataToFile()
+    {
+        try
+        {
+            lock (_fileLock)
+            {
+                var json = System.Text.Json.JsonSerializer.Serialize(_syncedChartData);
+                System.IO.File.WriteAllText(CHART_DATA_FILE, json);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error saving chart data to file");
+        }
+    }
+
+    /// <summary>
+    /// Load chart data from file
+    /// </summary>
+    private static void LoadChartDataFromFile()
+    {
+        try
+        {
+            lock (_fileLock)
+            {
+                if (System.IO.File.Exists(CHART_DATA_FILE))
+                {
+                    var json = System.IO.File.ReadAllText(CHART_DATA_FILE);
+                    var loaded = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, SyncedChartData>>(json);
+                    if (loaded != null)
+                    {
+                        _syncedChartData = loaded;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error loading chart data from file");
+        }
+    }
+
+    /// <summary>
+    /// Gets detailed device data from LightEarth Cloud for a specific device
+    /// </summary>
+    [Route("/api/cloud/device/{deviceId}")]
+    public async Task<IActionResult> GetCloudDevice(string deviceId)
+    {
+        try
+        {
+            var haUrl = Environment.GetEnvironmentVariable("HomeAssistant__Url");
+            var haToken = Environment.GetEnvironmentVariable("HomeAssistant__Token");
+
+            if (string.IsNullOrEmpty(haUrl) || string.IsNullOrEmpty(haToken))
+            {
+                return Json(new { success = false, error = "Cloud not configured" });
+            }
+
+            var haClient = new MultiDeviceHomeAssistantClient(haUrl, haToken);
+            
+            if (!await haClient.CheckAvailabilityAsync())
+            {
+                return Json(new { success = false, error = "Cloud is not available" });
+            }
+
+            var deviceData = await haClient.GetDeviceDataAsync(deviceId);
+            var dailyEnergy = await haClient.GetDailyEnergyAsync(deviceId);
+            var cellData = await haClient.GetBatteryCellDataAsync(deviceId);
+
+            if (deviceData == null)
+            {
+                return Json(new { success = false, error = $"Device {deviceId} not found" });
+            }
+
+            return Json(new {
+                success = true,
+                deviceId = deviceId,
+                timestamp = DateTime.Now,
+                realtime = new {
+                    pvPower = deviceData.TotalPvPower ?? 0,
+                    pv1Power = deviceData.Pv1Power ?? 0,
+                    pv2Power = deviceData.Pv2Power ?? 0,
+                    batteryPower = deviceData.BatteryPower ?? 0,
+                    batterySoc = deviceData.BatteryChargePercentage ?? 0,
+                    batteryVoltage = deviceData.BatteryVoltage ?? 0,
+                    batteryStatus = deviceData.BatteryStatus ?? "--",
+                    gridPower = deviceData.GridPower ?? 0,
+                    gridVoltage = deviceData.AcInputVoltage ?? 0,
+                    gridStatus = deviceData.GridStatus ?? "--",
+                    loadPower = deviceData.HomeLoad ?? 0,
+                    essentialPower = deviceData.AcOutputPower ?? 0,
+                    temperature = deviceData.TemperatureCelsius ?? 0
+                },
+                dailyEnergy = dailyEnergy != null ? new {
+                    pvDay = Math.Round(dailyEnergy.PvDay, 2),
+                    chargeDay = Math.Round(dailyEnergy.ChargeDay, 2),
+                    dischargeDay = Math.Round(dailyEnergy.DischargeDay, 2),
+                    gridDay = Math.Round(dailyEnergy.GridDay, 2),
+                    loadDay = Math.Round(dailyEnergy.TotalLoadDay, 2),
+                    essentialDay = Math.Round(dailyEnergy.EssentialDay, 2)
+                } : null,
+                cellData = cellData != null ? new {
+                    numberOfCells = cellData.NumberOfCells,
+                    averageVoltage = cellData.AverageVoltage,
+                    minVoltage = cellData.MinimumVoltage,
+                    maxVoltage = cellData.MaximumVoltage,
+                    voltageDiff = cellData.VoltageDifference,
+                    cells = cellData.CellVoltages
+                } : null
+            });
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error getting Cloud device {DeviceId}", deviceId);
+            return Json(new { success = false, error = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// REALTIME DATA NOW AVAILABLE AT: /api/proxy/realtime/{deviceId}
+    /// This endpoint has been moved to DataProxyController
+    /// </summary>
+    // [Route("/device/{deviceId}/realtime")] - REMOVED: Use /api/proxy/realtime/{deviceId} instead
+
+    /// <summary>
+    /// Debug endpoint to test connectivity to Lumentree API
+    /// Accepts optional deviceId query parameter for testing specific device
+    /// </summary>
+
+    /// <summary>
+    /// Debug endpoint to test connectivity to Lumentree API
+    /// Accepts optional deviceId query parameter for testing specific device
+    /// </summary>
+    [Route("/debug/connectivity")]
+    public async Task<IActionResult> TestConnectivity([FromQuery] string? deviceId = null)
+    {
+        var results = new Dictionary<string, object>();
+        
+        // Test 1: DNS Resolution
+        try
+        {
+            var addresses = await System.Net.Dns.GetHostAddressesAsync("lesvr.suntcn.com");
+            results["dns_resolution"] = new { 
+                success = true, 
+                addresses = addresses.Select(a => a.ToString()).ToArray() 
+            };
+        }
+        catch (Exception ex)
+        {
+            results["dns_resolution"] = new { success = false, error = ex.Message };
+        }
+
+        // Test 1b: DNS Resolution for LEHT API
+        try
+        {
+            var addresses = await System.Net.Dns.GetHostAddressesAsync("lehtapi.suntcn.com");
+            results["dns_lehtapi"] = new { 
+                success = true, 
+                addresses = addresses.Select(a => a.ToString()).ToArray() 
+            };
+        }
+        catch (Exception ex)
+        {
+            results["dns_lehtapi"] = new { success = false, error = ex.Message };
+        }
+        
+        // Test 2: HTTP Connection to Lumentree API (legacy)
+        try
+        {
+            using var httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(15);
+            var response = await httpClient.GetAsync("http://lesvr.suntcn.com/lesvr/getServerTime");
+            var content = await response.Content.ReadAsStringAsync();
+            results["lumentree_api"] = new { 
+                success = response.IsSuccessStatusCode, 
+                status_code = (int)response.StatusCode,
+                response = content.Length > 500 ? content.Substring(0, 500) : content
+            };
+        }
+        catch (Exception ex)
+        {
+            results["lumentree_api"] = new { success = false, error = ex.Message };
+        }
+
+        // Test 2b: HTTP Connection to LEHT API (primary)
+        try
+        {
+            var lehtClient = new LehtApiClient();
+            var loginSuccess = await lehtClient.LoginAsync("zixfel", "Minhlong4244@");
+            results["leht_api_login"] = new { 
+                success = loginSuccess,
+                session_id = lehtClient.SessionId?.Substring(0, Math.Min(8, lehtClient.SessionId?.Length ?? 0)) + "..."
+            };
+
+            if (loginSuccess && !string.IsNullOrEmpty(deviceId))
+            {
+                var dayData = await lehtClient.GetAllDayDataAsync(deviceId, DateTime.Now.ToString("yyyy-MM-dd"));
+                results["leht_api_data"] = new {
+                    success = dayData != null,
+                    has_pv_data = dayData?.Pv != null,
+                    has_bat_data = dayData?.Bat != null,
+                    pv_value = dayData?.Pv?.TableValue ?? 0
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            results["leht_api_login"] = new { success = false, error = ex.Message };
+        }
+
+        // Test 3: MQTT Connection test
+        try
+        {
+            using var tcpClient = new System.Net.Sockets.TcpClient();
+            var connectTask = tcpClient.ConnectAsync("lesvr.suntcn.com", 1886);
+            if (await Task.WhenAny(connectTask, Task.Delay(5000)) == connectTask)
+            {
+                results["mqtt_connection"] = new { success = true, host = "lesvr.suntcn.com", port = 1886 };
+            }
+            else
+            {
+                results["mqtt_connection"] = new { success = false, error = "Connection timeout after 5 seconds" };
+            }
+        }
+        catch (Exception ex)
+        {
+            results["mqtt_connection"] = new { success = false, error = ex.Message };
+        }
+        
+        // Test 4: Token Generation (only if deviceId is provided)
+        if (!string.IsNullOrEmpty(deviceId))
+        {
+            try
+            {
+                var token = await _client.GenerateToken(deviceId);
+                results["token_generation"] = new { 
+                    success = !string.IsNullOrEmpty(token),
+                    device_id = deviceId,
+                    token_preview = token?.Substring(0, Math.Min(8, token?.Length ?? 0)) + "..." 
+                };
+            }
+            catch (Exception ex)
+            {
+                results["token_generation"] = new { success = false, error = ex.Message, device_id = deviceId };
+            }
+        }
+        else
+        {
+            results["token_generation"] = new { 
+                success = false, 
+                message = "No deviceId provided. Add ?deviceId=YOUR_DEVICE_ID to test token generation" 
+            };
+        }
+
+        // Summary
+        var apiWorking = results.ContainsKey("leht_api_login") && 
+                         results["leht_api_login"] is { } lehtResult &&
+                         (lehtResult.GetType().GetProperty("success")?.GetValue(lehtResult) as bool? ?? false);
+        
+        results["summary"] = new {
+            recommendation = apiWorking 
+                ? "LEHT API is working! The system should be able to fetch real device data."
+                : "API connections are failing. This is likely due to network restrictions from the hosting provider to Chinese servers. Consider using a VPN or hosting in Asia region.",
+            demo_mode_url = "Add ?demo=true to any device URL to see demo data"
+        };
+        
+        return Json(results);
+    }
+
+    /// <summary>
+    /// Returns an error view
+    /// </summary>
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+    public IActionResult Error()
+    {
+        Log.Warning("Error page requested. RequestId: {RequestId}",
+            Activity.Current?.Id ?? HttpContext.TraceIdentifier);
+
+        return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
+    }
+
+    /// <summary>
+    /// Generates demo data for testing purposes when API is unreachable
+    /// </summary>
+    private object GenerateDemoData(string deviceId, DateTime queryDate)
+    {
+        var random = new Random();
+        var now = DateTime.Now;
+        var currentHour = now.Hour;
+        var currentMinute = now.Minute;
+        
+        // Generate realistic solar curve (peaks at noon)
+        var pvValueInfo = new List<int>();
+        var batValueInfo = new List<int>();
+        var gridValueInfo = new List<int>();
+        var loadValueInfo = new List<int>();
+        var socValueInfo = new List<int>();
+        
+        int currentSoc = 30; // Start at 30%
+        double totalPv = 0;
+        double totalLoad = 0;
+        double totalGrid = 0;
+        double totalBat = 0;
+        
+        for (int i = 0; i < 288; i++) // 288 points = 24 hours * 60 min / 5 min intervals
+        {
+            var hour = i * 5 / 60.0;
+            var isCurrentTime = (int)(hour * 60) <= (currentHour * 60 + currentMinute);
+            
+            // Solar production (bell curve, peak at noon)
+            var solarBase = Math.Max(0, Math.Sin((hour - 6) * Math.PI / 12) * 3500);
+            var solarNoise = random.Next(-100, 100);
+            var pvPower = isCurrentTime && hour >= 6 && hour <= 18 
+                ? (int)Math.Max(0, solarBase + solarNoise) 
+                : 0;
+            pvValueInfo.Add(pvPower);
+            totalPv += pvPower / 12.0; // Convert W to Wh (5 min intervals)
+            
+            // Load (more in morning/evening)
+            var loadBase = 800 + 500 * Math.Sin((hour - 2) * Math.PI / 12);
+            var loadNoise = random.Next(-100, 150);
+            var loadPower = isCurrentTime 
+                ? (int)Math.Max(200, loadBase + loadNoise + (hour >= 18 || hour <= 7 ? 400 : 0))
+                : 0;
+            loadValueInfo.Add(loadPower);
+            totalLoad += loadPower / 12.0;
+            
+            // Battery (charges during day, discharges at night)
+            var batPower = 0;
+            if (isCurrentTime)
+            {
+                if (hour >= 9 && hour <= 15 && pvPower > loadPower)
+                {
+                    batPower = (int)Math.Min(2000, (pvPower - loadPower) * 0.8);
+                    currentSoc = Math.Min(100, currentSoc + batPower / 500);
+                }
+                else if ((hour < 9 || hour > 17) && currentSoc > 10)
+                {
+                    batPower = (int)Math.Min(1500, loadPower * 0.6);
+                    currentSoc = Math.Max(10, currentSoc - batPower / 600);
+                }
+            }
+            batValueInfo.Add(batPower);
+            totalBat += batPower / 12.0;
+            socValueInfo.Add(isCurrentTime ? currentSoc : 0);
+            
+            // Grid (import when solar + battery insufficient)
+            var gridPower = isCurrentTime 
+                ? (int)Math.Max(0, loadPower - pvPower - batPower + random.Next(-50, 100))
+                : 0;
+            gridValueInfo.Add(gridPower);
+            totalGrid += gridPower / 12.0;
+        }
+        
+        // Current realtime values
+        var realtimePv = pvValueInfo.Count > 0 ? pvValueInfo[Math.Min((currentHour * 60 + currentMinute) / 5, 287)] : 0;
+        var realtimeLoad = loadValueInfo.Count > 0 ? loadValueInfo[Math.Min((currentHour * 60 + currentMinute) / 5, 287)] : 0;
+        var realtimeBat = batValueInfo.Count > 0 ? batValueInfo[Math.Min((currentHour * 60 + currentMinute) / 5, 287)] : 0;
+        var realtimeGrid = gridValueInfo.Count > 0 ? gridValueInfo[Math.Min((currentHour * 60 + currentMinute) / 5, 287)] : 0;
+        
+        return new {
+            DeviceInfo = new {
+                DeviceId = deviceId,
+                DeviceType = "DEMO - Lumentree 5kW Hybrid",
+                OnlineStatus = 1,
+                RemarkName = "Demo System",
+                ErrorStatus = (string?)null
+            },
+            Pv = new {
+                TableKey = "pv",
+                TableName = "PV发电量",
+                TableValue = (int)(totalPv / 100), // Convert to 0.1kWh units
+                TableValueInfo = pvValueInfo
+            },
+            Bat = new {
+                Bats = new[] {
+                    new { TableName = "电池充电电量", TableValue = (int)(totalBat / 100), TableKey = "bat" },
+                    new { TableName = "电池放电电量", TableValue = (int)(totalBat * 0.9 / 100), TableKey = "batF" }
+                },
+                TableValueInfo = batValueInfo
+            },
+            EssentialLoad = new {
+                TableKey = "essentialLoad",
+                TableName = "不断电负载耗电量",
+                TableValue = (int)(totalLoad * 0.3 / 100),
+                TableValueInfo = loadValueInfo.Select(v => (int)(v * 0.3)).ToList()
+            },
+            Grid = new {
+                TableKey = "grid",
+                TableName = "电网输入电量",
+                TableValue = (int)(totalGrid / 100),
+                TableValueInfo = gridValueInfo
+            },
+            Load = new {
+                TableKey = "homeload",
+                TableName = "家庭负载耗电量",
+                TableValue = (int)(totalLoad / 100),
+                TableValueInfo = loadValueInfo
+            },
+            BatSoc = new {
+                TableKey = "batSoc",
+                TableName = "电池余量百分比",
+                TableValue = currentSoc,
+                TableValueInfo = socValueInfo
+            },
+            RealtimeData = new {
+                device_id = deviceId,
+                data = new {
+                    batterySoc = currentSoc,
+                    batteryVoltage = 51.2 + random.NextDouble() * 2,
+                    batteryPower = realtimeBat,
+                    batteryStatus = realtimeBat > 100 ? "Charging" : (realtimeBat < -100 ? "Discharging" : "Standby"),
+                    gridPowerFlow = realtimeGrid,
+                    gridStatus = realtimeGrid > 0 ? "Importing" : "Exporting",
+                    homeLoad = realtimeLoad,
+                    totalPvPower = realtimePv,
+                    pv1Power = (int)(realtimePv * 0.55),
+                    pv2Power = (int)(realtimePv * 0.45),
+                    temperature = 35 + random.Next(0, 10),
+                    acOutputPower = (int)(realtimeLoad * 0.3),
+                    acInputVoltage = 220 + random.Next(-5, 5)
+                },
+                cells = new {
+                    averageVoltage = 3.2 + random.NextDouble() * 0.1,
+                    cellVoltages = Enumerable.Range(1, 16).ToDictionary(
+                        i => $"cell{i}", 
+                        i => 3.18 + random.NextDouble() * 0.08
+                    ),
+                    numberOfCells = 16
+                }
+            },
+            DataSource = "demo",
+            QueryDate = queryDate.ToString("yyyy-MM-dd"),
+            DemoMessage = "⚠️ Đây là dữ liệu DEMO. Để xem dữ liệu thật, vui lòng deploy lên Railway hoặc server có thể kết nối đến Lumentree API."
+        };
+    }
+}
