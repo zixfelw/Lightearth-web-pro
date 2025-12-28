@@ -9,7 +9,7 @@
     <title>Giám Sát Năng Lượng Mặt Trời - LightEarth Web Pro</title>
     
     <!-- Preload critical resources -->
-    <link rel="preload" href="https://lumentree-lighearth.pages.dev/css/index.css?v=13258" as="style" crossorigin>
+    <link rel="preload" href="https://lumentree-lighearth.pages.dev/css/index.css?v=13259" as="style" crossorigin>
     <link rel="preload" href="https://lumentree-lighearth.pages.dev/logo.png" as="image">
     
     <!-- Tailwind CSS with custom config -->
@@ -2140,8 +2140,8 @@
                 </div>
             </div>
             
-            <!-- Chart Container - Taller height 380px -->
-            <div class="relative bg-slate-50 dark:bg-slate-900/50 rounded-xl p-2 sm:p-3" style="height: 380px;">
+            <!-- Chart Container - Taller height 450px -->
+            <div class="relative bg-slate-50 dark:bg-slate-900/50 rounded-xl p-2 sm:p-3" style="height: 450px;">
                 <canvas id="powerTimelineChart"></canvas>
                 <!-- Loading Overlay -->
                 <div id="powerChartLoading" class="absolute inset-0 flex items-center justify-center bg-slate-50/80 dark:bg-slate-900/80 rounded-xl">
@@ -2149,34 +2149,6 @@
                         <div class="w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
                         <span class="text-xs text-slate-500 dark:text-slate-400">Đang tải dữ liệu...</span>
                     </div>
-                </div>
-            </div>
-            
-            <!-- Chart Stats Summary - 6 columns for 6 datasets -->
-            <div class="mt-3 grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2 text-center">
-                <div class="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-1.5 sm:p-2">
-                    <div class="text-[9px] sm:text-[10px] text-amber-600 dark:text-amber-400 font-medium">Tổng PV</div>
-                    <div class="text-[11px] sm:text-sm font-bold text-amber-700 dark:text-amber-300" id="chart-total-pv">-- kWh</div>
-                </div>
-                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-1.5 sm:p-2">
-                    <div class="text-[9px] sm:text-[10px] text-blue-600 dark:text-blue-400 font-medium">Tổng Tải</div>
-                    <div class="text-[11px] sm:text-sm font-bold text-blue-700 dark:text-blue-300" id="chart-total-load">-- kWh</div>
-                </div>
-                <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-1.5 sm:p-2">
-                    <div class="text-[9px] sm:text-[10px] text-purple-600 dark:text-purple-400 font-medium">Tổng EVN</div>
-                    <div class="text-[11px] sm:text-sm font-bold text-purple-700 dark:text-purple-300" id="chart-total-grid">-- kWh</div>
-                </div>
-                <div class="bg-green-50 dark:bg-green-900/20 rounded-lg p-1.5 sm:p-2">
-                    <div class="text-[9px] sm:text-[10px] text-green-600 dark:text-green-400 font-medium">Nạp Pin</div>
-                    <div class="text-[11px] sm:text-sm font-bold text-green-700 dark:text-green-300" id="chart-total-charge">-- kWh</div>
-                </div>
-                <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-1.5 sm:p-2">
-                    <div class="text-[9px] sm:text-[10px] text-red-600 dark:text-red-400 font-medium">Xả Pin</div>
-                    <div class="text-[11px] sm:text-sm font-bold text-red-700 dark:text-red-300" id="chart-total-discharge">-- kWh</div>
-                </div>
-                <div class="bg-cyan-50 dark:bg-cyan-900/20 rounded-lg p-1.5 sm:p-2">
-                    <div class="text-[9px] sm:text-[10px] text-cyan-600 dark:text-cyan-400 font-medium">Dự Phòng</div>
-                    <div class="text-[11px] sm:text-sm font-bold text-cyan-700 dark:text-cyan-300" id="chart-total-backup">-- kWh</div>
                 </div>
             </div>
         </div>
@@ -2570,12 +2542,12 @@
     
     
     <!-- CSS first for fast rendering -->
-    <link href="https://lumentree-lighearth.pages.dev/css/index.css?v=13258" rel="stylesheet" crossorigin />
+    <link href="https://lumentree-lighearth.pages.dev/css/index.css?v=13259" rel="stylesheet" crossorigin />
     
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="https://lumentree-lighearth.pages.dev/js/index.js?v=13258" defer crossorigin></script>
+    <script src="https://lumentree-lighearth.pages.dev/js/index.js?v=13259" defer crossorigin></script>
 
 </body>
 </html>

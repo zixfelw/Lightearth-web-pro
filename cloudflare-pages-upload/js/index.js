@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13258 - Power Timeline Chart with 6 datasets (PV, Tải, EVN, Nạp Pin, Xả Pin, Dự Phòng), 24h full timeline, taller chart
+ * Version: 13259 - Power Chart: 24h zero baseline, removed summary stats, taller 450px height
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1314,13 +1314,14 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
         
-        // Initialize 6 datasets with null values (full 24h)
-        const pvData = new Array(288).fill(null);
-        const loadData = new Array(288).fill(null);
-        const gridData = new Array(288).fill(null);
-        const chargeData = new Array(288).fill(null);    // Nạp pin (positive battery)
-        const dischargeData = new Array(288).fill(null); // Xả pin (absolute of negative battery)
-        const backupData = new Array(288).fill(null);    // Dự phòng
+        // Initialize 6 datasets with 0 values (full 24h baseline)
+        // Using 0 instead of null to show continuous baseline at zero level
+        const pvData = new Array(288).fill(0);
+        const loadData = new Array(288).fill(0);
+        const gridData = new Array(288).fill(0);
+        const chargeData = new Array(288).fill(0);    // Nạp pin (positive battery)
+        const dischargeData = new Array(288).fill(0); // Xả pin (absolute of negative battery)
+        const backupData = new Array(288).fill(0);    // Dự phòng
         
         // Calculate totals for summary
         let totalPv = 0, totalLoad = 0, totalGrid = 0, totalCharge = 0, totalDischarge = 0, totalBackup = 0;
@@ -1370,18 +1371,6 @@ document.addEventListener('DOMContentLoaded', function () {
             totalBackup += backup * (5/60) / 1000;
         });
         
-        // Update totals display
-        const updateEl = (id, val) => {
-            const el = document.getElementById(id);
-            if (el) el.textContent = val.toFixed(1) + ' kWh';
-        };
-        updateEl('chart-total-pv', totalPv);
-        updateEl('chart-total-load', totalLoad);
-        updateEl('chart-total-grid', totalGrid);
-        updateEl('chart-total-charge', totalCharge);
-        updateEl('chart-total-discharge', totalDischarge);
-        updateEl('chart-total-backup', totalBackup);
-        
         console.log(`📈 Power chart: 288 slots (24h), Data points: ${timeline.length}, PV: ${totalPv.toFixed(1)} kWh`);
         
         // Destroy existing chart
@@ -1391,9 +1380,9 @@ document.addEventListener('DOMContentLoaded', function () {
         
         const ctx = canvas.getContext('2d');
         
-        // Create gradients (taller chart = 380px)
+        // Create gradients (taller chart = 450px)
         const createGradient = (color1, color2) => {
-            const gradient = ctx.createLinearGradient(0, 0, 0, 380);
+            const gradient = ctx.createLinearGradient(0, 0, 0, 450);
             gradient.addColorStop(0, color1);
             gradient.addColorStop(1, color2);
             return gradient;
@@ -1414,7 +1403,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         tension: 0.3,
                         pointRadius: 0,
                         pointHoverRadius: 4,
-                        spanGaps: true
+                        spanGaps: false
                     },
                     {
                         label: 'Tải',
@@ -1426,7 +1415,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         tension: 0.3,
                         pointRadius: 0,
                         pointHoverRadius: 4,
-                        spanGaps: true
+                        spanGaps: false
                     },
                     {
                         label: 'EVN',
@@ -1438,7 +1427,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         tension: 0.3,
                         pointRadius: 0,
                         pointHoverRadius: 4,
-                        spanGaps: true
+                        spanGaps: false
                     },
                     {
                         label: 'Nạp Pin',
@@ -1450,7 +1439,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         tension: 0.3,
                         pointRadius: 0,
                         pointHoverRadius: 4,
-                        spanGaps: true
+                        spanGaps: false
                     },
                     {
                         label: 'Xả Pin',
@@ -1462,7 +1451,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         tension: 0.3,
                         pointRadius: 0,
                         pointHoverRadius: 4,
-                        spanGaps: true
+                        spanGaps: false
                     },
                     {
                         label: 'Dự Phòng',
@@ -1474,7 +1463,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         tension: 0.3,
                         pointRadius: 0,
                         pointHoverRadius: 4,
-                        spanGaps: true
+                        spanGaps: false
                     }
                 ]
             },
