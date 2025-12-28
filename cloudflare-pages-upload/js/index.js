@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13260 - Solar Dashboard uses Cloudflare Worker instead of Railway backend
+ * Version: 13261 - Solar Dashboard uses Cloudflare Worker instead of Railway backend
  * 
  * Features:
  * - Real-time data via SignalR
