@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13261 - Solar Dashboard uses Cloudflare Worker instead of Railway backend
+ * Version: 13262 - Solar Dashboard uses Cloudflare Worker instead of Railway backend
  * 
  * Features:
  * - Real-time data via SignalR
@@ -636,16 +636,16 @@ document.addEventListener('DOMContentLoaded', function () {
             clearInterval(realtimePollingInterval);
         }
         
-        console.log(`🔄 Starting realtime polling for device: ${deviceId} (every 3 seconds)`);
+        console.log(`🔄 Starting realtime polling for device: ${deviceId} (every 5 seconds)`);
         
         // Fetch immediately
         fetchRealtimeData(deviceId);
         
-        // Poll every 3 seconds for real-time updates
-        // Static files moved to Cloudflare CDN - Egress cost optimized
+        // Poll every 5 seconds for real-time updates
+        // Reduced from 3s to 5s to minimize API requests and egress costs
         realtimePollingInterval = setInterval(() => {
             fetchRealtimeData(deviceId);
-        }, 3000);
+        }, 5000);
     }
     
     function stopRealtimePolling() {

@@ -5033,8 +5033,8 @@
     <script>
         // ==================== LIGHTEARTH & HA SYNC ====================
         const LIGHTEARTH_API_BASE = 'https://lightearth.applike098.workers.dev';
-        // HA data is fetched via Railway API proxy (avoids CORS issues)
-        // Railway connects to HA via Cloudflare Tunnel (HomeAssistant__Url env var)
+        // HA data is now fetched via Cloudflare Worker (reduces Railway egress)
+        const TEMPERATURE_SOC_API = 'https://temperature-soc-power.applike098.workers.dev';
         let lightearthData = null;
         let haYearlyData = null;
         let currentDataSource = 'ha';  // Default to 'ha' (yearly data)
@@ -5127,8 +5127,8 @@
                 showNotification('🔄 Đang lấy dữ liệu năm từ hệ thống...', 'info');
                 const startTime = Date.now();
                 
-                // Call Railway API proxy endpoint (connects to HA via Cloudflare Tunnel)
-                const response = await fetch(`/api/ha/statistics/${deviceId}/year?year=${year}`);
+                // Call Cloudflare Worker API (replaces Railway to reduce egress costs)
+                const response = await fetch(`${TEMPERATURE_SOC_API}/api/ha/statistics/${deviceId}/year?year=${year}`);
                 
                 if (!response.ok) {
                     const errorText = await response.text();
