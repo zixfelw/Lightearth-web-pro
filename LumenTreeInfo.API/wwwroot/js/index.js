@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13256 - Use Worker power-peak API for accurate peak stats (scan ALL raw data)
+ * Version: 13257 - Added Power Timeline Chart (full day visualization with toggle)
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1272,6 +1272,223 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
     
+    // ========================================
+    // POWER TIMELINE CHART - Full Day Visualization
+    // ========================================
+    let powerTimelineChart = null;
+    
+    // Toggle dataset visibility on Power Timeline Chart
+    window.togglePowerDataset = function(index) {
+        if (!powerTimelineChart) return;
+        
+        const meta = powerTimelineChart.getDatasetMeta(index);
+        meta.hidden = !meta.hidden;
+        powerTimelineChart.update();
+        
+        // Update button appearance
+        const buttons = document.querySelectorAll('#powerChartLegend .power-legend-btn');
+        if (buttons[index]) {
+            buttons[index].classList.toggle('opacity-40', meta.hidden);
+            buttons[index].classList.toggle('active', !meta.hidden);
+        }
+    };
+    
+    // Update Power Timeline Chart with full day data
+    function updatePowerTimelineChart(timeline, date) {
+        const canvas = document.getElementById('powerTimelineChart');
+        const loadingEl = document.getElementById('powerChartLoading');
+        
+        if (!canvas) {
+            console.warn('⚠️ powerTimelineChart canvas not found');
+            return;
+        }
+        
+        // Hide loading overlay
+        if (loadingEl) loadingEl.classList.add('hidden');
+        
+        // Process timeline data
+        const labels = [];
+        const pvData = [];
+        const loadData = [];
+        const gridData = [];
+        const batData = [];
+        
+        // Calculate totals for summary
+        let totalPv = 0, totalLoad = 0, totalGrid = 0, totalBatCharge = 0, totalBatDischarge = 0;
+        
+        timeline.forEach(point => {
+            // Get time label
+            const timeStr = point.t || point.time || '';
+            let label = timeStr;
+            if (timeStr.includes('T')) {
+                const d = new Date(timeStr);
+                label = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+            }
+            labels.push(label);
+            
+            // Get values (support multiple formats)
+            const pv = point.pvPower ?? point.pv ?? 0;
+            const load = point.loadPower ?? point.load ?? 0;
+            const grid = point.gridPower ?? point.grid ?? 0;
+            const bat = point.batteryPower ?? point.bat ?? point.battery ?? 0;
+            
+            pvData.push(pv);
+            loadData.push(load);
+            gridData.push(grid);
+            batData.push(bat);
+            
+            // Accumulate totals (Wh per 5 min = W * 5/60)
+            totalPv += pv * (5/60) / 1000;  // kWh
+            totalLoad += load * (5/60) / 1000;
+            totalGrid += grid * (5/60) / 1000;
+            if (bat > 0) totalBatCharge += bat * (5/60) / 1000;
+            else totalBatDischarge += Math.abs(bat) * (5/60) / 1000;
+        });
+        
+        // Update totals display
+        const updateEl = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val.toFixed(1) + ' kWh';
+        };
+        updateEl('chart-total-pv', totalPv);
+        updateEl('chart-total-load', totalLoad);
+        updateEl('chart-total-grid', totalGrid);
+        
+        // Battery net (charge - discharge)
+        const batNet = totalBatCharge - totalBatDischarge;
+        const batEl = document.getElementById('chart-total-battery');
+        if (batEl) {
+            const prefix = batNet >= 0 ? '+' : '';
+            batEl.textContent = prefix + batNet.toFixed(1) + ' kWh';
+            batEl.className = batEl.className.replace(/text-(emerald|red)-\d+/g, '');
+            batEl.classList.add(batNet >= 0 ? 'text-emerald-700' : 'text-red-600');
+        }
+        
+        console.log(`📈 Power chart: ${labels.length} data points, PV total: ${totalPv.toFixed(1)} kWh`);
+        
+        // Destroy existing chart
+        if (powerTimelineChart) {
+            powerTimelineChart.destroy();
+        }
+        
+        const ctx = canvas.getContext('2d');
+        
+        // Create gradients
+        const createGradient = (color1, color2) => {
+            const gradient = ctx.createLinearGradient(0, 0, 0, 280);
+            gradient.addColorStop(0, color1);
+            gradient.addColorStop(1, color2);
+            return gradient;
+        };
+        
+        powerTimelineChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'PV (Năng lượng mặt trời)',
+                        data: pvData,
+                        borderColor: '#f59e0b',
+                        backgroundColor: createGradient('rgba(245, 158, 11, 0.3)', 'rgba(245, 158, 11, 0.02)'),
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    },
+                    {
+                        label: 'Tải (Tiêu thụ)',
+                        data: loadData,
+                        borderColor: '#3b82f6',
+                        backgroundColor: createGradient('rgba(59, 130, 246, 0.3)', 'rgba(59, 130, 246, 0.02)'),
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    },
+                    {
+                        label: 'EVN (Lưới điện)',
+                        data: gridData,
+                        borderColor: '#a855f7',
+                        backgroundColor: createGradient('rgba(168, 85, 247, 0.3)', 'rgba(168, 85, 247, 0.02)'),
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    },
+                    {
+                        label: 'Pin (Nạp/Xả)',
+                        data: batData,
+                        borderColor: '#10b981',
+                        backgroundColor: createGradient('rgba(16, 185, 129, 0.3)', 'rgba(16, 185, 129, 0.02)'),
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#e2e8f0',
+                        padding: 12,
+                        cornerRadius: 8,
+                        displayColors: true,
+                        callbacks: {
+                            title: (items) => `⏰ ${items[0].label}`,
+                            label: (context) => {
+                                const icons = ['☀️', '🏠', '🔌', '🔋'];
+                                const value = context.parsed.y;
+                                return `${icons[context.datasetIndex]} ${context.dataset.label}: ${Math.round(value)} W`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { 
+                            color: 'rgba(148, 163, 184, 0.1)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            callback: (value) => value >= 1000 ? (value/1000).toFixed(1) + 'kW' : value + 'W',
+                            font: { size: 10 },
+                            color: 'rgba(148, 163, 184, 0.7)',
+                            maxTicksLimit: 6
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: {
+                            font: { size: 9 },
+                            color: 'rgba(148, 163, 184, 0.7)',
+                            maxRotation: 0,
+                            autoSkip: true,
+                            maxTicksLimit: 12
+                        }
+                    }
+                }
+            }
+        });
+        
+        console.log('✅ Power Timeline Chart created successfully');
+    }
+    
     // Convert Railway Power History data to chart format (288 points for 5-minute intervals)
     // Data mapping:
     // - pv: Sản lượng PV (pv_power)
@@ -1480,7 +1697,6 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log(`📊 Cloud data converted: ${timeline.length} points -> ${nonNullCount} chart slots`);
         console.log("📊 Sample data - PV max:", Math.max(...pvData.filter(v => v !== null && v > 0), 0), "Load max:", Math.max(...loadData.filter(v => v !== null && v > 0), 0));
         
-        // NOTE: Chart removed - only update peak stats now
         // Update peak stats from Cloud data (timeline format)
         const filteredTimeline = timeline.filter((point, index) => {
             let slotIndex;
@@ -1494,6 +1710,9 @@ document.addEventListener('DOMContentLoaded', function () {
             return slotIndex <= maxAllowedSlot;
         });
         updateEnergyChartPeakStatsFromTimeline(filteredTimeline);
+        
+        // NEW: Update Power Timeline Chart with full data
+        updatePowerTimelineChart(timeline, cloudData.date);
     }
     
     // Update peak stats from Cloud Power History (timeline array format)

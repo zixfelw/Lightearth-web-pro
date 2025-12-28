@@ -9,7 +9,7 @@
     <title>Giám Sát Năng Lượng Mặt Trời - LightEarth Web Pro</title>
     
     <!-- Preload critical resources -->
-    <link rel="preload" href="https://lumentree-lighearth.pages.dev/css/index.css?v=13256" as="style" crossorigin>
+    <link rel="preload" href="https://lumentree-lighearth.pages.dev/css/index.css?v=13257" as="style" crossorigin>
     <link rel="preload" href="https://lumentree-lighearth.pages.dev/logo.png" as="image">
     
     <!-- Tailwind CSS with custom config -->
@@ -2103,7 +2103,67 @@
             </div>
         </div>
         
-        <!-- Note: Chart removed - using peak stats only -->
+        <!-- Power Chart - Full Day Timeline -->
+        <div class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-600">
+            <!-- Chart Header with Legend Toggle -->
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="activity" class="w-4 h-4 text-indigo-500"></i>
+                    <span class="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200">Biểu Đồ Công Suất Trong Ngày</span>
+                </div>
+                <!-- Legend Toggle Buttons -->
+                <div id="powerChartLegend" class="flex flex-wrap gap-1.5 sm:gap-2">
+                    <button onclick="togglePowerDataset(0)" class="power-legend-btn active flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] sm:text-xs font-semibold transition-all bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-600">
+                        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                        <span>PV</span>
+                    </button>
+                    <button onclick="togglePowerDataset(1)" class="power-legend-btn active flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] sm:text-xs font-semibold transition-all bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-300 dark:border-blue-600">
+                        <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                        <span>Tải</span>
+                    </button>
+                    <button onclick="togglePowerDataset(2)" class="power-legend-btn active flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] sm:text-xs font-semibold transition-all bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-300 dark:border-purple-600">
+                        <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                        <span>EVN</span>
+                    </button>
+                    <button onclick="togglePowerDataset(3)" class="power-legend-btn active flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] sm:text-xs font-semibold transition-all bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-600">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        <span>Pin</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Chart Container -->
+            <div class="relative bg-slate-50 dark:bg-slate-900/50 rounded-xl p-2 sm:p-3" style="height: 280px;">
+                <canvas id="powerTimelineChart"></canvas>
+                <!-- Loading Overlay -->
+                <div id="powerChartLoading" class="absolute inset-0 flex items-center justify-center bg-slate-50/80 dark:bg-slate-900/80 rounded-xl">
+                    <div class="flex flex-col items-center gap-2">
+                        <div class="w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                        <span class="text-xs text-slate-500 dark:text-slate-400">Đang tải dữ liệu...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Chart Stats Summary -->
+            <div class="mt-3 grid grid-cols-4 gap-2 text-center">
+                <div class="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-2">
+                    <div class="text-[10px] text-amber-600 dark:text-amber-400 font-medium">Tổng PV</div>
+                    <div class="text-xs sm:text-sm font-bold text-amber-700 dark:text-amber-300" id="chart-total-pv">-- kWh</div>
+                </div>
+                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2">
+                    <div class="text-[10px] text-blue-600 dark:text-blue-400 font-medium">Tổng Tải</div>
+                    <div class="text-xs sm:text-sm font-bold text-blue-700 dark:text-blue-300" id="chart-total-load">-- kWh</div>
+                </div>
+                <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-2">
+                    <div class="text-[10px] text-purple-600 dark:text-purple-400 font-medium">Tổng EVN</div>
+                    <div class="text-xs sm:text-sm font-bold text-purple-700 dark:text-purple-300" id="chart-total-grid">-- kWh</div>
+                </div>
+                <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-2">
+                    <div class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Pin Net</div>
+                    <div class="text-xs sm:text-sm font-bold text-emerald-700 dark:text-emerald-300" id="chart-total-battery">-- kWh</div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -2494,12 +2554,12 @@
     
     
     <!-- CSS first for fast rendering -->
-    <link href="https://lumentree-lighearth.pages.dev/css/index.css?v=13256" rel="stylesheet" crossorigin />
+    <link href="https://lumentree-lighearth.pages.dev/css/index.css?v=13257" rel="stylesheet" crossorigin />
     
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="https://lumentree-lighearth.pages.dev/js/index.js?v=13256" defer crossorigin></script>
+    <script src="https://lumentree-lighearth.pages.dev/js/index.js?v=13257" defer crossorigin></script>
 
 </body>
 </html>
