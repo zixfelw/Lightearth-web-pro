@@ -1422,7 +1422,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         fill: true,
                         tension: 0.3,
                         pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointHoverRadius: 8,
                         spanGaps: false
                     },
                     {
@@ -1434,7 +1434,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         fill: true,
                         tension: 0.3,
                         pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointHoverRadius: 8,
                         spanGaps: false
                     },
                     {
@@ -1446,7 +1446,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         fill: true,
                         tension: 0.3,
                         pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointHoverRadius: 8,
                         spanGaps: false
                     },
                     {
@@ -1458,7 +1458,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         fill: true,
                         tension: 0.3,
                         pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointHoverRadius: 8,
                         spanGaps: false
                     },
                     {
@@ -1470,7 +1470,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         fill: true,
                         tension: 0.3,
                         pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointHoverRadius: 8,
                         spanGaps: false
                     },
                     {
@@ -1482,7 +1482,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         fill: true,
                         tension: 0.3,
                         pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointHoverRadius: 8,
                         spanGaps: false
                     }
                 ]
@@ -1497,12 +1497,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        backgroundColor: 'rgba(15, 23, 42, 0.98)',
                         titleColor: '#f8fafc',
                         bodyColor: '#e2e8f0',
-                        padding: 12,
-                        cornerRadius: 8,
+                        padding: 16,
+                        cornerRadius: 10,
                         displayColors: true,
+                        boxWidth: 14,
+                        boxHeight: 14,
+                        boxPadding: 6,
+                        titleFont: { size: 15, weight: 'bold' },
+                        bodyFont: { size: 14 },
                         callbacks: {
                             title: (items) => `⏰ ${items[0].label}`,
                             label: (context) => {
