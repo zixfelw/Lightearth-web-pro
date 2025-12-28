@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13257 - Added Power Timeline Chart (full day visualization with toggle)
+ * Version: 13258 - Power Timeline Chart with 6 datasets (PV, Tải, EVN, Nạp Pin, Xả Pin, Dự Phòng), 24h full timeline, taller chart
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1293,7 +1293,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
     
-    // Update Power Timeline Chart with full day data
+    // Update Power Timeline Chart with full day data (6 datasets, 24h full timeline)
     function updatePowerTimelineChart(timeline, date) {
         const canvas = document.getElementById('powerTimelineChart');
         const loadingEl = document.getElementById('powerChartLoading');
@@ -1306,43 +1306,68 @@ document.addEventListener('DOMContentLoaded', function () {
         // Hide loading overlay
         if (loadingEl) loadingEl.classList.add('hidden');
         
-        // Process timeline data
-        const labels = [];
-        const pvData = [];
-        const loadData = [];
-        const gridData = [];
-        const batData = [];
+        // Create full 24h timeline (288 slots for 5-minute intervals: 00:00 to 23:55)
+        const fullLabels = [];
+        for (let h = 0; h < 24; h++) {
+            for (let m = 0; m < 60; m += 5) {
+                fullLabels.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+            }
+        }
+        
+        // Initialize 6 datasets with null values (full 24h)
+        const pvData = new Array(288).fill(null);
+        const loadData = new Array(288).fill(null);
+        const gridData = new Array(288).fill(null);
+        const chargeData = new Array(288).fill(null);    // Nạp pin (positive battery)
+        const dischargeData = new Array(288).fill(null); // Xả pin (absolute of negative battery)
+        const backupData = new Array(288).fill(null);    // Dự phòng
         
         // Calculate totals for summary
-        let totalPv = 0, totalLoad = 0, totalGrid = 0, totalBatCharge = 0, totalBatDischarge = 0;
+        let totalPv = 0, totalLoad = 0, totalGrid = 0, totalCharge = 0, totalDischarge = 0, totalBackup = 0;
         
+        // Fill data from timeline
         timeline.forEach(point => {
-            // Get time label
+            // Get time label and slot index
             const timeStr = point.t || point.time || '';
-            let label = timeStr;
+            let hours, minutes;
+            
             if (timeStr.includes('T')) {
                 const d = new Date(timeStr);
-                label = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                hours = d.getHours();
+                minutes = d.getMinutes();
+            } else if (timeStr.includes(':')) {
+                const parts = timeStr.split(':');
+                hours = parseInt(parts[0], 10);
+                minutes = parseInt(parts[1], 10);
+            } else {
+                return; // Skip invalid time
             }
-            labels.push(label);
+            
+            const slotIndex = hours * 12 + Math.floor(minutes / 5);
+            if (slotIndex < 0 || slotIndex >= 288) return;
             
             // Get values (support multiple formats)
             const pv = point.pvPower ?? point.pv ?? 0;
             const load = point.loadPower ?? point.load ?? 0;
             const grid = point.gridPower ?? point.grid ?? 0;
             const bat = point.batteryPower ?? point.bat ?? point.battery ?? 0;
+            const backup = point.backupPower ?? point.backup ?? point.essential ?? 0;
             
-            pvData.push(pv);
-            loadData.push(load);
-            gridData.push(grid);
-            batData.push(bat);
+            // Store in arrays
+            pvData[slotIndex] = pv;
+            loadData[slotIndex] = load;
+            gridData[slotIndex] = grid;
+            chargeData[slotIndex] = bat > 0 ? bat : 0;        // Only positive = charging
+            dischargeData[slotIndex] = bat < 0 ? Math.abs(bat) : 0; // Only negative = discharging
+            backupData[slotIndex] = backup;
             
             // Accumulate totals (Wh per 5 min = W * 5/60)
             totalPv += pv * (5/60) / 1000;  // kWh
             totalLoad += load * (5/60) / 1000;
             totalGrid += grid * (5/60) / 1000;
-            if (bat > 0) totalBatCharge += bat * (5/60) / 1000;
-            else totalBatDischarge += Math.abs(bat) * (5/60) / 1000;
+            if (bat > 0) totalCharge += bat * (5/60) / 1000;
+            else totalDischarge += Math.abs(bat) * (5/60) / 1000;
+            totalBackup += backup * (5/60) / 1000;
         });
         
         // Update totals display
@@ -1353,18 +1378,11 @@ document.addEventListener('DOMContentLoaded', function () {
         updateEl('chart-total-pv', totalPv);
         updateEl('chart-total-load', totalLoad);
         updateEl('chart-total-grid', totalGrid);
+        updateEl('chart-total-charge', totalCharge);
+        updateEl('chart-total-discharge', totalDischarge);
+        updateEl('chart-total-backup', totalBackup);
         
-        // Battery net (charge - discharge)
-        const batNet = totalBatCharge - totalBatDischarge;
-        const batEl = document.getElementById('chart-total-battery');
-        if (batEl) {
-            const prefix = batNet >= 0 ? '+' : '';
-            batEl.textContent = prefix + batNet.toFixed(1) + ' kWh';
-            batEl.className = batEl.className.replace(/text-(emerald|red)-\d+/g, '');
-            batEl.classList.add(batNet >= 0 ? 'text-emerald-700' : 'text-red-600');
-        }
-        
-        console.log(`📈 Power chart: ${labels.length} data points, PV total: ${totalPv.toFixed(1)} kWh`);
+        console.log(`📈 Power chart: 288 slots (24h), Data points: ${timeline.length}, PV: ${totalPv.toFixed(1)} kWh`);
         
         // Destroy existing chart
         if (powerTimelineChart) {
@@ -1373,9 +1391,9 @@ document.addEventListener('DOMContentLoaded', function () {
         
         const ctx = canvas.getContext('2d');
         
-        // Create gradients
+        // Create gradients (taller chart = 380px)
         const createGradient = (color1, color2) => {
-            const gradient = ctx.createLinearGradient(0, 0, 0, 280);
+            const gradient = ctx.createLinearGradient(0, 0, 0, 380);
             gradient.addColorStop(0, color1);
             gradient.addColorStop(1, color2);
             return gradient;
@@ -1384,51 +1402,79 @@ document.addEventListener('DOMContentLoaded', function () {
         powerTimelineChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: labels,
+                labels: fullLabels,
                 datasets: [
                     {
-                        label: 'PV (Năng lượng mặt trời)',
+                        label: 'PV',
                         data: pvData,
                         borderColor: '#f59e0b',
-                        backgroundColor: createGradient('rgba(245, 158, 11, 0.3)', 'rgba(245, 158, 11, 0.02)'),
+                        backgroundColor: createGradient('rgba(245, 158, 11, 0.25)', 'rgba(245, 158, 11, 0.02)'),
                         borderWidth: 2,
                         fill: true,
-                        tension: 0.4,
+                        tension: 0.3,
                         pointRadius: 0,
-                        pointHoverRadius: 4
+                        pointHoverRadius: 4,
+                        spanGaps: true
                     },
                     {
-                        label: 'Tải (Tiêu thụ)',
+                        label: 'Tải',
                         data: loadData,
                         borderColor: '#3b82f6',
-                        backgroundColor: createGradient('rgba(59, 130, 246, 0.3)', 'rgba(59, 130, 246, 0.02)'),
+                        backgroundColor: createGradient('rgba(59, 130, 246, 0.25)', 'rgba(59, 130, 246, 0.02)'),
                         borderWidth: 2,
                         fill: true,
-                        tension: 0.4,
+                        tension: 0.3,
                         pointRadius: 0,
-                        pointHoverRadius: 4
+                        pointHoverRadius: 4,
+                        spanGaps: true
                     },
                     {
-                        label: 'EVN (Lưới điện)',
+                        label: 'EVN',
                         data: gridData,
                         borderColor: '#a855f7',
-                        backgroundColor: createGradient('rgba(168, 85, 247, 0.3)', 'rgba(168, 85, 247, 0.02)'),
+                        backgroundColor: createGradient('rgba(168, 85, 247, 0.25)', 'rgba(168, 85, 247, 0.02)'),
                         borderWidth: 2,
                         fill: true,
-                        tension: 0.4,
+                        tension: 0.3,
                         pointRadius: 0,
-                        pointHoverRadius: 4
+                        pointHoverRadius: 4,
+                        spanGaps: true
                     },
                     {
-                        label: 'Pin (Nạp/Xả)',
-                        data: batData,
-                        borderColor: '#10b981',
-                        backgroundColor: createGradient('rgba(16, 185, 129, 0.3)', 'rgba(16, 185, 129, 0.02)'),
+                        label: 'Nạp Pin',
+                        data: chargeData,
+                        borderColor: '#22c55e',
+                        backgroundColor: createGradient('rgba(34, 197, 94, 0.25)', 'rgba(34, 197, 94, 0.02)'),
                         borderWidth: 2,
                         fill: true,
-                        tension: 0.4,
+                        tension: 0.3,
                         pointRadius: 0,
-                        pointHoverRadius: 4
+                        pointHoverRadius: 4,
+                        spanGaps: true
+                    },
+                    {
+                        label: 'Xả Pin',
+                        data: dischargeData,
+                        borderColor: '#ef4444',
+                        backgroundColor: createGradient('rgba(239, 68, 68, 0.25)', 'rgba(239, 68, 68, 0.02)'),
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        spanGaps: true
+                    },
+                    {
+                        label: 'Dự Phòng',
+                        data: backupData,
+                        borderColor: '#06b6d4',
+                        backgroundColor: createGradient('rgba(6, 182, 212, 0.25)', 'rgba(6, 182, 212, 0.02)'),
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 0,
+                        pointHoverRadius: 4,
+                        spanGaps: true
                     }
                 ]
             },
@@ -1451,10 +1497,12 @@ document.addEventListener('DOMContentLoaded', function () {
                         callbacks: {
                             title: (items) => `⏰ ${items[0].label}`,
                             label: (context) => {
-                                const icons = ['☀️', '🏠', '🔌', '🔋'];
+                                const icons = ['☀️', '🏠', '🔌', '🔋+', '🔋-', '🛡️'];
                                 const value = context.parsed.y;
+                                if (value === null) return null;
                                 return `${icons[context.datasetIndex]} ${context.dataset.label}: ${Math.round(value)} W`;
-                            }
+                            },
+                            filter: (item) => item.parsed.y !== null && item.parsed.y > 0
                         }
                     }
                 },
@@ -1469,7 +1517,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             callback: (value) => value >= 1000 ? (value/1000).toFixed(1) + 'kW' : value + 'W',
                             font: { size: 10 },
                             color: 'rgba(148, 163, 184, 0.7)',
-                            maxTicksLimit: 6
+                            maxTicksLimit: 8
                         }
                     },
                     x: {
@@ -1479,14 +1527,22 @@ document.addEventListener('DOMContentLoaded', function () {
                             color: 'rgba(148, 163, 184, 0.7)',
                             maxRotation: 0,
                             autoSkip: true,
-                            maxTicksLimit: 12
+                            maxTicksLimit: 12,
+                            callback: function(value, index) {
+                                // Show only hours: 00:00, 02:00, 04:00, etc.
+                                const label = this.getLabelForValue(value);
+                                if (label && label.endsWith(':00') && parseInt(label.split(':')[0]) % 2 === 0) {
+                                    return label.split(':')[0] + 'h';
+                                }
+                                return '';
+                            }
                         }
                     }
                 }
             }
         });
         
-        console.log('✅ Power Timeline Chart created successfully');
+        console.log('✅ Power Timeline Chart created (6 datasets, 24h timeline)');
     }
     
     // Convert Railway Power History data to chart format (288 points for 5-minute intervals)
