@@ -746,11 +746,22 @@ document.addEventListener('DOMContentLoaded', function () {
             // Store data for 3D view sync
             latestRealtimeData = displayData;
             
-            // v3.9: Update inverter model/type if available from API
+            // v13264: Update inverter model/type from realtime API (PRIMARY SOURCE)
+            // This is the most reliable source - directly from HA sensor friendly_name
             if (displayData.inverterModel) {
-                updateValue('device-type', displayData.inverterModel);
-                updateValue('inverter-type', displayData.inverterModel);
-                console.log('✅ Updated inverter type:', displayData.inverterModel);
+                // Store globally so fetchDeviceInfo knows not to override
+                window._inverterModelFromRealtime = displayData.inverterModel;
+                
+                // Update UI immediately
+                const deviceTypeEl = document.getElementById('device-type');
+                const inverterTypeEl = document.getElementById('inverter-type');
+                const inverterTypeBasicEl = document.getElementById('inverter-type-basic');
+                
+                if (deviceTypeEl) deviceTypeEl.textContent = displayData.inverterModel;
+                if (inverterTypeEl) inverterTypeEl.textContent = displayData.inverterModel;
+                if (inverterTypeBasicEl) inverterTypeBasicEl.textContent = displayData.inverterModel;
+                
+                console.log('✅ [v13264] Inverter model updated from realtime API:', displayData.inverterModel);
             }
             
             // Update displays with realtime data
@@ -866,6 +877,8 @@ document.addEventListener('DOMContentLoaded', function () {
         hasCellData = false;
         cellDataReceived = false;
         previousCellValues = {};
+        // v13264: Reset realtime model flag when switching device
+        window._inverterModelFromRealtime = null;
         console.log('🔄 Reset cell data state for device:', deviceId);
 
         // FAST LOAD: Call realtime API first for instant display
@@ -2117,8 +2130,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // Helper function to apply device info to UI
+    // v13264: Only apply if realtime API hasn't already set the model
     function applyDeviceInfo(model) {
         if (!model) return;
+        
+        // Skip if realtime API already provided the model (it's more reliable)
+        if (window._inverterModelFromRealtime) {
+            console.log(`📦 [v13264] Skipping device info update - already have model from realtime: ${window._inverterModelFromRealtime}`);
+            return;
+        }
         
         const deviceTypeEl = document.getElementById('device-type');
         const inverterTypeEl = document.getElementById('inverter-type');
@@ -2127,7 +2147,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (deviceTypeEl) deviceTypeEl.textContent = model;
         if (inverterTypeEl) inverterTypeEl.textContent = model;
         if (inverterTypeBasicEl) inverterTypeBasicEl.textContent = model;
-        console.log(`✅ Device type updated: ${model}`);
+        console.log(`✅ Device type updated from device-info API: ${model}`);
     }
     
     // ========================================
