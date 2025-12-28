@@ -1,6 +1,7 @@
 /**
- * Temperature-SOC-Power Worker v2.3
- * - NEW: /api/solar/dashboard/{deviceId} - Solar Project Dashboard (replaces Railway API)
+ * Temperature-SOC-Power Worker v2.3.1
+ * - FIX: /api/solar/dashboard/{deviceId} - Now reads from sensor.device_*_pv_year attributes
+ * - Yearly data extracted from monthly_pv, monthly_grid, monthly_load, etc. arrays
  * - /api/realtime/power-peak/{deviceId}?date={date} - Scan ALL raw data for accurate peak values
  * - /api/realtime/daily-energy/{deviceId} for Năng Lượng - Pin Lưu Trữ - Nguồn Điện
  * - All other endpoints from v2.2
@@ -404,66 +405,71 @@ function calculateTieredPrice(kWh, vatRate = 0.08) {
   return totalCost * (1 + vatRate);
 }
 
-// Get yearly energy totals from Home Assistant monthly sensors
+// Get yearly energy totals from Home Assistant _pv_year sensor attributes
+// Sensor: sensor.device_{deviceId}_pv_year contains ALL monthly data in attributes
 async function getYearlyEnergyData(deviceId) {
   const deviceLower = deviceId.toLowerCase();
-  const vnNow = getVietnamNow();
-  const currentYear = vnNow.year;
-  const currentMonth = vnNow.month;
   
-  const monthlyData = [];
-  
-  // Get monthly totals for each month of current year
-  for (let month = 1; month <= currentMonth; month++) {
-    const monthStr = month.toString().padStart(2, '0');
+  try {
+    // Get the _pv_year sensor which contains ALL monthly arrays in attributes
+    const pvYearSensor = await fetchHA(`/api/states/sensor.device_${deviceLower}_pv_year`);
     
-    // Monthly sensor entities
-    const entities = [
-      `sensor.device_${deviceLower}_pv_${currentYear}_${monthStr}`,
-      `sensor.device_${deviceLower}_grid_in_${currentYear}_${monthStr}`,
-      `sensor.device_${deviceLower}_load_${currentYear}_${monthStr}`,
-      `sensor.device_${deviceLower}_essential_${currentYear}_${monthStr}`,
-      `sensor.device_${deviceLower}_charge_${currentYear}_${monthStr}`,
-      `sensor.device_${deviceLower}_discharge_${currentYear}_${monthStr}`
-    ];
+    if (!pvYearSensor || !pvYearSensor.attributes) {
+      return { year: 0, months: [] };
+    }
     
-    const monthData = {
-      month: `${currentYear}-${monthStr}`,
-      monthNumber: month,
-      pv: 0,
-      grid: 0,
-      load: 0,
-      essential: 0,
-      charge: 0,
-      discharge: 0
-    };
+    const attrs = pvYearSensor.attributes;
+    const year = attrs.year || new Date().getFullYear();
     
-    for (const entityId of entities) {
-      try {
-        const state = await fetchHA(`/api/states/${entityId}`);
-        if (state && state.state && state.state !== 'unavailable' && state.state !== 'unknown') {
-          const value = parseFloat(state.state);
-          if (!isNaN(value) && value > 0) {
-            if (entityId.includes('_pv_')) monthData.pv = value;
-            else if (entityId.includes('_grid_in_')) monthData.grid = value;
-            else if (entityId.includes('_load_') && !entityId.includes('essential')) monthData.load = value;
-            else if (entityId.includes('_essential_')) monthData.essential = value;
-            else if (entityId.includes('_charge_')) monthData.charge = value;
-            else if (entityId.includes('_discharge_')) monthData.discharge = value;
-          }
-        }
-      } catch (e) {
-        // Sensor may not exist, continue
+    // Extract monthly arrays (index 0-11 = month 1-12)
+    const monthlyPv = attrs.monthly_pv || [];
+    const monthlyGrid = attrs.monthly_grid || [];
+    const monthlyLoad = attrs.monthly_load || [];
+    const monthlyEssential = attrs.monthly_essential || [];
+    const monthlyTotalLoad = attrs.monthly_total_load || [];
+    const monthlyCharge = attrs.monthly_charge || [];
+    const monthlyDischarge = attrs.monthly_discharge || [];
+    const monthlySavedKwh = attrs.monthly_saved_kwh || [];
+    const monthlySavingsVnd = attrs.monthly_savings_vnd || [];
+    
+    const monthlyData = [];
+    
+    // Build monthly data array (only months with data)
+    for (let i = 0; i < 12; i++) {
+      const pv = monthlyPv[i] || 0;
+      const load = monthlyLoad[i] || 0;
+      const grid = monthlyGrid[i] || 0;
+      const essential = monthlyEssential[i] || 0;
+      const totalLoad = monthlyTotalLoad[i] || 0;
+      const charge = monthlyCharge[i] || 0;
+      const discharge = monthlyDischarge[i] || 0;
+      const savedKwh = monthlySavedKwh[i] || 0;
+      const savingsVnd = monthlySavingsVnd[i] || 0;
+      
+      // Only include months with actual data
+      if (pv > 0 || load > 0 || grid > 0 || totalLoad > 0) {
+        const monthNumber = i + 1;
+        monthlyData.push({
+          month: `${year}-${monthNumber.toString().padStart(2, '0')}`,
+          monthNumber,
+          pv: Math.round(pv * 10) / 10,
+          grid: Math.round(grid * 10) / 10,
+          load: Math.round(load * 10) / 10,
+          essential: Math.round(essential * 10) / 10,
+          totalLoad: Math.round(totalLoad * 10) / 10,
+          charge: Math.round(charge * 10) / 10,
+          discharge: Math.round(discharge * 10) / 10,
+          savedKwh: Math.round(savedKwh * 10) / 10,
+          savingsVnd: Math.round(savingsVnd)
+        });
       }
     }
     
-    // Only include months with data
-    if (monthData.pv > 0 || monthData.load > 0 || monthData.grid > 0) {
-      monthlyData.push(monthData);
-    }
+    return { year, months: monthlyData };
+  } catch (e) {
+    console.error('Error fetching yearly data:', e.message);
+    return { year: 0, months: [] };
   }
-  
-  return { year: currentYear, months: monthlyData };
 }
 
 // Calculate Solar Dashboard summary (same logic as Railway SolarDataSyncService)
@@ -571,7 +577,7 @@ export default {
       if (path === '/' || path === '') {
         return jsonResponse({
           status: 'ok',
-          version: '2.3',
+          version: '2.3.1',
           service: 'temperature-soc-power-proxy',
           tunnel: HA_TUNNEL_URL,
           timezone: 'UTC+7 (Vietnam)',
