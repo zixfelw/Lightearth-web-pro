@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13245 - Battery Cells DEBUG v3 + ZERO Railway egress
+ * Version: 13250 - Power History + backup data support
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1188,12 +1188,19 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // Convert Railway Power History data to chart format (288 points for 5-minute intervals)
+    // Data mapping:
+    // - pv: Sản lượng PV (pv_power)
+    // - load: Tiêu Thụ (load_power)
+    // - bat: Nạp Pin (bat > 0) / Xả Pin (bat < 0)
+    // - grid: Xài Điện EVN (grid_power)
+    // - backup: Điện dự phòng (ac_output_power)
     function convertRailwayPowerToChartData(timeline) {
         // Create 288 slots for each 5-minute interval (00:00 to 23:55)
         const pvData = new Array(288).fill(0);
         const batData = new Array(288).fill(0);
         const loadData = new Array(288).fill(0);
         const gridData = new Array(288).fill(0);
+        const backupData = new Array(288).fill(0);  // Điện dự phòng
         
         // Fill in data from timeline
         timeline.forEach(point => {
@@ -1209,6 +1216,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     batData[slotIndex] = point.bat || 0;
                     loadData[slotIndex] = point.load || 0;
                     gridData[slotIndex] = point.grid || 0;
+                    backupData[slotIndex] = point.backup || 0;  // Điện dự phòng
                 }
             }
         });
@@ -1218,17 +1226,18 @@ document.addEventListener('DOMContentLoaded', function () {
             if (pvData[i] === 0 && pvData[i-1] !== 0) pvData[i] = pvData[i-1];
             if (loadData[i] === 0 && loadData[i-1] !== 0) loadData[i] = loadData[i-1];
             if (gridData[i] === 0 && gridData[i-1] !== 0) gridData[i] = gridData[i-1];
+            if (backupData[i] === 0 && backupData[i-1] !== 0) backupData[i] = backupData[i-1];
             // Battery data is different - 0 is valid, so don't forward fill
         }
         
-        console.log(`📊 Converted Railway data: ${timeline.length} points -> 288 chart slots`);
+        console.log(`📊 Converted Railway data: ${timeline.length} points -> 288 chart slots (with backup)`);
         
         return {
             pv: { tableValueInfo: pvData },
             bat: { tableValueInfo: batData },
             load: { tableValueInfo: loadData },
             grid: { tableValueInfo: gridData },
-            essentialLoad: { tableValueInfo: new Array(288).fill(0) } // Not available from Cloud API
+            essentialLoad: { tableValueInfo: backupData }  // Map backup to essentialLoad for UI
         };
     }
     
