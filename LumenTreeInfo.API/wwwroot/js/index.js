@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13275 - Fixed fallback API with AbortController timeout
+ * Version: 13276 - Fixed fallback API with AbortController timeout
  * 
  * Features:
  * - Real-time data via SignalR
@@ -1165,7 +1165,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // This ensures Năng Lượng, Pin Lưu Trữ, Nguồn Điện are always updated
     async function fetchRealtimeDataForSummary(deviceId) {
         try {
-            const haEnergyUrl = `${CLOUDFLARE_WORKER_API}/api/realtime/daily-energy/${deviceId}`;
+            const haEnergyUrl = `${getCurrentWorkerAPI()}/api/realtime/daily-energy/${deviceId}`;
             console.log('⚡ [Daily Energy] Fetching from:', haEnergyUrl);
             
             const response = await fetch(haEnergyUrl);
@@ -1249,7 +1249,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!railwayDataLoaded) {
             try {
                 console.log("📡 [Priority 1] Trying Railway API (LightEarth Cloud)...");
-                const haEnergyUrl = `${CLOUDFLARE_WORKER_API}/api/realtime/daily-energy/${deviceId}`;
+                const haEnergyUrl = `${getCurrentWorkerAPI()}/api/realtime/daily-energy/${deviceId}`;
                 const haResponse = await fetch(haEnergyUrl);
                 
                 if (haResponse.ok) {
