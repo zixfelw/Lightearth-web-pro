@@ -37,7 +37,7 @@ const WHITELIST_DEVICE_IDS = ['P250801055'];
 
 // Device Rate Limiting Configuration
 const DEVICE_RATE_LIMIT = {
-  maxRequests: 20,           // Max 20 requests per minute per device
+  maxRequests: 30,           // Max 30 requests per minute per device
   windowMs: 60 * 1000,       // 1 minute window
   blockDurationMs: 5 * 60 * 1000,  // Block for 5 minutes if exceeded
 };
