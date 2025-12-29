@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13272 - Fixed fallback API with AbortController timeout
+ * Version: 13273 - Fixed fallback API with AbortController timeout
  * 
  * Features:
  * - Real-time data via SignalR
@@ -3771,6 +3771,10 @@ document.addEventListener('DOMContentLoaded', function () {
         update3DValue('battery-soc-3d', batteryPercent);
         update3DValue('essential-power-3d', essentialPower);
         
+        // Update Load Heat Effect based on power consumption
+        const loadPowerVal = parseInt(loadPower.replace(/[^\d]/g, '')) || 0;
+        updateLoadHeatEffect(loadPowerVal);
+        
         // Update battery card with colors based on charge/discharge AND battery level
         const batteryPowerVal = parseInt(batteryPower.replace(/[^\d-]/g, '')) || 0;
         const batteryPercentNum = parseInt(batteryPercent.replace(/[^\d]/g, '')) || 0;
@@ -4075,6 +4079,42 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Expose autoSync3DHomeView globally for use in updateRealTimeDisplay
     window.autoSync3DHomeView = autoSync3DHomeView;
+    
+    // ========================================
+    // LOAD HEAT EFFECT - Visual feedback for power consumption
+    // ========================================
+    function updateLoadHeatEffect(loadPowerWatts) {
+        const loadCard = document.getElementById('load-card-3d');
+        if (!loadCard) return;
+        
+        // Remove all heat level classes
+        loadCard.classList.remove('heat-level-0', 'heat-level-1', 'heat-level-2', 'heat-level-3', 'heat-level-4');
+        
+        // Determine heat level based on power consumption
+        let heatLevel = 0;
+        if (loadPowerWatts >= 4000) {
+            heatLevel = 4;  // Red hot! > 4000W
+        } else if (loadPowerWatts >= 3000) {
+            heatLevel = 3;  // Red-orange hot: 3000-4000W
+        } else if (loadPowerWatts >= 2000) {
+            heatLevel = 2;  // Orange warm: 2000-3000W
+        } else if (loadPowerWatts >= 1000) {
+            heatLevel = 1;  // Yellow warm: 1000-2000W
+        } else {
+            heatLevel = 0;  // Cool: < 1000W
+        }
+        
+        // Apply heat level class
+        loadCard.classList.add(`heat-level-${heatLevel}`);
+        
+        // Log for debugging
+        if (heatLevel > 0) {
+            console.log(`🔥 Load Heat Effect: ${loadPowerWatts}W → Level ${heatLevel}`);
+        }
+    }
+    
+    // Expose globally
+    window.updateLoadHeatEffect = updateLoadHeatEffect;
     
     // Load saved view preference on page load - Default to Pro
     const savedView = localStorage.getItem('energyFlowView') || 'pro';

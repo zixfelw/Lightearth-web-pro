@@ -2187,3 +2187,200 @@ body:has(#mainHeader.header-hidden) #compactSearch {
         opacity: 1;
     }
 }
+
+/* ========================================
+   LOAD HEAT EFFECT - Tải tiêu thụ Animation
+   Shows heat level based on power consumption
+   ======================================== */
+
+/* Base card styling */
+.load-heat-card {
+    transition: all 0.5s ease-in-out;
+}
+
+/* Heat waves container */
+.heat-waves-container {
+    background: linear-gradient(180deg, transparent 0%, transparent 100%);
+    transition: all 0.5s ease-in-out;
+}
+
+/* Heat level classes */
+/* Level 0: < 1000W - Cool (no effect) */
+.load-heat-card.heat-level-0 {
+    border-color: rgba(16, 185, 129, 0.3);
+    background: rgba(30, 41, 59, 0.9);
+}
+
+/* Level 1: 1000-2000W - Warm yellow */
+.load-heat-card.heat-level-1 {
+    border-color: rgba(250, 204, 21, 0.5);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.9) 0%, rgba(250, 204, 21, 0.15) 100%);
+    box-shadow: 0 0 20px rgba(250, 204, 21, 0.2);
+}
+
+.load-heat-card.heat-level-1 .heat-waves-container {
+    opacity: 0.3;
+    background: linear-gradient(180deg, transparent 60%, rgba(250, 204, 21, 0.3) 100%);
+    animation: heat-wave-slow 3s ease-in-out infinite;
+}
+
+.load-heat-card.heat-level-1 #load-power-3d,
+.load-heat-card.heat-level-1 #load-label-3d {
+    color: #facc15;
+}
+
+/* Level 2: 2000-3000W - Orange warm */
+.load-heat-card.heat-level-2 {
+    border-color: rgba(251, 146, 60, 0.6);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.9) 0%, rgba(251, 146, 60, 0.2) 100%);
+    box-shadow: 0 0 25px rgba(251, 146, 60, 0.3);
+}
+
+.load-heat-card.heat-level-2 .heat-waves-container {
+    opacity: 0.5;
+    background: linear-gradient(180deg, transparent 40%, rgba(251, 146, 60, 0.4) 100%);
+    animation: heat-wave-medium 2s ease-in-out infinite;
+}
+
+.load-heat-card.heat-level-2 #load-power-3d,
+.load-heat-card.heat-level-2 #load-label-3d {
+    color: #fb923c;
+}
+
+.load-heat-card.heat-level-2 #load-icon-3d {
+    filter: drop-shadow(0 0 8px rgba(251, 146, 60, 0.6));
+}
+
+/* Level 3: 3000-4000W - Red-orange hot */
+.load-heat-card.heat-level-3 {
+    border-color: rgba(249, 115, 22, 0.7);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.85) 0%, rgba(249, 115, 22, 0.3) 100%);
+    box-shadow: 0 0 30px rgba(249, 115, 22, 0.4);
+}
+
+.load-heat-card.heat-level-3 .heat-waves-container {
+    opacity: 0.7;
+    background: linear-gradient(180deg, transparent 20%, rgba(249, 115, 22, 0.5) 100%);
+    animation: heat-wave-fast 1.5s ease-in-out infinite;
+}
+
+.load-heat-card.heat-level-3 #load-power-3d,
+.load-heat-card.heat-level-3 #load-label-3d {
+    color: #f97316;
+}
+
+.load-heat-card.heat-level-3 #load-icon-3d {
+    filter: drop-shadow(0 0 12px rgba(249, 115, 22, 0.8));
+    animation: icon-pulse 1.5s ease-in-out infinite;
+}
+
+/* Level 4: > 4000W - Red hot! */
+.load-heat-card.heat-level-4 {
+    border-color: rgba(239, 68, 68, 0.8);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.8) 0%, rgba(239, 68, 68, 0.35) 100%);
+    box-shadow: 0 0 40px rgba(239, 68, 68, 0.5), 0 0 60px rgba(239, 68, 68, 0.2);
+}
+
+.load-heat-card.heat-level-4 .heat-waves-container {
+    opacity: 1;
+    background: linear-gradient(180deg, transparent 0%, rgba(239, 68, 68, 0.6) 100%);
+    animation: heat-wave-intense 1s ease-in-out infinite;
+}
+
+.load-heat-card.heat-level-4::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 50%, rgba(239, 68, 68, 0.1) 100%);
+    animation: heat-shimmer 0.5s ease-in-out infinite alternate;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.load-heat-card.heat-level-4 #load-power-3d,
+.load-heat-card.heat-level-4 #load-label-3d {
+    color: #ef4444;
+    animation: text-glow-red 1s ease-in-out infinite alternate;
+}
+
+.load-heat-card.heat-level-4 #load-icon-3d {
+    filter: drop-shadow(0 0 15px rgba(239, 68, 68, 1));
+    animation: icon-shake 0.3s ease-in-out infinite;
+}
+
+/* Heat wave animations */
+@keyframes heat-wave-slow {
+    0%, 100% { 
+        transform: translateY(0);
+        opacity: 0.3;
+    }
+    50% { 
+        transform: translateY(-5px);
+        opacity: 0.5;
+    }
+}
+
+@keyframes heat-wave-medium {
+    0%, 100% { 
+        transform: translateY(0);
+        opacity: 0.5;
+    }
+    50% { 
+        transform: translateY(-8px);
+        opacity: 0.7;
+    }
+}
+
+@keyframes heat-wave-fast {
+    0%, 100% { 
+        transform: translateY(0);
+        opacity: 0.7;
+    }
+    50% { 
+        transform: translateY(-10px);
+        opacity: 0.9;
+    }
+}
+
+@keyframes heat-wave-intense {
+    0%, 100% { 
+        transform: translateY(0) scaleY(1);
+        opacity: 0.8;
+    }
+    50% { 
+        transform: translateY(-12px) scaleY(1.1);
+        opacity: 1;
+    }
+}
+
+@keyframes heat-shimmer {
+    0% { opacity: 0.1; }
+    100% { opacity: 0.3; }
+}
+
+@keyframes icon-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+@keyframes icon-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-2px); }
+    75% { transform: translateX(2px); }
+}
+
+@keyframes text-glow-red {
+    0% { text-shadow: 0 0 5px rgba(239, 68, 68, 0.5); }
+    100% { text-shadow: 0 0 15px rgba(239, 68, 68, 0.8), 0 0 25px rgba(239, 68, 68, 0.4); }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .load-heat-card,
+    .load-heat-card .heat-waves-container,
+    .load-heat-card #load-icon-3d,
+    .load-heat-card #load-power-3d,
+    .load-heat-card #load-label-3d {
+        animation: none !important;
+    }
+}

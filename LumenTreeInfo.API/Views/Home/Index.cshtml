@@ -9,7 +9,7 @@
     <title>Giám Sát Năng Lượng Mặt Trời - LightEarth Web Pro</title>
     
     <!-- Preload critical resources -->
-    <link rel="preload" href="https://lumentree-lighearth.pages.dev/css/index.css?v=13272" as="style" crossorigin>
+    <link rel="preload" href="https://lumentree-lighearth.pages.dev/css/index.css?v=13273" as="style" crossorigin>
     <link rel="preload" href="https://lumentree-lighearth.pages.dev/logo.png" as="image">
     
     <!-- Tailwind CSS with custom config -->
@@ -1791,16 +1791,18 @@
                         <div class="text-xs sm:text-sm text-emerald-400 mt-1 font-medium">Tải cổng load</div>
                     </div>
                     
-                    <!-- 3. Load Card - Mobile optimized với picture srcset -->
-                    <div class="bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-emerald-500/30 shadow-lg flex flex-col items-center">
-                        <div class="w-12 h-12 sm:w-14 sm:h-14 mb-2 flex items-center justify-center">
+                    <!-- 3. Load Card - Mobile optimized với Heat Effect animation -->
+                    <div id="load-card-3d" class="load-heat-card bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-emerald-500/30 shadow-lg flex flex-col items-center relative overflow-hidden transition-all duration-500">
+                        <!-- Heat waves effect container -->
+                        <div id="heat-waves" class="heat-waves-container absolute inset-0 pointer-events-none opacity-0"></div>
+                        <div class="w-12 h-12 sm:w-14 sm:h-14 mb-2 flex items-center justify-center relative z-10">
                             <picture>
                                 <source media="(max-width: 640px)" srcset="/icons/grid-load-3d-mobile.png">
-                                <img src="https://lumentree-lighearth.pages.dev/icons/grid-load-3d.png" loading="lazy" alt="Tải tiêu thụ" class="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-[0_2px_4px_rgba(16,185,129,0.3)]">
+                                <img id="load-icon-3d" src="https://lumentree-lighearth.pages.dev/icons/grid-load-3d.png" loading="lazy" alt="Tải tiêu thụ" class="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-[0_2px_4px_rgba(16,185,129,0.3)] transition-all duration-300">
                             </picture>
                         </div>
-                        <div id="load-power-3d" class="text-xl sm:text-2xl font-black text-emerald-400 leading-tight">--W</div>
-                        <div class="text-xs sm:text-sm text-emerald-400 mt-1 font-medium">Tải tiêu thụ</div>
+                        <div id="load-power-3d" class="text-xl sm:text-2xl font-black text-emerald-400 leading-tight relative z-10 transition-colors duration-300">--W</div>
+                        <div id="load-label-3d" class="text-xs sm:text-sm text-emerald-400 mt-1 font-medium relative z-10 transition-colors duration-300">Tải tiêu thụ</div>
                     </div>
                 </div>
             </div>
@@ -2566,12 +2568,12 @@
     
     
     <!-- CSS first for fast rendering -->
-    <link href="https://lumentree-lighearth.pages.dev/css/index.css?v=13272" rel="stylesheet" crossorigin />
+    <link href="https://lumentree-lighearth.pages.dev/css/index.css?v=13273" rel="stylesheet" crossorigin />
     
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="https://lumentree-lighearth.pages.dev/js/index.js?v=13272" defer crossorigin></script>
+    <script src="https://lumentree-lighearth.pages.dev/js/index.js?v=13273" defer crossorigin></script>
 
 </body>
 </html>
