@@ -1,5 +1,5 @@
 /**
- * LightEarth API Gateway v3.6
+ * LightEarth API Gateway v3.7
  * Solar Energy Monitoring System
  * 
  * Features:
@@ -12,9 +12,15 @@
  * Security:
  * - Geographic access control (bypass for Railway with API key)
  * - Block China (CN) IPs
- * - Rate limiting
+ * - Rate limiting by Device ID (not just IP)
  * - Origin validation
  * - Input sanitization
+ * 
+ * v3.7 Changes:
+ * - NEW: Rate limiting by Device ID to prevent abuse
+ * - Whitelist device P250801055 (unlimited requests)
+ * - 20 requests/minute per device, block 5 minutes if exceeded
+ * - Separate IP rate limit (100 req/min) still applies
  * 
  * v3.6 Changes:
  * - NEW: /api/realtime/device/{deviceId} endpoint - direct HA access, bypasses Railway!
@@ -25,6 +31,95 @@
 
 const VN_OFFSET_HOURS = 7;
 const REALTIME_CACHE_TTL = 3; // Cache realtime data for 3 seconds
+
+// Whitelist Device IDs - unlimited requests
+const WHITELIST_DEVICE_IDS = ['P250801055'];
+
+// Device Rate Limiting Configuration
+const DEVICE_RATE_LIMIT = {
+  maxRequests: 20,           // Max 20 requests per minute per device
+  windowMs: 60 * 1000,       // 1 minute window
+  blockDurationMs: 5 * 60 * 1000,  // Block for 5 minutes if exceeded
+};
+
+const deviceRateLimitMap = new Map();
+
+function isDeviceRateLimited(deviceId) {
+  // Whitelist check - unlimited requests for whitelisted devices
+  if (WHITELIST_DEVICE_IDS.includes(deviceId.toUpperCase())) {
+    return false;
+  }
+  
+  const now = Date.now();
+  const key = deviceId.toUpperCase();
+  const record = deviceRateLimitMap.get(key);
+  
+  if (!record) {
+    deviceRateLimitMap.set(key, { count: 1, windowStart: now, blocked: false });
+    return false;
+  }
+  
+  // Check if currently blocked
+  if (record.blocked && now < record.blockedUntil) {
+    return true;
+  }
+  
+  // Unblock if block duration has passed
+  if (record.blocked && now >= record.blockedUntil) {
+    record.blocked = false;
+    record.count = 1;
+    record.windowStart = now;
+    return false;
+  }
+  
+  // Reset window if expired
+  if (now - record.windowStart > DEVICE_RATE_LIMIT.windowMs) {
+    record.count = 1;
+    record.windowStart = now;
+    return false;
+  }
+  
+  // Increment count and check limit
+  record.count++;
+  if (record.count > DEVICE_RATE_LIMIT.maxRequests) {
+    record.blocked = true;
+    record.blockedUntil = now + DEVICE_RATE_LIMIT.blockDurationMs;
+    console.log(`🚫 Device ${key} rate limited! Count: ${record.count}, blocked until: ${new Date(record.blockedUntil).toISOString()}`);
+    return true;
+  }
+  
+  return false;
+}
+
+function getDeviceRateLimitInfo(deviceId) {
+  const key = deviceId.toUpperCase();
+  const record = deviceRateLimitMap.get(key);
+  if (!record) return null;
+  
+  const now = Date.now();
+  if (record.blocked && now < record.blockedUntil) {
+    return {
+      blocked: true,
+      retryAfter: Math.ceil((record.blockedUntil - now) / 1000),
+      count: record.count
+    };
+  }
+  return {
+    blocked: false,
+    count: record.count,
+    remaining: DEVICE_RATE_LIMIT.maxRequests - record.count
+  };
+}
+
+function cleanupDeviceRateLimitMap() {
+  const now = Date.now();
+  const maxAge = DEVICE_RATE_LIMIT.windowMs * 10;
+  for (const [deviceId, record] of deviceRateLimitMap.entries()) {
+    if (now - record.windowStart > maxAge && !record.blocked) {
+      deviceRateLimitMap.delete(deviceId);
+    }
+  }
+}
 
 // Security Configuration
 const SECURITY_CONFIG = {
@@ -296,16 +391,22 @@ export default {
     if (path === '/' || path === '/health') {
       return new Response(JSON.stringify({
         status: 'ok',
-        version: '3.6',
+        version: '3.7',
         region: clientCountry,
         access: isTrustedServer ? 'trusted-server' : (isCountryAllowed(clientCountry) ? 'allowed' : 'blocked'),
-        features: ['realtime', 'power-history', 'soc-history', 'temperature', 'device-info']
+        features: ['realtime', 'power-history', 'soc-history', 'temperature', 'device-info'],
+        rateLimit: {
+          perDevice: `${DEVICE_RATE_LIMIT.maxRequests} requests/minute`,
+          blockDuration: `${DEVICE_RATE_LIMIT.blockDurationMs / 1000} seconds`,
+          whitelistedDevices: WHITELIST_DEVICE_IDS
+        }
       }), { headers });
     }
 
     // ============================================
     // NEW: /api/realtime/device/{deviceId} - Direct HA access!
     // This endpoint bypasses Railway completely - 100% FREE!
+    // Rate limited per device ID (except whitelisted devices)
     // ============================================
     if (path.match(/^\/api\/realtime\/device\/([^\/]+)$/)) {
       const match = path.match(/^\/api\/realtime\/device\/([^\/]+)$/);
@@ -317,6 +418,25 @@ export default {
           error: 'Invalid device ID' 
         }), { status: 400, headers });
       }
+      
+      // Check device-specific rate limit
+      if (isDeviceRateLimited(deviceId)) {
+        const limitInfo = getDeviceRateLimitInfo(deviceId);
+        return new Response(JSON.stringify({ 
+          success: false,
+          error: 'Too many requests for this device',
+          code: 'DEVICE_RATE_LIMITED',
+          deviceId: deviceId.toUpperCase(),
+          retryAfter: limitInfo?.retryAfter || 300,
+          message: `Device ${deviceId} has exceeded the rate limit (${DEVICE_RATE_LIMIT.maxRequests} requests/minute). Please wait ${limitInfo?.retryAfter || 300} seconds.`
+        }), { 
+          status: 429, 
+          headers: { ...headers, 'Retry-After': String(limitInfo?.retryAfter || 300) }
+        });
+      }
+      
+      // Cleanup old entries occasionally
+      if (Math.random() < 0.01) cleanupDeviceRateLimitMap();
       
       if (!PI_URL || !PI_TOKEN) {
         return new Response(JSON.stringify({ 
@@ -676,11 +796,21 @@ async function fetchRealtimeDeviceData(piUrl, piToken, deviceId) {
   const parseNum = (val) => val !== null ? parseFloat(val) : null;
   const parseInt = (val) => val !== null ? Math.round(parseFloat(val)) : null;
   
+  // Extract model from friendly_name
+  let model = null;
+  const pvPowerEntity = deviceStates.find(s => s.entity_id.includes('_pv_power'));
+  if (pvPowerEntity?.attributes?.friendly_name) {
+    const modelMatch = pvPowerEntity.attributes.friendly_name.match(/^(SUNT-[\d.]+[kK][wW]-[A-Z]+)/i);
+    if (modelMatch) model = modelMatch[1].toUpperCase().replace('KW', 'KW');
+  }
+  
   return {
     success: true,
     source: "CloudflareWorker_HA",
     deviceData: {
       deviceId: deviceId.toUpperCase(),
+      model: model,
+      deviceType: model,
       timestamp: new Date().toISOString(),
       pv: {
         pv1Power: parseInt(getValue("pv1_power")),
