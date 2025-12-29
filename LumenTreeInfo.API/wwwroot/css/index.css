@@ -2384,3 +2384,398 @@ body:has(#mainHeader.header-hidden) #compactSearch {
         animation: none !important;
     }
 }
+
+/* ========================================
+   ESSENTIAL LOAD HEAT EFFECT - Tải cổng load
+   Same levels as Load Heat Effect (1000/2000/3000/4000W)
+   ======================================== */
+
+/* Base card styling */
+.essential-heat-card {
+    transition: all 0.5s ease-in-out;
+}
+
+/* Level 0: < 1000W - Cool (no effect) */
+.essential-heat-card.essential-level-0 {
+    border-color: rgba(16, 185, 129, 0.3);
+    background: rgba(30, 41, 59, 0.9);
+}
+
+/* Level 1: 1000-2000W - Warm yellow */
+.essential-heat-card.essential-level-1 {
+    border-color: rgba(250, 204, 21, 0.5);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.9) 0%, rgba(250, 204, 21, 0.15) 100%);
+    box-shadow: 0 0 20px rgba(250, 204, 21, 0.2);
+}
+
+.essential-heat-card.essential-level-1 #essential-power-3d,
+.essential-heat-card.essential-level-1 .essential-label {
+    color: #facc15;
+}
+
+.essential-heat-card.essential-level-1 #essential-icon-3d {
+    filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.5));
+    animation: essential-glow-slow 3s ease-in-out infinite;
+}
+
+/* Level 2: 2000-3000W - Orange warm */
+.essential-heat-card.essential-level-2 {
+    border-color: rgba(251, 146, 60, 0.6);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.9) 0%, rgba(251, 146, 60, 0.2) 100%);
+    box-shadow: 0 0 25px rgba(251, 146, 60, 0.3);
+}
+
+.essential-heat-card.essential-level-2 #essential-power-3d,
+.essential-heat-card.essential-level-2 .essential-label {
+    color: #fb923c;
+}
+
+.essential-heat-card.essential-level-2 #essential-icon-3d {
+    filter: drop-shadow(0 0 10px rgba(251, 146, 60, 0.6));
+    animation: essential-glow-medium 2s ease-in-out infinite;
+}
+
+/* Level 3: 3000-4000W - Red-orange hot */
+.essential-heat-card.essential-level-3 {
+    border-color: rgba(249, 115, 22, 0.7);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.85) 0%, rgba(249, 115, 22, 0.3) 100%);
+    box-shadow: 0 0 30px rgba(249, 115, 22, 0.4);
+}
+
+.essential-heat-card.essential-level-3 #essential-power-3d,
+.essential-heat-card.essential-level-3 .essential-label {
+    color: #f97316;
+}
+
+.essential-heat-card.essential-level-3 #essential-icon-3d {
+    filter: drop-shadow(0 0 12px rgba(249, 115, 22, 0.8));
+    animation: icon-pulse 1.5s ease-in-out infinite;
+}
+
+/* Level 4: > 4000W - Red hot! */
+.essential-heat-card.essential-level-4 {
+    border-color: rgba(239, 68, 68, 0.8);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.8) 0%, rgba(239, 68, 68, 0.35) 100%);
+    box-shadow: 0 0 40px rgba(239, 68, 68, 0.5), 0 0 60px rgba(239, 68, 68, 0.2);
+}
+
+.essential-heat-card.essential-level-4 #essential-power-3d,
+.essential-heat-card.essential-level-4 .essential-label {
+    color: #ef4444;
+    animation: text-glow-red 1s ease-in-out infinite alternate;
+}
+
+.essential-heat-card.essential-level-4 #essential-icon-3d {
+    filter: drop-shadow(0 0 15px rgba(239, 68, 68, 1));
+    animation: icon-shake 0.3s ease-in-out infinite;
+}
+
+/* Essential glow animations */
+@keyframes essential-glow-slow {
+    0%, 100% { 
+        filter: drop-shadow(0 0 6px rgba(250, 204, 21, 0.5));
+    }
+    50% { 
+        filter: drop-shadow(0 0 12px rgba(250, 204, 21, 0.7));
+    }
+}
+
+@keyframes essential-glow-medium {
+    0%, 100% { 
+        filter: drop-shadow(0 0 10px rgba(251, 146, 60, 0.6));
+    }
+    50% { 
+        filter: drop-shadow(0 0 18px rgba(251, 146, 60, 0.8));
+    }
+}
+
+/* ========================================
+   BATTERY HEAT EFFECT - Pin sạc/xả
+   Charging: Green levels
+   Discharging: Red levels
+   ======================================== */
+
+/* Base battery card styling */
+.battery-heat-card {
+    transition: all 0.5s ease-in-out;
+}
+
+/* CHARGING MODE - Green colors */
+/* Level 0: < 1000W - Light green */
+.battery-heat-card.battery-charging-0 {
+    border-color: rgba(74, 222, 128, 0.4);
+    background: rgba(30, 41, 59, 0.9);
+}
+
+.battery-heat-card.battery-charging-0 #battery-power-3d,
+.battery-heat-card.battery-charging-0 .battery-label {
+    color: #4ade80;
+}
+
+.battery-heat-card.battery-charging-0 .battery-fill-3d {
+    background: linear-gradient(90deg, #4ade80, #86efac);
+}
+
+/* Level 1: 1000-2000W - Medium green */
+.battery-heat-card.battery-charging-1 {
+    border-color: rgba(34, 197, 94, 0.5);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.9) 0%, rgba(34, 197, 94, 0.15) 100%);
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.25);
+}
+
+.battery-heat-card.battery-charging-1 #battery-power-3d,
+.battery-heat-card.battery-charging-1 .battery-label {
+    color: #22c55e;
+}
+
+.battery-heat-card.battery-charging-1 .battery-fill-3d {
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+    animation: battery-charge-pulse-slow 3s ease-in-out infinite;
+}
+
+.battery-heat-card.battery-charging-1 .battery-body-3d {
+    box-shadow: inset 0 0 10px rgba(34, 197, 94, 0.3);
+}
+
+/* Level 2: 2000-3000W - Bright green */
+.battery-heat-card.battery-charging-2 {
+    border-color: rgba(22, 163, 74, 0.6);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.9) 0%, rgba(22, 163, 74, 0.2) 100%);
+    box-shadow: 0 0 25px rgba(22, 163, 74, 0.35);
+}
+
+.battery-heat-card.battery-charging-2 #battery-power-3d,
+.battery-heat-card.battery-charging-2 .battery-label {
+    color: #16a34a;
+}
+
+.battery-heat-card.battery-charging-2 .battery-fill-3d {
+    background: linear-gradient(90deg, #16a34a, #22c55e);
+    animation: battery-charge-pulse-medium 2s ease-in-out infinite;
+}
+
+.battery-heat-card.battery-charging-2 .battery-body-3d {
+    box-shadow: inset 0 0 15px rgba(22, 163, 74, 0.4);
+}
+
+/* Level 3: > 3000W - Intense green */
+.battery-heat-card.battery-charging-3 {
+    border-color: rgba(21, 128, 61, 0.7);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.85) 0%, rgba(21, 128, 61, 0.3) 100%);
+    box-shadow: 0 0 35px rgba(21, 128, 61, 0.45), 0 0 50px rgba(21, 128, 61, 0.15);
+}
+
+.battery-heat-card.battery-charging-3 #battery-power-3d,
+.battery-heat-card.battery-charging-3 .battery-label {
+    color: #15803d;
+    animation: text-glow-green 1.5s ease-in-out infinite alternate;
+}
+
+.battery-heat-card.battery-charging-3 .battery-fill-3d {
+    background: linear-gradient(90deg, #15803d, #16a34a, #22c55e);
+    animation: battery-charge-pulse-fast 1.5s ease-in-out infinite;
+}
+
+.battery-heat-card.battery-charging-3 .battery-body-3d {
+    box-shadow: inset 0 0 20px rgba(21, 128, 61, 0.5);
+    animation: battery-glow-green 1.5s ease-in-out infinite;
+}
+
+/* DISCHARGING MODE - Red colors */
+/* Level 0: < 1000W - Light red */
+.battery-heat-card.battery-discharging-0 {
+    border-color: rgba(252, 165, 165, 0.4);
+    background: rgba(30, 41, 59, 0.9);
+}
+
+.battery-heat-card.battery-discharging-0 #battery-power-3d,
+.battery-heat-card.battery-discharging-0 .battery-label {
+    color: #fca5a5;
+}
+
+.battery-heat-card.battery-discharging-0 .battery-fill-3d {
+    background: linear-gradient(90deg, #fca5a5, #f87171);
+}
+
+/* Level 1: 1000-2000W - Medium red */
+.battery-heat-card.battery-discharging-1 {
+    border-color: rgba(248, 113, 113, 0.5);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.9) 0%, rgba(248, 113, 113, 0.15) 100%);
+    box-shadow: 0 0 20px rgba(248, 113, 113, 0.25);
+}
+
+.battery-heat-card.battery-discharging-1 #battery-power-3d,
+.battery-heat-card.battery-discharging-1 .battery-label {
+    color: #f87171;
+}
+
+.battery-heat-card.battery-discharging-1 .battery-fill-3d {
+    background: linear-gradient(90deg, #f87171, #ef4444);
+    animation: battery-discharge-pulse-slow 3s ease-in-out infinite;
+}
+
+.battery-heat-card.battery-discharging-1 .battery-body-3d {
+    box-shadow: inset 0 0 10px rgba(248, 113, 113, 0.3);
+}
+
+/* Level 2: 2000-3000W - Bright red */
+.battery-heat-card.battery-discharging-2 {
+    border-color: rgba(239, 68, 68, 0.6);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.9) 0%, rgba(239, 68, 68, 0.2) 100%);
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.35);
+}
+
+.battery-heat-card.battery-discharging-2 #battery-power-3d,
+.battery-heat-card.battery-discharging-2 .battery-label {
+    color: #ef4444;
+}
+
+.battery-heat-card.battery-discharging-2 .battery-fill-3d {
+    background: linear-gradient(90deg, #ef4444, #dc2626);
+    animation: battery-discharge-pulse-medium 2s ease-in-out infinite;
+}
+
+.battery-heat-card.battery-discharging-2 .battery-body-3d {
+    box-shadow: inset 0 0 15px rgba(239, 68, 68, 0.4);
+}
+
+/* Level 3: > 3000W - Intense red */
+.battery-heat-card.battery-discharging-3 {
+    border-color: rgba(220, 38, 38, 0.7);
+    background: linear-gradient(180deg, rgba(30, 41, 59, 0.85) 0%, rgba(220, 38, 38, 0.3) 100%);
+    box-shadow: 0 0 35px rgba(220, 38, 38, 0.45), 0 0 50px rgba(220, 38, 38, 0.15);
+}
+
+.battery-heat-card.battery-discharging-3 #battery-power-3d,
+.battery-heat-card.battery-discharging-3 .battery-label {
+    color: #dc2626;
+    animation: text-glow-red 1s ease-in-out infinite alternate;
+}
+
+.battery-heat-card.battery-discharging-3 .battery-fill-3d {
+    background: linear-gradient(90deg, #dc2626, #b91c1c, #991b1b);
+    animation: battery-discharge-pulse-fast 1s ease-in-out infinite;
+}
+
+.battery-heat-card.battery-discharging-3 .battery-body-3d {
+    box-shadow: inset 0 0 20px rgba(220, 38, 38, 0.5);
+    animation: battery-glow-red 1s ease-in-out infinite;
+}
+
+/* IDLE MODE - No charging/discharging */
+.battery-heat-card.battery-idle {
+    border-color: rgba(148, 163, 184, 0.3);
+    background: rgba(30, 41, 59, 0.9);
+}
+
+.battery-heat-card.battery-idle #battery-power-3d,
+.battery-heat-card.battery-idle .battery-label {
+    color: #94a3b8;
+}
+
+.battery-heat-card.battery-idle .battery-fill-3d {
+    background: linear-gradient(90deg, #64748b, #94a3b8);
+}
+
+/* Battery animations */
+@keyframes battery-charge-pulse-slow {
+    0%, 100% { 
+        opacity: 0.85;
+        box-shadow: 0 0 5px rgba(34, 197, 94, 0.3);
+    }
+    50% { 
+        opacity: 1;
+        box-shadow: 0 0 15px rgba(34, 197, 94, 0.5);
+    }
+}
+
+@keyframes battery-charge-pulse-medium {
+    0%, 100% { 
+        opacity: 0.85;
+        box-shadow: 0 0 8px rgba(22, 163, 74, 0.4);
+    }
+    50% { 
+        opacity: 1;
+        box-shadow: 0 0 20px rgba(22, 163, 74, 0.6);
+    }
+}
+
+@keyframes battery-charge-pulse-fast {
+    0%, 100% { 
+        opacity: 0.85;
+        box-shadow: 0 0 10px rgba(21, 128, 61, 0.5);
+    }
+    50% { 
+        opacity: 1;
+        box-shadow: 0 0 25px rgba(21, 128, 61, 0.7);
+    }
+}
+
+@keyframes battery-discharge-pulse-slow {
+    0%, 100% { 
+        opacity: 0.85;
+        box-shadow: 0 0 5px rgba(248, 113, 113, 0.3);
+    }
+    50% { 
+        opacity: 1;
+        box-shadow: 0 0 15px rgba(248, 113, 113, 0.5);
+    }
+}
+
+@keyframes battery-discharge-pulse-medium {
+    0%, 100% { 
+        opacity: 0.85;
+        box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+    }
+    50% { 
+        opacity: 1;
+        box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+    }
+}
+
+@keyframes battery-discharge-pulse-fast {
+    0%, 100% { 
+        opacity: 0.85;
+        box-shadow: 0 0 10px rgba(220, 38, 38, 0.5);
+    }
+    50% { 
+        opacity: 1;
+        box-shadow: 0 0 25px rgba(220, 38, 38, 0.7);
+    }
+}
+
+@keyframes battery-glow-green {
+    0%, 100% { 
+        box-shadow: inset 0 0 15px rgba(21, 128, 61, 0.4);
+    }
+    50% { 
+        box-shadow: inset 0 0 25px rgba(21, 128, 61, 0.6);
+    }
+}
+
+@keyframes battery-glow-red {
+    0%, 100% { 
+        box-shadow: inset 0 0 15px rgba(220, 38, 38, 0.4);
+    }
+    50% { 
+        box-shadow: inset 0 0 25px rgba(220, 38, 38, 0.6);
+    }
+}
+
+@keyframes text-glow-green {
+    0% { text-shadow: 0 0 5px rgba(21, 128, 61, 0.5); }
+    100% { text-shadow: 0 0 15px rgba(21, 128, 61, 0.8), 0 0 25px rgba(21, 128, 61, 0.4); }
+}
+
+/* Respect reduced motion for all heat effects */
+@media (prefers-reduced-motion: reduce) {
+    .essential-heat-card,
+    .essential-heat-card #essential-icon-3d,
+    .essential-heat-card #essential-power-3d,
+    .battery-heat-card,
+    .battery-heat-card .battery-fill-3d,
+    .battery-heat-card .battery-body-3d,
+    .battery-heat-card #battery-power-3d {
+        animation: none !important;
+    }
+}

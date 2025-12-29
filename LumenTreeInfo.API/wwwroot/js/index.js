@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13273 - Fixed fallback API with AbortController timeout
+ * Version: 13274 - Fixed fallback API with AbortController timeout
  * 
  * Features:
  * - Real-time data via SignalR
@@ -3775,6 +3775,10 @@ document.addEventListener('DOMContentLoaded', function () {
         const loadPowerVal = parseInt(loadPower.replace(/[^\d]/g, '')) || 0;
         updateLoadHeatEffect(loadPowerVal);
         
+        // Update Essential Load Heat Effect based on power consumption
+        const essentialPowerVal = parseInt(essentialPower.replace(/[^\d]/g, '')) || 0;
+        updateEssentialHeatEffect(essentialPowerVal);
+        
         // Update battery card with colors based on charge/discharge AND battery level
         const batteryPowerVal = parseInt(batteryPower.replace(/[^\d-]/g, '')) || 0;
         const batteryPercentNum = parseInt(batteryPercent.replace(/[^\d]/g, '')) || 0;
@@ -3856,6 +3860,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (batteryPercentIconEl) {
             batteryPercentIconEl.textContent = batteryPercent;
         }
+        
+        // Update Battery Heat Effect based on power and status
+        // Determine battery status from batteryPowerVal: positive = charging, negative = discharging
+        const batteryStatus = batteryPowerVal > 10 ? 'Charging' : (batteryPowerVal < -10 ? 'Discharging' : 'Idle');
+        updateBatteryHeatEffect(batteryPowerVal, batteryStatus);
         
         // Update Grid EVN voltage - lấy từ Pro view
         const gridVoltage = document.getElementById('grid-voltage')?.textContent || '--V';
@@ -4115,6 +4124,106 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Expose globally
     window.updateLoadHeatEffect = updateLoadHeatEffect;
+    
+    // ========================================
+    // ESSENTIAL LOAD HEAT EFFECT - Tải cổng load
+    // Same levels as Load Heat Effect (1000/2000/3000/4000W)
+    // ========================================
+    function updateEssentialHeatEffect(essentialPowerWatts) {
+        const essentialCard = document.getElementById('essential-card-3d');
+        if (!essentialCard) return;
+        
+        // Remove all essential level classes
+        essentialCard.classList.remove('essential-level-0', 'essential-level-1', 'essential-level-2', 'essential-level-3', 'essential-level-4');
+        
+        // Determine level based on power consumption (same as Load)
+        let level = 0;
+        if (essentialPowerWatts >= 4000) {
+            level = 4;  // Red hot! > 4000W
+        } else if (essentialPowerWatts >= 3000) {
+            level = 3;  // Red-orange hot: 3000-4000W
+        } else if (essentialPowerWatts >= 2000) {
+            level = 2;  // Orange warm: 2000-3000W
+        } else if (essentialPowerWatts >= 1000) {
+            level = 1;  // Yellow warm: 1000-2000W
+        } else {
+            level = 0;  // Cool: < 1000W
+        }
+        
+        // Apply level class
+        essentialCard.classList.add(`essential-level-${level}`);
+        
+        // Log for debugging
+        if (level > 0) {
+            console.log(`⚡ Essential Heat Effect: ${essentialPowerWatts}W → Level ${level}`);
+        }
+    }
+    
+    // Expose globally
+    window.updateEssentialHeatEffect = updateEssentialHeatEffect;
+    
+    // ========================================
+    // BATTERY HEAT EFFECT - Pin sạc/xả
+    // Charging: Green levels (0-3)
+    // Discharging: Red levels (0-3)
+    // ========================================
+    function updateBatteryHeatEffect(batteryPowerWatts, batteryStatus) {
+        const batteryCard = document.getElementById('battery-card-3d');
+        if (!batteryCard) return;
+        
+        // Remove all battery heat classes
+        const allClasses = [
+            'battery-charging-0', 'battery-charging-1', 'battery-charging-2', 'battery-charging-3',
+            'battery-discharging-0', 'battery-discharging-1', 'battery-discharging-2', 'battery-discharging-3',
+            'battery-idle'
+        ];
+        allClasses.forEach(cls => batteryCard.classList.remove(cls));
+        
+        // Use absolute value for power comparison
+        const absPower = Math.abs(batteryPowerWatts);
+        
+        // Determine level (0-3) based on power
+        let level = 0;
+        if (absPower >= 3000) {
+            level = 3;  // Intense: > 3000W
+        } else if (absPower >= 2000) {
+            level = 2;  // Bright: 2000-3000W
+        } else if (absPower >= 1000) {
+            level = 1;  // Medium: 1000-2000W
+        } else {
+            level = 0;  // Light: < 1000W
+        }
+        
+        // Determine mode based on batteryStatus or power value
+        // batteryStatus: 'Charging', 'Discharging', 'Idle', etc.
+        // Or use power value: positive = discharging, negative = charging
+        let mode = 'idle';
+        if (batteryStatus) {
+            const status = batteryStatus.toLowerCase();
+            if (status.includes('charg') && !status.includes('discharg')) {
+                mode = 'charging';
+            } else if (status.includes('discharg')) {
+                mode = 'discharging';
+            }
+        } else if (batteryPowerWatts !== 0) {
+            // Fallback: negative = charging, positive = discharging
+            mode = batteryPowerWatts < 0 ? 'charging' : 'discharging';
+        }
+        
+        // Apply appropriate class
+        if (mode === 'idle' || absPower < 10) {
+            batteryCard.classList.add('battery-idle');
+            console.log(`🔋 Battery Idle: ${batteryPowerWatts}W`);
+        } else {
+            batteryCard.classList.add(`battery-${mode}-${level}`);
+            const emoji = mode === 'charging' ? '🔌' : '⚡';
+            const color = mode === 'charging' ? 'GREEN' : 'RED';
+            console.log(`${emoji} Battery ${mode}: ${absPower}W → Level ${level} (${color})`);
+        }
+    }
+    
+    // Expose globally
+    window.updateBatteryHeatEffect = updateBatteryHeatEffect;
     
     // Load saved view preference on page load - Default to Pro
     const savedView = localStorage.getItem('energyFlowView') || 'pro';

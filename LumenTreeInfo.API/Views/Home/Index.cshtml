@@ -9,7 +9,7 @@
     <title>Giám Sát Năng Lượng Mặt Trời - LightEarth Web Pro</title>
     
     <!-- Preload critical resources -->
-    <link rel="preload" href="https://lumentree-lighearth.pages.dev/css/index.css?v=13273" as="style" crossorigin>
+    <link rel="preload" href="https://lumentree-lighearth.pages.dev/css/index.css?v=13274" as="style" crossorigin>
     <link rel="preload" href="https://lumentree-lighearth.pages.dev/logo.png" as="image">
     
     <!-- Tailwind CSS with custom config -->
@@ -1760,7 +1760,7 @@
                 <!-- Bottom Stats Cards - 3 columns: Pin sạc/xả | Tải cổng load | Tải tiêu thụ -->
                 <div class="-mt-12 grid grid-cols-3 gap-2.5 relative z-10 px-1">
                     <!-- 1. Battery Card - Design giống điện thoại với % pin - CÂN ĐỐI CHIỀU CAO -->
-                    <div id="battery-card-3d" class="bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-emerald-500/30 shadow-lg flex flex-col items-center">
+                    <div id="battery-card-3d" class="battery-heat-card bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-emerald-500/30 shadow-lg flex flex-col items-center transition-all duration-500">
                         <!-- Battery icon - container cùng chiều cao với icon cards khác -->
                         <div class="w-12 h-12 sm:w-14 sm:h-14 mb-2 flex items-center justify-center">
                             <div class="battery-phone-icon relative">
@@ -1776,19 +1776,19 @@
                         <!-- Power value -->
                         <div id="battery-power-3d" class="text-xl sm:text-2xl font-black text-emerald-400 leading-tight">--W</div>
                         <!-- Label động -->
-                        <div id="battery-status-label-3d" class="text-xs sm:text-sm text-emerald-400 mt-1 font-medium">Pin sạc/xả</div>
+                        <div id="battery-status-label-3d" class="battery-label text-xs sm:text-sm text-emerald-400 mt-1 font-medium transition-colors duration-300">Pin sạc/xả</div>
                     </div>
                     
                     <!-- 2. Essential Load Card - Mobile optimized với picture srcset -->
-                    <div class="bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-emerald-500/30 shadow-lg flex flex-col items-center">
+                    <div id="essential-card-3d" class="essential-heat-card bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-emerald-500/30 shadow-lg flex flex-col items-center transition-all duration-500">
                         <div class="w-12 h-12 sm:w-14 sm:h-14 mb-2 flex items-center justify-center">
                             <picture>
                                 <source media="(max-width: 640px)" srcset="/icons/essential-load-3d-mobile.png">
-                                <img src="https://lumentree-lighearth.pages.dev/icons/essential-load-3d.png" loading="lazy" alt="Tải cổng load" class="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-[0_2px_4px_rgba(16,185,129,0.3)]">
+                                <img id="essential-icon-3d" src="https://lumentree-lighearth.pages.dev/icons/essential-load-3d.png" loading="lazy" alt="Tải cổng load" class="w-11 h-11 sm:w-12 sm:h-12 object-contain drop-shadow-[0_2px_4px_rgba(16,185,129,0.3)] transition-all duration-300">
                             </picture>
                         </div>
-                        <div id="essential-power-3d" class="text-xl sm:text-2xl font-black text-emerald-400 leading-tight">--W</div>
-                        <div class="text-xs sm:text-sm text-emerald-400 mt-1 font-medium">Tải cổng load</div>
+                        <div id="essential-power-3d" class="text-xl sm:text-2xl font-black text-emerald-400 leading-tight transition-colors duration-300">--W</div>
+                        <div class="essential-label text-xs sm:text-sm text-emerald-400 mt-1 font-medium transition-colors duration-300">Tải cổng load</div>
                     </div>
                     
                     <!-- 3. Load Card - Mobile optimized với Heat Effect animation -->
@@ -2568,12 +2568,12 @@
     
     
     <!-- CSS first for fast rendering -->
-    <link href="https://lumentree-lighearth.pages.dev/css/index.css?v=13273" rel="stylesheet" crossorigin />
+    <link href="https://lumentree-lighearth.pages.dev/css/index.css?v=13274" rel="stylesheet" crossorigin />
     
     <!-- SignalR Client Library - defer -->
     <script src="https://unpkg.com/@@microsoft/signalr@latest" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <script src="https://lumentree-lighearth.pages.dev/js/index.js?v=13273" defer crossorigin></script>
+    <script src="https://lumentree-lighearth.pages.dev/js/index.js?v=13274" defer crossorigin></script>
 
 </body>
 </html>
