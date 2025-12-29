@@ -731,7 +731,32 @@ document.addEventListener('DOMContentLoaded', function () {
             const apiType = usingFallbackAPI ? 'FALLBACK' : 'PRIMARY';
             console.log(`📡 Fetching from ${apiType} API:`, apiUrl);
             
-            const response = await fetch(apiUrl, { timeout: 8000 });
+            // Real timeout using AbortController (8 seconds)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+            
+            let response;
+            try {
+                response = await fetch(apiUrl, { signal: controller.signal });
+                clearTimeout(timeoutId);
+            } catch (fetchError) {
+                clearTimeout(timeoutId);
+                // Network error or timeout - trigger fallback
+                console.error(`❌ Network/Timeout error for ${apiUrl}:`, fetchError.message);
+                
+                if (!usingFallbackAPI) {
+                    primaryAPIFailCount++;
+                    console.warn(`⚠️ Primary API fail count: ${primaryAPIFailCount}/${MAX_PRIMARY_FAILS}`);
+                    
+                    if (primaryAPIFailCount >= MAX_PRIMARY_FAILS) {
+                        switchToFallbackAPI();
+                        restartPollingWithNewInterval(deviceId);
+                        // Retry immediately with fallback
+                        return fetchRealtimeData(deviceId);
+                    }
+                }
+                throw fetchError; // Re-throw to outer catch
+            }
             
             if (!response.ok) {
                 console.error(`❌ API error ${response.status}: ${response.statusText} for ${apiUrl}`);
@@ -911,6 +936,16 @@ document.addEventListener('DOMContentLoaded', function () {
             updateConnectionStatus('connected', 'http');
         } catch (error) {
             console.error('Realtime fetch error:', error);
+            // Track failures and switch to fallback if needed
+            if (!usingFallbackAPI) {
+                primaryAPIFailCount++;
+                console.warn(`⚠️ Primary API fail count (catch): ${primaryAPIFailCount}/${MAX_PRIMARY_FAILS}`);
+                
+                if (primaryAPIFailCount >= MAX_PRIMARY_FAILS) {
+                    switchToFallbackAPI();
+                    restartPollingWithNewInterval(deviceId);
+                }
+            }
             // Silent fail for polling - don't update status on error
             // This allows HTTP API status to remain if it was previously working
         }
