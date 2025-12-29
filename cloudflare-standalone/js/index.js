@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript (CLOUDFLARE ONLY VERSION)
- * Version: 13282-cf - 100% Cloudflare Workers, NO Railway needed!
+ * Version: 13283-cf - 100% Cloudflare Workers, NO Railway needed!
  * 
  * Features:
  * - Real-time data via SignalR
@@ -42,6 +42,23 @@ const DAILY_ENERGY_API = 'https://lightearth.applike098.workers.dev';
 
 // Global state for realtime data - MUST be declared early to avoid TDZ errors
 let latestRealtimeData = {};
+
+// Global state variables - MUST be declared outside DOMContentLoaded to avoid TDZ errors
+let deviceNotFoundShown = false;
+let previousValues = {};
+let powerTimelineChart = null;
+let temperatureCache = {
+    data: null,
+    timestamp: 0,
+    deviceId: null,
+    date: null
+};
+let socCache = {
+    data: null,
+    timestamp: 0,
+    deviceId: null,
+    date: null
+};
 
 // Get current API (round-robin with health check)
 function getNextHealthyApi() {
@@ -452,7 +469,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // Store previous values for blink detection
-    let previousValues = {};
+    // previousValues is now declared at top level to avoid TDZ
     let previousCellValues = {};
     let lastCellUpdateTime = 0;
     
@@ -1421,7 +1438,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // ========================================
     // POWER TIMELINE CHART - Full Day Visualization
     // ========================================
-    let powerTimelineChart = null;
+    // powerTimelineChart is now declared at top level to avoid TDZ
     
     // Toggle dataset visibility on Power Timeline Chart
     window.togglePowerDataset = function(index) {
@@ -2068,12 +2085,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // Temperature cache - 5 minute TTL to reduce API calls
     const TEMPERATURE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-    let temperatureCache = {
-        deviceId: null,
-        date: null,
-        data: null,
-        timestamp: 0
-    };
+    // temperatureCache is now declared at top level to avoid TDZ
     
     // Fetch Temperature Min/Max for the day from Cloud API
     // Uses 5-minute cache to prevent excessive API calls
@@ -2278,12 +2290,7 @@ document.addEventListener('DOMContentLoaded', function () {
     
     // SOC data cache - 5 minute TTL to reduce API calls
     const SOC_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-    let socCache = {
-        deviceId: null,
-        date: null,
-        data: null,
-        timestamp: 0
-    };
+    // socCache is now declared at top level to avoid TDZ
     
     // Fetch SOC data from Railway API (LightEarth Cloud data only)
     // Uses 5-minute cache to prevent excessive API calls
@@ -2763,8 +2770,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // REAL-TIME DISPLAY UPDATE
     // ========================================
     
-    // Track if device not found error was shown (to avoid repeating)
-    let deviceNotFoundShown = false;
+    // deviceNotFoundShown is now declared at top level to avoid TDZ
     
     function updateRealTimeDisplay(data) {
         // Check if device not found in LightEarth Cloud
