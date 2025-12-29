@@ -1075,47 +1075,47 @@
 </div>
 
 <!-- Compact Search Bar (shown after data loaded) - NOT sticky on mobile, sticky on PC via CSS -->
-<div id="compactSearch" class="hidden mb-3 bg-white dark:bg-slate-800 rounded-xl shadow-md p-2 sm:p-3 border border-slate-200 dark:border-slate-700">
-    <!-- Mobile: 2 rows layout | PC: single row layout -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-        <!-- Row 1 (Mobile) / Left side (PC): Logo + Device Info + Change Device Button -->
-        <div class="flex items-center gap-2">
-            <img src="https://lumentree-lighearth.pages.dev/logo.png" alt="LightEarth" class="w-8 h-8 rounded-lg shadow flex-shrink-0">
+<div id="compactSearch" class="hidden mb-3 bg-white dark:bg-slate-800 rounded-xl shadow-md p-1.5 sm:p-3 border border-slate-200 dark:border-slate-700">
+    <!-- Mobile: single compact row | PC: single row with more spacing -->
+    <div class="flex items-center justify-between gap-1.5 sm:gap-3">
+        <!-- Left side: Logo + Device Info + Change Device Button -->
+        <div class="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+            <img src="https://lumentree-lighearth.pages.dev/logo.png" alt="LightEarth" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg shadow flex-shrink-0">
             <div class="min-w-0 flex-1">
                 <div class="text-xs font-bold text-slate-800 dark:text-white truncate" id="deviceIdDisplay">--</div>
                 <div class="text-[10px] text-slate-500 dark:text-slate-400" id="dateDisplay">--</div>
             </div>
-            <!-- Change Device Button - visible on both mobile and PC -->
-            <button id="changeDeviceBtn" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 hover:bg-teal-200 dark:hover:bg-teal-800/50 transition-colors flex-shrink-0" title="Đổi thiết bị">
-                <i data-lucide="edit-3" class="w-4 h-4"></i>
-                <span class="text-xs font-medium">Đổi ID</span>
+            <!-- Change Device Button - icon only on mobile -->
+            <button id="changeDeviceBtn" class="flex items-center gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 hover:bg-teal-200 dark:hover:bg-teal-800/50 transition-colors flex-shrink-0" title="Đổi thiết bị">
+                <i data-lucide="edit-3" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+                <span class="text-xs font-medium hidden sm:inline">Đổi ID</span>
             </button>
         </div>
         
-        <!-- Row 2 (Mobile) / Right side (PC): Date Navigation + Calculate Button -->
-        <div class="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-2">
+        <!-- Right side: Date Navigation + Calculate Button -->
+        <div class="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             <!-- Date Navigation Group -->
-            <div class="flex items-center gap-1">
-                <button id="prevDayCompact" class="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" title="Ngày trước">
-                    <i data-lucide="chevron-left" class="w-4 h-4"></i>
+            <div class="flex items-center gap-0.5 sm:gap-1">
+                <button id="prevDayCompact" class="p-1 sm:p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" title="Ngày trước">
+                    <i data-lucide="chevron-left" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
                 </button>
                 <!-- Date Display with Date Picker -->
                 <div class="relative">
-                    <button id="datePickerBtn" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" title="Chọn ngày">
-                        <i data-lucide="calendar" class="w-3.5 h-3.5 text-teal-500"></i>
-                        <span id="compactDateDisplay" class="text-xs font-semibold text-slate-700 dark:text-slate-200">--/--/----</span>
+                    <button id="datePickerBtn" class="flex items-center gap-1 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" title="Chọn ngày">
+                        <i data-lucide="calendar" class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-teal-500 hidden sm:block"></i>
+                        <span id="compactDateDisplay" class="text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-200">--/--/----</span>
                     </button>
                     <input type="date" id="compactDateInput" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full" title="Chọn ngày">
                 </div>
-                <button id="nextDayCompact" class="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" title="Ngày sau">
-                    <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                <button id="nextDayCompact" class="p-1 sm:p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" title="Ngày sau">
+                    <i data-lucide="chevron-right" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
                 </button>
             </div>
             
-            <!-- Calculate Button with deviceId -->
-            <a id="calcLinkCompact" href="/calculator" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-semibold transition-colors flex-shrink-0" title="Tính Tiết Kiệm">
+            <!-- Calculate Button - icon only on mobile -->
+            <a id="calcLinkCompact" href="/calculator" class="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 text-xs font-semibold transition-colors flex-shrink-0" title="Tính Tiết Kiệm">
                 <i data-lucide="calculator" class="w-3.5 h-3.5"></i>
-                <span>Tính Tiết Kiệm</span>
+                <span class="hidden sm:inline">Tính Tiết Kiệm</span>
             </a>
         </div>
     </div>
