@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13271 - Fixed fallback API with AbortController timeout
+ * Version: 13272 - Fixed fallback API with AbortController timeout
  * 
  * Features:
  * - Real-time data via SignalR
@@ -130,7 +130,7 @@ function switchToFallbackAPI() {
 }
 
 function tryPrimaryAPI() {
-    // Now handled automatically by getRandomHealthyApi
+    // Now handled automatically by getAlternatingHealthyApi
 }
 
 // Note: SOC and Power History APIs now use getCurrentWorkerTSP() for fallback support
@@ -800,7 +800,7 @@ document.addEventListener('DOMContentLoaded', function () {
     async function fetchRealtimeData(deviceId) {
         try {
             // Random load balancing - pick a healthy API
-            const api = getRandomHealthyApi();
+            const api = getAlternatingHealthyApi();
             const apiUrl = `${api.worker}/api/realtime/device/${deviceId}`;
             console.log(`📡 Fetching from ${api.name}:`, apiUrl);
             
