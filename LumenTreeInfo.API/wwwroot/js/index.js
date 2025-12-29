@@ -2631,6 +2631,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (deviceIdDisplay) {
             deviceIdDisplay.textContent = deviceId;
         }
+        // Also update PC version of deviceIdDisplay
+        const deviceIdDisplayPC = document.getElementById('deviceIdDisplayPC');
+        if (deviceIdDisplayPC) {
+            deviceIdDisplayPC.textContent = deviceId;
+        }
         if (dateDisplay) {
             const dateObj = new Date(date);
             dateDisplay.textContent = dateObj.toLocaleDateString('vi-VN');
