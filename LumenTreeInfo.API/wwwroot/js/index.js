@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13270 - Fixed fallback API with AbortController timeout
+ * Version: 13271 - Fixed fallback API with AbortController timeout
  * 
  * Features:
  * - Real-time data via SignalR
@@ -14,50 +14,107 @@
  */
 
 // Global constants - defined outside DOMContentLoaded to avoid TDZ issues
-// PRIMARY Cloudflare Worker APIs - FREE, direct to HA (ZERO Railway egress cost)
-const CLOUDFLARE_WORKER_API = 'https://lightearth.applike098.workers.dev';
-const CLOUDFLARE_WORKER_TSP = 'https://temperature-soc-power.applike098.workers.dev';
-
-// FALLBACK Cloudflare Worker APIs - Use when primary fails (polling 10s instead of 5s)
-const FALLBACK_WORKER_API = 'https://lightearth-proxy.minhlongt358.workers.dev';
-const FALLBACK_WORKER_TSP = 'https://temperature-soc-power.minhlongt358.workers.dev';
+// API Pool - Load balancing between multiple Cloudflare Workers
+const API_POOL = [
+    {
+        name: 'API-1 (applike098)',
+        worker: 'https://lightearth.applike098.workers.dev',
+        tsp: 'https://temperature-soc-power.applike098.workers.dev',
+        failCount: 0,
+        disabled: false
+    },
+    {
+        name: 'API-2 (minhlongt358)',
+        worker: 'https://lightearth-proxy.minhlongt358.workers.dev',
+        tsp: 'https://temperature-soc-power.minhlongt358.workers.dev',
+        failCount: 0,
+        disabled: false
+    }
+];
 
 // API State Management
-let usingFallbackAPI = false;
-let primaryAPIFailCount = 0;
-const MAX_PRIMARY_FAILS = 1;  // Switch to fallback immediately after 1 failure (faster recovery)
-const POLLING_INTERVAL_PRIMARY = 5000;  // 5 seconds for primary API
-const POLLING_INTERVAL_FALLBACK = 10000;  // 10 seconds for fallback API
+let currentApiIndex = 0;  // Start with first API
+const MAX_FAILS_PER_API = 2;  // Disable API after 2 consecutive failures
+const POLLING_INTERVAL = 5000;  // 5 seconds polling
 
-// Get current API endpoints based on fallback state
+// Get current API (round-robin with health check)
+function getNextHealthyApi() {
+    // Try to find a healthy API starting from current index
+    for (let i = 0; i < API_POOL.length; i++) {
+        const index = (currentApiIndex + i) % API_POOL.length;
+        if (!API_POOL[index].disabled) {
+            currentApiIndex = index;
+            return API_POOL[index];
+        }
+    }
+    // All APIs disabled - reset all and try first one
+    console.warn('⚠️ All APIs disabled, resetting...');
+    API_POOL.forEach(api => {
+        api.disabled = false;
+        api.failCount = 0;
+    });
+    currentApiIndex = 0;
+    return API_POOL[0];
+}
+
+// Random load balancing - pick random healthy API
+function getRandomHealthyApi() {
+    const healthyApis = API_POOL.filter(api => !api.disabled);
+    if (healthyApis.length === 0) {
+        // All disabled - reset and return first
+        console.warn('⚠️ All APIs disabled, resetting...');
+        API_POOL.forEach(api => {
+            api.disabled = false;
+            api.failCount = 0;
+        });
+        return API_POOL[0];
+    }
+    const randomIndex = Math.floor(Math.random() * healthyApis.length);
+    return healthyApis[randomIndex];
+}
+
+// Get current API endpoints (random load balancing)
 function getCurrentWorkerAPI() {
-    return usingFallbackAPI ? FALLBACK_WORKER_API : CLOUDFLARE_WORKER_API;
+    return getRandomHealthyApi().worker;
 }
 
 function getCurrentWorkerTSP() {
-    return usingFallbackAPI ? FALLBACK_WORKER_TSP : CLOUDFLARE_WORKER_TSP;
+    return getRandomHealthyApi().tsp;
 }
 
 function getCurrentPollingInterval() {
-    return usingFallbackAPI ? POLLING_INTERVAL_FALLBACK : POLLING_INTERVAL_PRIMARY;
+    return POLLING_INTERVAL;
 }
 
-// Switch to fallback API
+// Mark API as failed
+function markApiFailed(apiUrl) {
+    const api = API_POOL.find(a => apiUrl.includes(a.worker.replace('https://', '').split('.')[0]));
+    if (api) {
+        api.failCount++;
+        console.warn(`⚠️ ${api.name} fail count: ${api.failCount}/${MAX_FAILS_PER_API}`);
+        if (api.failCount >= MAX_FAILS_PER_API) {
+            api.disabled = true;
+            console.error(`❌ ${api.name} DISABLED after ${MAX_FAILS_PER_API} failures`);
+        }
+    }
+}
+
+// Mark API as successful - reset fail count
+function markApiSuccess(apiUrl) {
+    const api = API_POOL.find(a => apiUrl.includes(a.worker.replace('https://', '').split('.')[0]));
+    if (api && api.failCount > 0) {
+        api.failCount = 0;
+        console.log(`✅ ${api.name} recovered, fail count reset`);
+    }
+}
+
+// Legacy compatibility functions
 function switchToFallbackAPI() {
-    if (!usingFallbackAPI) {
-        usingFallbackAPI = true;
-        console.warn('⚠️ Switching to FALLBACK API (polling interval: 10s)');
-        console.log('🔄 Fallback endpoints:', FALLBACK_WORKER_API, FALLBACK_WORKER_TSP);
-    }
+    // Now handled by markApiFailed
 }
 
-// Try to switch back to primary API
 function tryPrimaryAPI() {
-    if (usingFallbackAPI) {
-        console.log('🔄 Trying to switch back to PRIMARY API...');
-        usingFallbackAPI = false;
-        primaryAPIFailCount = 0;
-    }
+    // Now handled automatically by getRandomHealthyApi
 }
 
 // Note: SOC and Power History APIs now use getCurrentWorkerTSP() for fallback support
@@ -691,8 +748,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         
         const pollingInterval = getCurrentPollingInterval();
-        const apiType = usingFallbackAPI ? 'FALLBACK' : 'PRIMARY';
-        console.log(`🔄 Starting realtime polling for device: ${deviceId} (every ${pollingInterval/1000}s - ${apiType} API)`);
+        const healthyCount = API_POOL.filter(a => !a.disabled).length;
+        console.log(`🔄 Starting realtime polling for device: ${deviceId} (every ${pollingInterval/1000}s - ${healthyCount}/${API_POOL.length} APIs healthy)`);
         
         // Fetch immediately
         fetchRealtimeData(deviceId);
@@ -704,13 +761,13 @@ document.addEventListener('DOMContentLoaded', function () {
         }, pollingInterval);
     }
     
-    // Restart polling with new interval (when switching between primary/fallback)
+    // Restart polling with new interval (legacy - kept for compatibility)
     function restartPollingWithNewInterval(deviceId) {
         if (realtimePollingInterval) {
             clearInterval(realtimePollingInterval);
             const pollingInterval = getCurrentPollingInterval();
-            const apiType = usingFallbackAPI ? 'FALLBACK' : 'PRIMARY';
-            console.log(`🔄 Restarting polling (${pollingInterval/1000}s - ${apiType} API)`);
+            const healthyCount = API_POOL.filter(a => !a.disabled).length;
+            console.log(`🔄 Restarting polling (${pollingInterval/1000}s - ${healthyCount}/${API_POOL.length} APIs healthy)`);
             realtimePollingInterval = setInterval(() => {
                 fetchRealtimeData(deviceId);
             }, pollingInterval);
@@ -726,10 +783,10 @@ document.addEventListener('DOMContentLoaded', function () {
     
     async function fetchRealtimeData(deviceId) {
         try {
-            // Use configured API source (with fallback support)
-            const apiUrl = getRealtimeApiUrl(deviceId);
-            const apiType = usingFallbackAPI ? 'FALLBACK' : 'PRIMARY';
-            console.log(`📡 Fetching from ${apiType} API:`, apiUrl);
+            // Random load balancing - pick a healthy API
+            const api = getRandomHealthyApi();
+            const apiUrl = `${api.worker}/api/realtime/device/${deviceId}`;
+            console.log(`📡 Fetching from ${api.name}:`, apiUrl);
             
             // Real timeout using AbortController (8 seconds)
             const controller = new AbortController();
@@ -741,52 +798,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 clearTimeout(timeoutId);
             } catch (fetchError) {
                 clearTimeout(timeoutId);
-                // Network error or timeout - trigger fallback
+                // Network error or timeout - mark API as failed
                 console.error(`❌ Network/Timeout error for ${apiUrl}:`, fetchError.message);
-                
-                if (!usingFallbackAPI) {
-                    primaryAPIFailCount++;
-                    console.warn(`⚠️ Primary API fail count: ${primaryAPIFailCount}/${MAX_PRIMARY_FAILS}`);
-                    
-                    if (primaryAPIFailCount >= MAX_PRIMARY_FAILS) {
-                        switchToFallbackAPI();
-                        restartPollingWithNewInterval(deviceId);
-                        // Retry immediately with fallback
-                        return fetchRealtimeData(deviceId);
-                    }
-                }
+                markApiFailed(apiUrl);
                 throw fetchError; // Re-throw to outer catch
             }
             
             if (!response.ok) {
                 console.error(`❌ API error ${response.status}: ${response.statusText} for ${apiUrl}`);
-                
-                // Track failures for primary API
-                if (!usingFallbackAPI) {
-                    primaryAPIFailCount++;
-                    console.warn(`⚠️ Primary API fail count: ${primaryAPIFailCount}/${MAX_PRIMARY_FAILS}`);
-                    
-                    if (primaryAPIFailCount >= MAX_PRIMARY_FAILS) {
-                        switchToFallbackAPI();
-                        restartPollingWithNewInterval(deviceId);
-                        // Retry immediately with fallback
-                        return fetchRealtimeData(deviceId);
-                    }
-                }
+                markApiFailed(apiUrl);
                 return;
             }
             
-            // Success - reset fail count and try primary if using fallback
-            if (!usingFallbackAPI) {
-                primaryAPIFailCount = 0;
-            } else {
-                // Every 5 minutes, try switching back to primary
-                if (Math.random() < 0.03) {  // ~3% chance per request = ~once per 5 min at 10s interval
-                    console.log('🔄 Testing primary API availability...');
-                    tryPrimaryAPI();
-                    restartPollingWithNewInterval(deviceId);
-                }
-            }
+            // Success - reset fail count for this API
+            markApiSuccess(apiUrl);
             
             const data = await response.json();
             console.log('🔍 RAW API Response:', JSON.stringify(data).substring(0, 500));
@@ -943,16 +968,7 @@ document.addEventListener('DOMContentLoaded', function () {
             updateConnectionStatus('connected', 'http');
         } catch (error) {
             console.error('Realtime fetch error:', error);
-            // Track failures and switch to fallback if needed
-            if (!usingFallbackAPI) {
-                primaryAPIFailCount++;
-                console.warn(`⚠️ Primary API fail count (catch): ${primaryAPIFailCount}/${MAX_PRIMARY_FAILS}`);
-                
-                if (primaryAPIFailCount >= MAX_PRIMARY_FAILS) {
-                    switchToFallbackAPI();
-                    restartPollingWithNewInterval(deviceId);
-                }
-            }
+            // API failure already tracked in inner catch via markApiFailed()
             // Silent fail for polling - don't update status on error
             // This allows HTTP API status to remain if it was previously working
         }
