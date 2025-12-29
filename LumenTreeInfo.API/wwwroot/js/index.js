@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13280 - Fixed fallback API with AbortController timeout
+ * Version: 13281 - Fixed fallback API with AbortController timeout
  * 
  * Features:
  * - Real-time data via SignalR
