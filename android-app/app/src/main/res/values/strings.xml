@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LumenTree Monitor</string>
+    <string name="app_description">Solar Energy Monitoring System</string>
+    
+    <!-- Messages -->
+    <string name="loading">Đang tải...</string>
+    <string name="error_network">Không có kết nối mạng</string>
+    <string name="error_load">Không thể tải trang</string>
+    <string name="retry">Thử lại</string>
+</resources>

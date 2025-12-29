@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Colors (Teal theme) -->
+    <color name="teal_500">#14B8A6</color>
+    <color name="teal_600">#0D9488</color>
+    <color name="teal_700">#0F766E</color>
+    
+    <!-- Secondary Colors -->
+    <color name="emerald_500">#10B981</color>
+    <color name="cyan_500">#06B6D4</color>
+    
+    <!-- Dark Theme Colors -->
+    <color name="dark_background">#0F172A</color>
+    <color name="dark_surface">#1E293B</color>
+    <color name="dark_card">#334155</color>
+    
+    <!-- Text Colors -->
+    <color name="text_primary">#F8FAFC</color>
+    <color name="text_secondary">#94A3B8</color>
+    
+    <!-- Status Colors -->
+    <color name="status_green">#22C55E</color>
+    <color name="status_amber">#F59E0B</color>
+    <color name="status_red">#EF4444</color>
+    
+    <!-- Material Colors -->
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>
