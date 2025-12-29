@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript (CLOUDFLARE ONLY VERSION)
- * Version: 13284-cf - 100% Cloudflare Workers, NO Railway needed!
+ * Version: 13285-cf - 100% Cloudflare Workers, NO Railway needed!
  * 
  * Features:
  * - Real-time data via SignalR
