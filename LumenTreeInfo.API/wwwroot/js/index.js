@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13277 - Fixed fallback API with AbortController timeout
+ * Version: 13280 - Fixed fallback API with AbortController timeout
  * 
  * Features:
  * - Real-time data via SignalR
@@ -36,6 +36,9 @@ const API_POOL = [
 let currentApiIndex = 0;  // Start with first API
 const MAX_FAILS_PER_API = 2;  // Disable API after 2 consecutive failures
 const POLLING_INTERVAL = 5000;  // 5 seconds polling
+
+// Primary API for daily-energy (has proper CORS headers)
+const DAILY_ENERGY_API = 'https://lightearth.applike098.workers.dev';
 
 // Get current API (round-robin with health check)
 function getNextHealthyApi() {
@@ -1169,9 +1172,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // Fetch summary data for the 3 cards (fast path - single API call)
     // ALWAYS fetches fresh data from /api/realtime/daily-energy/{deviceId}
     // This ensures Năng Lượng, Pin Lưu Trữ, Nguồn Điện are always updated
+    // NOTE: Uses DAILY_ENERGY_API (applike098) which has proper CORS headers
     async function fetchRealtimeDataForSummary(deviceId) {
         try {
-            const haEnergyUrl = `${getCurrentWorkerAPI()}/api/realtime/daily-energy/${deviceId}`;
+            const haEnergyUrl = `${DAILY_ENERGY_API}/api/realtime/daily-energy/${deviceId}`;
             console.log('⚡ [Daily Energy] Fetching from:', haEnergyUrl);
             
             const response = await fetch(haEnergyUrl);
@@ -1254,8 +1258,8 @@ document.addEventListener('DOMContentLoaded', function () {
         
         if (!railwayDataLoaded) {
             try {
-                console.log("📡 [Priority 1] Trying Railway API (LightEarth Cloud)...");
-                const haEnergyUrl = `${getCurrentWorkerAPI()}/api/realtime/daily-energy/${deviceId}`;
+                console.log("📡 [Priority 1] Trying daily-energy API (applike098)...");
+                const haEnergyUrl = `${DAILY_ENERGY_API}/api/realtime/daily-energy/${deviceId}`;
                 const haResponse = await fetch(haEnergyUrl);
                 
                 if (haResponse.ok) {
