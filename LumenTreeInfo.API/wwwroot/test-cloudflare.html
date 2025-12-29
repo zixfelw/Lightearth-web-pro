@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🧪 Test Cloudflare Only Version</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #1a1a2e; color: #eee; }
+        .card { background: #16213e; padding: 20px; margin: 10px 0; border-radius: 10px; }
+        .success { color: #4ade80; }
+        .error { color: #f87171; }
+        .pending { color: #fbbf24; }
+        button { background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+        button:hover { background: #2563eb; }
+        pre { background: #0f0f23; padding: 10px; border-radius: 5px; overflow-x: auto; font-size: 12px; }
+        h1 { color: #60a5fa; }
+        h3 { color: #a78bfa; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Cloudflare Workers (No Railway)</h1>
+    <p>Test xem tất cả API có hoạt động qua Cloudflare Workers không</p>
+    
+    <div class="card">
+        <h3>Device ID để test:</h3>
+        <input type="text" id="deviceId" value="P250801055" style="padding: 10px; width: 200px; border-radius: 5px;">
+        <button onclick="runAllTests()">🚀 Chạy tất cả tests</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <script>
+        const WORKER = 'https://lightearth.applike098.workers.dev';
+        const WORKER_TSP = 'https://temperature-soc-power.applike098.workers.dev';
+        
+        const tests = [
+            { name: 'Health Check', url: () => `${WORKER}/health` },
+            { name: 'Realtime Device Data', url: (id) => `${WORKER}/api/realtime/device/${id}` },
+            { name: 'Daily Energy', url: (id) => `${WORKER}/api/realtime/daily-energy/${id}` },
+            { name: 'Cloud Devices List', url: () => `${WORKER}/api/cloud/devices` },
+            { name: 'Device Info', url: (id) => `${WORKER}/api/cloud/device-info/${id}` },
+            { name: 'Cloud States', url: (id) => `${WORKER}/api/cloud/states/${id}` },
+            { name: 'Monthly Stats', url: (id) => `${WORKER}/api/month/${id}` },
+            { name: 'Yearly Stats', url: (id) => `${WORKER}/api/year/${id}` },
+            { name: 'Power History (TSP)', url: (id) => `${WORKER_TSP}/api/realtime/power-history/${id}?date=${new Date().toISOString().split('T')[0]}` },
+            { name: 'SOC History (TSP)', url: (id) => `${WORKER_TSP}/api/realtime/soc-history/${id}?date=${new Date().toISOString().split('T')[0]}` },
+            { name: 'Temperature (TSP)', url: (id) => `${WORKER_TSP}/api/cloud/temperature/${id}/${new Date().toISOString().split('T')[0]}` },
+            { name: 'Power Peak (TSP)', url: (id) => `${WORKER_TSP}/api/realtime/power-peak/${id}?date=${new Date().toISOString().split('T')[0]}` },
+        ];
+        
+        async function runTest(test, deviceId) {
+            const url = test.url(deviceId);
+            const start = Date.now();
+            try {
+                const resp = await fetch(url);
+                const time = Date.now() - start;
+                const data = await resp.json();
+                return {
+                    name: test.name,
+                    url: url,
+                    status: resp.ok ? 'success' : 'error',
+                    statusCode: resp.status,
+                    time: time,
+                    data: data
+                };
+            } catch (e) {
+                return {
+                    name: test.name,
+                    url: url,
+                    status: 'error',
+                    error: e.message,
+                    time: Date.now() - start
+                };
+            }
+        }
+        
+        async function runAllTests() {
+            const deviceId = document.getElementById('deviceId').value;
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<div class="card pending">⏳ Đang chạy tests...</div>';
+            
+            const results = [];
+            for (const test of tests) {
+                const result = await runTest(test, deviceId);
+                results.push(result);
+            }
+            
+            let html = '<h3>📊 Kết quả:</h3>';
+            let passed = 0, failed = 0;
+            
+            for (const r of results) {
+                const icon = r.status === 'success' ? '✅' : '❌';
+                const cls = r.status === 'success' ? 'success' : 'error';
+                if (r.status === 'success') passed++; else failed++;
+                
+                html += `<div class="card">
+                    <h4>${icon} ${r.name} <span class="${cls}">(${r.statusCode || 'ERROR'} - ${r.time}ms)</span></h4>
+                    <p style="font-size:11px; color:#888;">URL: ${r.url}</p>
+                    <pre>${JSON.stringify(r.data || r.error, null, 2).substring(0, 500)}...</pre>
+                </div>`;
+            }
+            
+            const summary = `<div class="card" style="background: ${failed === 0 ? '#166534' : '#991b1b'}">
+                <h3>📈 Tổng kết: ${passed}/${results.length} passed</h3>
+                <p>${failed === 0 ? '🎉 TẤT CẢ API HOẠT ĐỘNG! Có thể deploy 100% Cloudflare!' : '⚠️ Một số API không hoạt động'}</p>
+            </div>`;
+            
+            resultsDiv.innerHTML = summary + html;
+        }
+    </script>
+</body>
+</html>
