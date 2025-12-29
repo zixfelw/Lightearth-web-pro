@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13274 - Fixed fallback API with AbortController timeout
+ * Version: 13275 - Fixed fallback API with AbortController timeout
  * 
  * Features:
  * - Real-time data via SignalR
@@ -3779,83 +3779,55 @@ document.addEventListener('DOMContentLoaded', function () {
         const essentialPowerVal = parseInt(essentialPower.replace(/[^\d]/g, '')) || 0;
         updateEssentialHeatEffect(essentialPowerVal);
         
-        // Update battery card with colors based on charge/discharge AND battery level
+        // Update battery card - Heat Effect CSS handles colors based on charging/discharging
         const batteryPowerVal = parseInt(batteryPower.replace(/[^\d-]/g, '')) || 0;
         const batteryPercentNum = parseInt(batteryPercent.replace(/[^\d]/g, '')) || 0;
         const batteryPowerEl = document.getElementById('battery-power-3d');
-        const batteryCardEl = document.getElementById('battery-card-3d');
         const batteryFillEl = document.getElementById('battery-fill-3d');
         const batteryPercentIconEl = document.getElementById('battery-percent-3d-icon');
         const batteryBodyEl = document.getElementById('battery-body-3d');
         const batteryCapEl = document.getElementById('battery-cap-3d');
         
-        // Determine battery color based on % level (like phone battery)
-        // >50% = emerald/green, 20-50% = amber/yellow, <20% = red
-        let batteryColorClass = 'emerald';
-        let batteryBorderColor = 'border-emerald-400';
-        let batteryCapColor = 'bg-emerald-400';
-        let batteryFillColor = 'bg-emerald-500';
-        let batteryTextColor = 'text-emerald-400';
-        
-        if (batteryPercentNum < 20) {
-            batteryColorClass = 'red';
-            batteryBorderColor = 'border-red-400';
-            batteryCapColor = 'bg-red-400';
-            batteryFillColor = 'bg-red-500';
-            batteryTextColor = 'text-red-400';
-        } else if (batteryPercentNum < 50) {
-            batteryColorClass = 'amber';
-            batteryBorderColor = 'border-amber-400';
-            batteryCapColor = 'bg-amber-400';
-            batteryFillColor = 'bg-amber-500';
-            batteryTextColor = 'text-amber-400';
-        }
-        
         // Update power display with +/- sign AND status label
+        // Note: Battery Heat Effect CSS handles all colors via battery-heat-card class
         const batteryStatusLabelEl = document.getElementById('battery-status-label-3d');
         if (batteryPowerEl) {
             if (batteryPowerVal > 10) {
                 // Charging: + màu xanh
                 batteryPowerEl.textContent = '+' + Math.abs(batteryPowerVal) + 'W';
-                batteryPowerEl.className = 'text-xl sm:text-2xl font-black text-emerald-400 leading-tight';
-                if (batteryCardEl) batteryCardEl.className = 'bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-emerald-500/30 shadow-lg flex flex-col items-center';
                 if (batteryStatusLabelEl) {
                     batteryStatusLabelEl.textContent = 'Pin đang sạc';
-                    batteryStatusLabelEl.className = 'text-xs sm:text-sm text-emerald-400 mt-1 font-medium';
                 }
             } else if (batteryPowerVal < -10) {
                 // Discharging: - màu đỏ
                 batteryPowerEl.textContent = '-' + Math.abs(batteryPowerVal) + 'W';
-                batteryPowerEl.className = 'text-xl sm:text-2xl font-black text-red-400 leading-tight';
-                if (batteryCardEl) batteryCardEl.className = 'bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-red-500/30 shadow-lg flex flex-col items-center';
                 if (batteryStatusLabelEl) {
                     batteryStatusLabelEl.textContent = 'Pin đang xả';
-                    batteryStatusLabelEl.className = 'text-xs sm:text-sm text-red-400 mt-1 font-medium';
                 }
             } else {
                 // Idle: màu emerald (đồng bộ với các card khác)
                 batteryPowerEl.textContent = '0W';
-                batteryPowerEl.className = 'text-xl sm:text-2xl font-black text-emerald-400 leading-tight';
-                if (batteryCardEl) batteryCardEl.className = 'bg-slate-800/90 backdrop-blur rounded-xl p-3 text-center border border-emerald-500/30 shadow-lg flex flex-col items-center';
                 if (batteryStatusLabelEl) {
                     batteryStatusLabelEl.textContent = 'Pin chờ';
-                    batteryStatusLabelEl.className = 'text-xs sm:text-sm text-emerald-400 mt-1 font-medium';
                 }
             }
         }
         
         // Update battery icon colors based on % level - BIGGER SIZE
+        // Note: Battery Heat Effect CSS will handle dynamic colors, just update structure classes
         if (batteryBodyEl) {
-            batteryBodyEl.className = `w-16 h-7 sm:w-20 sm:h-8 rounded-[5px] border-2 ${batteryBorderColor} relative overflow-hidden bg-slate-900/80`;
+            // Keep base structure, CSS Heat Effect will add glow effects
+            batteryBodyEl.className = `battery-body-3d w-16 h-7 sm:w-20 sm:h-8 rounded-[5px] border-2 border-emerald-400 relative overflow-hidden bg-slate-900/80 transition-all duration-300`;
         }
         if (batteryCapEl) {
-            batteryCapEl.className = `absolute -right-1.5 top-1/2 -translate-y-1/2 w-1.5 h-4 sm:h-5 ${batteryCapColor} rounded-r-sm`;
+            batteryCapEl.className = `absolute -right-1.5 top-1/2 -translate-y-1/2 w-1.5 h-4 sm:h-5 bg-emerald-400 rounded-r-sm transition-all duration-300`;
         }
         
-        // Update battery fill bar
+        // Update battery fill bar - width only, CSS Heat Effect handles colors
         if (batteryFillEl) {
             batteryFillEl.style.width = Math.max(batteryPercentNum - 3, 0) + '%'; // -3% for padding
-            batteryFillEl.className = `absolute left-0.5 top-0.5 bottom-0.5 rounded-[3px] ${batteryFillColor} transition-all duration-500`;
+            // Base class only, CSS Heat Effect will override background color
+            batteryFillEl.className = `battery-fill-3d absolute left-0.5 top-0.5 bottom-0.5 rounded-[3px] bg-emerald-500 transition-all duration-500`;
         }
         if (batteryPercentIconEl) {
             batteryPercentIconEl.textContent = batteryPercent;
