@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13276 - Fixed fallback API with AbortController timeout
+ * Version: 13277 - Fixed fallback API with AbortController timeout
  * 
  * Features:
  * - Real-time data via SignalR
@@ -919,6 +919,12 @@ document.addEventListener('DOMContentLoaded', function () {
             // Update battery cell voltages
             console.log('🔋 CellsData received:', cellsData ? 'YES' : 'NO');
             console.log('🔋 CellsData structure:', cellsData);
+            
+            // If no cells data from current API, fetch from lightearth-proxy (which always has cells)
+            if (!cellsData || !cellsData.cells) {
+                console.log('🔋 No cells in current API response, fetching from lightearth-proxy...');
+                fetchBatteryCellsFromProxy(deviceId);
+            }
             
             // Handle multiple cell data formats
             let cellVoltages = [];
@@ -2972,6 +2978,66 @@ document.addEventListener('DOMContentLoaded', function () {
     // ========================================
     // BATTERY CELL DISPLAY
     // ========================================
+    
+    // Fetch battery cells specifically from lightearth-proxy (which always has cells data)
+    // This is needed because applike098 API doesn't return cells data
+    const LIGHTEARTH_PROXY_API = 'https://lightearth-proxy.minhlongt358.workers.dev';
+    let lastCellsFetch = 0;
+    const CELLS_FETCH_INTERVAL = 5000; // Min 5s between fetches
+    
+    async function fetchBatteryCellsFromProxy(deviceId) {
+        // Throttle fetches to prevent spam
+        const now = Date.now();
+        if (now - lastCellsFetch < CELLS_FETCH_INTERVAL) {
+            console.log('🔋 Cells fetch throttled, skipping...');
+            return;
+        }
+        lastCellsFetch = now;
+        
+        try {
+            const cellsUrl = `${LIGHTEARTH_PROXY_API}/api/realtime/device/${deviceId}`;
+            console.log('🔋 Fetching cells from proxy:', cellsUrl);
+            
+            const response = await fetch(cellsUrl);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            const data = await response.json();
+            const cellsData = data.deviceData?.battery?.cells;
+            
+            if (cellsData && cellsData.cells) {
+                console.log('✅ [Proxy] Got cells data:', cellsData);
+                
+                // Process cells data
+                const cellKeys = Object.keys(cellsData.cells).sort((a, b) => {
+                    const numA = parseInt(a.replace(/\D/g, ''));
+                    const numB = parseInt(b.replace(/\D/g, ''));
+                    return numA - numB;
+                });
+                
+                const cellVoltages = [];
+                cellKeys.forEach((key) => {
+                    cellVoltages.push(cellsData.cells[key]);
+                });
+                
+                if (cellVoltages.length > 0) {
+                    const validVoltages = cellVoltages.filter(v => v > 0);
+                    const cellData = {
+                        cells: cellVoltages,
+                        maximumVoltage: cellsData.max || Math.max(...validVoltages, 0),
+                        minimumVoltage: cellsData.min || Math.min(...validVoltages.filter(v => v > 0), 0),
+                        averageVoltage: cellsData.avg || (validVoltages.length > 0 ? validVoltages.reduce((a, b) => a + b, 0) / validVoltages.length : 0),
+                        numberOfCells: cellVoltages.length
+                    };
+                    updateBatteryCellDisplay(cellData);
+                    console.log(`✅ [Proxy] Cell voltages updated: ${cellVoltages.length} cells`);
+                }
+            } else {
+                console.warn('⚠️ [Proxy] No cells data in response');
+            }
+        } catch (error) {
+            console.warn('⚠️ [Proxy] Cells fetch failed:', error.message);
+        }
+    }
     
     // Initialize battery cells with waiting message (always visible, no mock data)
     function initializeBatteryCellsWaiting() {
