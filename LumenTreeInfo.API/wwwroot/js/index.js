@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13268 - Fixed fallback API with AbortController timeout
+ * Version: 13269 - Fixed fallback API with AbortController timeout
  * 
  * Features:
  * - Real-time data via SignalR
@@ -25,7 +25,7 @@ const FALLBACK_WORKER_TSP = 'https://temperature-soc-power.minhlongt358.workers.
 // API State Management
 let usingFallbackAPI = false;
 let primaryAPIFailCount = 0;
-const MAX_PRIMARY_FAILS = 3;  // Switch to fallback after 3 consecutive failures
+const MAX_PRIMARY_FAILS = 1;  // Switch to fallback immediately after 1 failure (faster recovery)
 const POLLING_INTERVAL_PRIMARY = 5000;  // 5 seconds for primary API
 const POLLING_INTERVAL_FALLBACK = 10000;  // 10 seconds for fallback API
 
