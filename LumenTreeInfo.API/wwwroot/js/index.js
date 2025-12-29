@@ -57,8 +57,10 @@ function getNextHealthyApi() {
     return API_POOL[0];
 }
 
-// Random load balancing - pick random healthy API
-function getRandomHealthyApi() {
+// Alternating load balancing - switch between APIs each call
+let lastUsedApiIndex = -1;  // Track last used API for alternating
+
+function getAlternatingHealthyApi() {
     const healthyApis = API_POOL.filter(api => !api.disabled);
     if (healthyApis.length === 0) {
         // All disabled - reset and return first
@@ -67,19 +69,33 @@ function getRandomHealthyApi() {
             api.disabled = false;
             api.failCount = 0;
         });
+        lastUsedApiIndex = 0;
         return API_POOL[0];
     }
-    const randomIndex = Math.floor(Math.random() * healthyApis.length);
-    return healthyApis[randomIndex];
+    
+    // Find next healthy API (alternating)
+    let nextIndex = (lastUsedApiIndex + 1) % API_POOL.length;
+    
+    // If next API is disabled, find the next healthy one
+    let attempts = 0;
+    while (API_POOL[nextIndex].disabled && attempts < API_POOL.length) {
+        nextIndex = (nextIndex + 1) % API_POOL.length;
+        attempts++;
+    }
+    
+    lastUsedApiIndex = nextIndex;
+    const api = API_POOL[nextIndex];
+    console.log(`🔄 Using ${api.name} (alternating)`);
+    return api;
 }
 
-// Get current API endpoints (random load balancing)
+// Get current API endpoints (alternating load balancing)
 function getCurrentWorkerAPI() {
-    return getRandomHealthyApi().worker;
+    return getAlternatingHealthyApi().worker;
 }
 
 function getCurrentWorkerTSP() {
-    return getRandomHealthyApi().tsp;
+    return getAlternatingHealthyApi().tsp;
 }
 
 function getCurrentPollingInterval() {
