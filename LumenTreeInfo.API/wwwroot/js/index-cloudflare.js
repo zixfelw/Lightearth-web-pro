@@ -40,6 +40,9 @@ const POLLING_INTERVAL = 5000;  // 5 seconds polling
 // Primary API for daily-energy (has proper CORS headers)
 const DAILY_ENERGY_API = 'https://lightearth.applike098.workers.dev';
 
+// Global state for realtime data - MUST be declared early to avoid TDZ errors
+let latestRealtimeData = {};
+
 // Get current API (round-robin with health check)
 function getNextHealthyApi() {
     // Try to find a healthy API starting from current index
@@ -3751,8 +3754,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Main switchEnergyFlowView is defined OUTSIDE DOMContentLoaded for mobile compatibility
     // ========================================
     
-    // Store latest realtime data for 3D view sync
-    let latestRealtimeData = {};
+    // latestRealtimeData is declared globally at the top of the file
     
     // Auto-sync data to 3D Home view elements
     // Auto-sync data to 3D Home view - With Sun/Moon animation
