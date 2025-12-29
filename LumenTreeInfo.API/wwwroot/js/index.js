@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript
- * Version: 13269 - Fixed fallback API with AbortController timeout
+ * Version: 13270 - Fixed fallback API with AbortController timeout
  * 
  * Features:
  * - Real-time data via SignalR
@@ -831,7 +831,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     deviceTempValue: dd.temperature || dd.system?.temperature || 0,
                     essentialValue: dd.acOutput?.power || 0,
                     loadValue: dd.load?.homePower || dd.load?.power || 0,
-                    inverterAcOutPower: dd.acOutput?.power || 0
+                    inverterAcOutPower: dd.acOutput?.power || 0,
+                    // Device model from API
+                    model: dd.model || data.deviceData?.model || null
                 };
                 // Battery cells data from Worker v3.7: deviceData.battery.cells
                 cellsData = dd.battery?.cells || data.batteryCells;
@@ -867,6 +869,11 @@ document.addEventListener('DOMContentLoaded', function () {
             
             // Update displays with realtime data
             updateRealTimeDisplay(displayData);
+            
+            // Update device model/type from realtime API data
+            if (displayData.model) {
+                applyDeviceInfo(displayData.model);
+            }
             
             // Update battery cell voltages
             console.log('🔋 CellsData received:', cellsData ? 'YES' : 'NO');
