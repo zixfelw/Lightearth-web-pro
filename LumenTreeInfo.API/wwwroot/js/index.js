@@ -179,8 +179,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Chart objects
     let combinedEnergyChart;
 
-    // SignalR DISABLED - Using HTTP polling via Cloudflare Workers only (ZERO bandwidth cost)
-    // let connection;
+    // SignalR connection
+    let connection;
     let currentDeviceId = '';
     
     // Connection status tracking
@@ -507,8 +507,8 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // SignalR DISABLED - Using HTTP polling via Cloudflare Workers only
-    // initializeSignalRConnection();
+    // Initialize SignalR
+    initializeSignalRConnection();
 
     // Auto-fetch if deviceId in URL
     if (deviceIdParam) {
@@ -557,12 +557,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // ========================================
-    // SIGNALR CONNECTION - DISABLED TO SAVE BANDWIDTH
-    // Using HTTP polling via Cloudflare Workers (ZERO Railway egress cost)
+    // SIGNALR CONNECTION
     // ========================================
     
-    /*
-    // SignalR DISABLED - Saves ~100GB/month bandwidth on Railway
     function initializeSignalRConnection() {
         console.log("Initializing SignalR connection");
 
@@ -593,7 +590,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
         startSignalRConnection();
     }
-    */
 
     function updateConnectionStatus(status, source = 'system') {
         const indicator = document.getElementById('connectionIndicator');
@@ -640,8 +636,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    /*
-    // SignalR DISABLED - Saves bandwidth
     async function startSignalRConnection() {
         updateConnectionStatus('connecting', 'system');
         try {
@@ -663,17 +657,13 @@ document.addEventListener('DOMContentLoaded', function () {
             setTimeout(startSignalRConnection, 5000);
         }
     }
-    */
 
     function subscribeToDevice(deviceId) {
         if (!deviceId) return;
         
-        // Always start realtime polling via Cloudflare Workers (ZERO bandwidth cost)
+        // Always start realtime polling (works even if SignalR fails)
         startRealtimePolling(deviceId);
         
-        // SignalR DISABLED - Using HTTP polling only
-        // This saves ~100GB/month bandwidth on Railway
-        /*
         if (deviceId === currentDeviceId || !connection || connection.state !== "Connected") {
             return;
         }
@@ -689,8 +679,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.log(`Subscribed to: ${deviceId}`);
             })
             .catch(err => console.error("Subscribe error:", err));
-        */
-        currentDeviceId = deviceId;
     }
     
     // ========================================
@@ -928,14 +916,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     
-    // SignalR DISABLED - connection.onclose no longer needed
-    /*
     connection.onclose(async () => {
         console.log("SignalR connection closed");
         updateConnectionStatus('disconnected', 'system');
         await startSignalRConnection();
     });
-    */
 
     // ========================================
     // DATA FETCHING
