@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript (CLOUDFLARE ONLY VERSION)
- * Version: 13285-cf - 100% Cloudflare Workers, NO Railway needed!
+ * Version: 13286-cf - 100% Cloudflare Workers, NO Railway needed!
  * 
  * Features:
  * - Real-time data via SignalR
@@ -2936,6 +2936,7 @@ document.addEventListener('DOMContentLoaded', function () {
         updateEnergyFlowAnimation(data);
         
         // Auto-sync to Basic view if it's visible
+        console.log('🔄 Syncing views - Basic:', typeof window.autoSyncBasicView, '3D:', typeof window.autoSync3DHomeView);
         if (typeof window.autoSyncBasicView === 'function') {
             window.autoSyncBasicView();
         }
@@ -4764,8 +4765,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     
     // Fetch solar radiation forecast from Open-Meteo
-    async function fetchSolarForecast(cityKey = 'TPHCM') {
-        const city = VIETNAM_CITIES[cityKey] || VIETNAM_CITIES['TPHCM'];
+    async function fetchSolarForecast(cityKey = 'TP. Hồ Chí Minh') {
+        const city = VIETNAM_CITIES[cityKey] || VIETNAM_CITIES['TP. Hồ Chí Minh'];
+        console.log('☀️ Fetching solar forecast for:', cityKey);
         currentSolarCity = cityKey;
         
         try {
@@ -4913,8 +4915,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     
-    // Initialize solar forecast - load saved city or default to TPHCM
+    // Initialize solar forecast - load saved city or default to TP. Hồ Chí Minh
     const savedSolarCity = localStorage.getItem('solarForecastCity') || 'TP. Hồ Chí Minh';
+    console.log('☀️ Solar forecast init - city:', savedSolarCity);
     
     // Set dropdown to saved value
     const citySelect = document.getElementById('solar-city-select');
