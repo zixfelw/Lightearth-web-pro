@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worker v3.0 - Copy Code</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        h1 { color: #58a6ff; text-align: center; margin-bottom: 20px; }
+        .copy-btn {
+            display: block;
+            width: 100%;
+            padding: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+        .copy-btn:hover { transform: scale(1.02); box-shadow: 0 5px 20px rgba(46,160,67,0.4); }
+        .copy-btn.copied { background: linear-gradient(135deg, #1f6feb 0%, #388bfd 100%); }
+        .code-box {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 70vh;
+            overflow: auto;
+        }
+        pre { white-space: pre-wrap; word-wrap: break-word; font-size: 11px; line-height: 1.4; }
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: #238636;
+            color: white;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 18px;
+            transition: transform 0.3s;
+            z-index: 1000;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Temperature-SOC-Power Worker v3.0</h1>
+        <button class="copy-btn" onclick="copyCode()">COPY FULL CODE</button>
+        <div class="code-box"><pre id="code"></pre></div>
+    </div>
+    <div class="toast" id="toast">Copied!</div>
+<script>
+const CODE = `/**
+ * Temperature-SOC-Power Worker v3.0
+ * 
+ * MAJOR UPDATE v3.0:
+ * - Uses sensor attributes (series_5min_w, series_hour_kwh) for FULL 24h data
+ * - NOT affected by HA restart - data is stored in sensor attributes
+ * - Power History: 288 data points (every 5 minutes)
+ * - SOC History: Uses History API with fallback + zero smoothing
+ * - Temperature History: Uses History API with fallback
+ * - Charge/Discharge: 24 hourly data points
+ * 
+ * Environment Variables (set in Cloudflare Dashboard -> Settings -> Variables):
+ * - HA_URL: Home Assistant tunnel URL
+ * - HA_TOKEN: Home Assistant Long-Lived Access Token
+ */
+
+const VN_TIMEZONE_OFFSET = 7;
+
+function corsHeaders(origin) {
+  return {
+    'Access-Control-Allow-Origin': origin || '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Cache-Control, Pragma',
+    'Access-Control-Max-Age': '86400',
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache, no-store, must-revalidate'
+  };
+}
+
+function jsonResponse(data, origin, status = 200) {
+  return new Response(JSON.stringify(data), { status, headers: corsHeaders(origin) });
+}
+
+async function fetchHA(endpoint, env) {
+  const haUrl = env.HA_URL || env.PI_URL;
+  const haToken = env.HA_TOKEN || env.PI_TOKEN;
+  if (!haUrl || !haToken) throw new Error('HA_URL or HA_TOKEN not configured');
+  const response = await fetch(\`\${haUrl}\${endpoint}\`, {
+    headers: { 'Authorization': \`Bearer \${haToken}\`, 'Content-Type': 'application/json' }
+  });
+  if (!response.ok) throw new Error(\`HA API error: \${response.status}\`);
+  return response.json();
+}
+
+function toVietnamTime(utcTimestamp) {
+  const date = new Date(utcTimestamp);
+  date.setHours(date.getUTCHours() + VN_TIMEZONE_OFFSET);
+  return date;
+}
+
+function getVietnamDateString(utcTimestamp) {
+  const vnDate = toVietnamTime(utcTimestamp);
+  return \`\${vnDate.getUTCFullYear()}-\${(vnDate.getUTCMonth() + 1).toString().padStart(2, '0')}-\${vnDate.getUTCDate().toString().padStart(2, '0')}\`;
+}
+
+function getVietnamToday() {
+  const now = new Date();
+  now.setHours(now.getUTCHours() + VN_TIMEZONE_OFFSET);
+  return \`\${now.getUTCFullYear()}-\${(now.getUTCMonth() + 1).toString().padStart(2, '0')}-\${now.getUTCDate().toString().padStart(2, '0')}\`;
+}
+
+function getVietnamCurrentHour() {
+  const now = new Date();
+  now.setHours(now.getUTCHours() + VN_TIMEZONE_OFFSET);
+  return now.getUTCHours();
+}
+
+function indexToTimeStr(index) {
+  const totalMinutes = index * 5;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return \`\${hours.toString().padStart(2, '0')}:\${minutes.toString().padStart(2, '0')}\`;
+}
+
+async function getPowerHistory(deviceId, date, env) {
+  const deviceLower = deviceId.toLowerCase();
+  const today = getVietnamToday();
+  if (date !== today) return getPowerHistoryFromHistoryAPI(deviceId, date, env);
+  
+  try {
+    const [pvSensor, loadSensor, gridSensor, totalLoadSensor] = await Promise.all([
+      fetchHA(\`/api/states/sensor.device_\${deviceLower}_pv_today\`, env),
+      fetchHA(\`/api/states/sensor.device_\${deviceLower}_load_today\`, env),
+      fetchHA(\`/api/states/sensor.device_\${deviceLower}_grid_in_today\`, env),
+      fetchHA(\`/api/states/sensor.device_\${deviceLower}_total_load_today\`, env)
+    ]);
+    const [chargeSensor, dischargeSensor] = await Promise.all([
+      fetchHA(\`/api/states/sensor.device_\${deviceLower}_charge_today\`, env),
+      fetchHA(\`/api/states/sensor.device_\${deviceLower}_discharge_today\`, env)
+    ]);
+    
+    const pvSeries = pvSensor?.attributes?.series_5min_w || [];
+    const loadSeries = loadSensor?.attributes?.series_5min_w || [];
+    const gridSeries = gridSensor?.attributes?.series_5min_w || [];
+    const totalLoadSeries = totalLoadSensor?.attributes?.series_5min_w || [];
+    const chargeHourly = chargeSensor?.attributes?.series_hour_kwh || [];
+    const dischargeHourly = dischargeSensor?.attributes?.series_hour_kwh || [];
+    
+    if (pvSeries.length === 0 && loadSeries.length === 0) {
+      return { success: true, timeline: [], count: 0, message: 'No power data', version: '3.0', source: 'sensor_attributes' };
+    }
+    
+    const currentHour = getVietnamCurrentHour();
+    const currentIndex = Math.min((currentHour + 1) * 12, 288);
+    const timeline = [];
+    
+    for (let i = 0; i < currentIndex; i++) {
+      const timeStr = indexToTimeStr(i);
+      const hour = Math.floor(i / 12);
+      const pv = pvSeries[i] || 0;
+      const load = loadSeries[i] || 0;
+      const grid = gridSeries[i] || 0;
+      const totalLoad = totalLoadSeries[i] || 0;
+      const chargeKwh = chargeHourly[hour] || 0;
+      const dischargeKwh = dischargeHourly[hour] || 0;
+      const batPowerEstimate = Math.round((chargeKwh - dischargeKwh) * 1000);
+      
+      if (pv > 0 || load > 0 || grid > 0 || totalLoad > 0 || Math.abs(batPowerEstimate) > 10) {
+        timeline.push({ t: timeStr, pv: Math.round(pv), load: Math.round(load), grid: Math.round(grid), bat: batPowerEstimate, backup: 0, totalLoad: Math.round(totalLoad) });
+      }
+    }
+    
+    return { success: true, deviceId, date, timeline, count: timeline.length, version: '3.0', source: 'sensor_attributes', dataPoints: { pv: pvSeries.length, load: loadSeries.length, grid: gridSeries.length } };
+  } catch (error) {
+    return getPowerHistoryFromHistoryAPI(deviceId, date, env);
+  }
+}
+
+async function getPowerHistoryFromHistoryAPI(deviceId, date, env) {
+  const deviceLower = deviceId.toLowerCase();
+  const entities = [
+    \`sensor.device_\${deviceLower}_battery_power\`,
+    \`sensor.device_\${deviceLower}_pv_power\`,
+    \`sensor.device_\${deviceLower}_load_power\`,
+    \`sensor.device_\${deviceLower}_grid_power\`,
+    \`sensor.device_\${deviceLower}_ac_output_power\`
+  ];
+  const startDate = new Date(date);
+  startDate.setDate(startDate.getDate() - 1);
+  const startTime = \`\${startDate.toISOString().split('T')[0]}T17:00:00\`;
+  const endTime = \`\${date}T16:59:59\`;
+  
+  const data = await fetchHA(\`/api/history/period/\${startTime}?filter_entity_id=\${entities.join(',')}&end_time=\${endTime}\`, env);
+  if (!data || data.length === 0) return { success: true, timeline: [], count: 0, message: 'No power data', version: '3.0', source: 'history_api' };
+  
+  const timeSlots = {};
+  const entityNames = ['bat', 'pv', 'load', 'grid', 'backup'];
+  
+  data.forEach((entityData, index) => {
+    if (entityData && entityData.length > 0) {
+      entityData.forEach(item => {
+        const vnDateStr = getVietnamDateString(item.last_changed);
+        if (vnDateStr !== date) return;
+        const vnTime = toVietnamTime(item.last_changed);
+        const hours = vnTime.getUTCHours();
+        const minutes = Math.floor(vnTime.getUTCMinutes() / 5) * 5;
+        const timeKey = \`\${hours.toString().padStart(2, '0')}:\${minutes.toString().padStart(2, '0')}\`;
+        if (!timeSlots[timeKey]) timeSlots[timeKey] = { t: timeKey, pv: 0, bat: 0, load: 0, grid: 0, backup: 0 };
+        timeSlots[timeKey][entityNames[index]] = parseFloat(item.state) || 0;
+      });
+    }
+  });
+  
+  const timeline = Object.values(timeSlots).sort((a, b) => {
+    const [aH, aM] = a.t.split(':').map(Number);
+    const [bH, bM] = b.t.split(':').map(Number);
+    return (aH * 60 + aM) - (bH * 60 + bM);
+  });
+  
+  return { success: true, deviceId, date, timeline, count: timeline.length, version: '3.0', source: 'history_api' };
+}
+
+async function getPowerPeak(deviceId, date, env) {
+  const deviceLower = deviceId.toLowerCase();
+  const today = getVietnamToday();
+  
+  if (date === today) {
+    try {
+      const [pvSensor, loadSensor, gridSensor, chargeSensor, dischargeSensor] = await Promise.all([
+        fetchHA(\`/api/states/sensor.device_\${deviceLower}_pv_today\`, env),
+        fetchHA(\`/api/states/sensor.device_\${deviceLower}_load_today\`, env),
+        fetchHA(\`/api/states/sensor.device_\${deviceLower}_grid_in_today\`, env),
+        fetchHA(\`/api/states/sensor.device_\${deviceLower}_charge_today\`, env),
+        fetchHA(\`/api/states/sensor.device_\${deviceLower}_discharge_today\`, env)
+      ]);
+      
+      const pvSeries = pvSensor?.attributes?.series_5min_w || [];
+      const loadSeries = loadSensor?.attributes?.series_5min_w || [];
+      const gridSeries = gridSensor?.attributes?.series_5min_w || [];
+      const chargeHourly = chargeSensor?.attributes?.series_hour_kwh || [];
+      const dischargeHourly = dischargeSensor?.attributes?.series_hour_kwh || [];
+      
+      let pvMax = 0, pvMaxIndex = 0, loadMax = 0, loadMaxIndex = 0, gridMax = 0, gridMaxIndex = 0;
+      for (let i = 0; i < pvSeries.length; i++) { if (pvSeries[i] > pvMax) { pvMax = pvSeries[i]; pvMaxIndex = i; } }
+      for (let i = 0; i < loadSeries.length; i++) { if (loadSeries[i] > loadMax) { loadMax = loadSeries[i]; loadMaxIndex = i; } }
+      for (let i = 0; i < gridSeries.length; i++) { if (gridSeries[i] > gridMax) { gridMax = gridSeries[i]; gridMaxIndex = i; } }
+      
+      let chargeMax = 0, chargeMaxHour = 0, dischargeMax = 0, dischargeMaxHour = 0;
+      for (let h = 0; h < chargeHourly.length; h++) { if (chargeHourly[h] > chargeMax) { chargeMax = chargeHourly[h]; chargeMaxHour = h; } }
+      for (let h = 0; h < dischargeHourly.length; h++) { if (dischargeHourly[h] > dischargeMax) { dischargeMax = dischargeHourly[h]; dischargeMaxHour = h; } }
+      
+      return {
+        success: true, deviceId, date, dataPoints: pvSeries.length + loadSeries.length + gridSeries.length,
+        peaks: {
+          pv: { max: Math.round(pvMax), time: indexToTimeStr(pvMaxIndex) },
+          load: { max: Math.round(loadMax), time: indexToTimeStr(loadMaxIndex) },
+          grid: { max: Math.round(gridMax), time: indexToTimeStr(gridMaxIndex) },
+          charge: { max: Math.round(chargeMax * 1000), time: \`\${chargeMaxHour.toString().padStart(2, '0')}:00\` },
+          discharge: { max: Math.round(dischargeMax * 1000), time: \`\${dischargeMaxHour.toString().padStart(2, '0')}:00\` }
+        },
+        version: '3.0', source: 'sensor_attributes'
+      };
+    } catch (error) {
+      return getPowerPeakFromHistoryAPI(deviceId, date, env);
+    }
+  }
+  return getPowerPeakFromHistoryAPI(deviceId, date, env);
+}
+
+async function getPowerPeakFromHistoryAPI(deviceId, date, env) {
+  const deviceLower = deviceId.toLowerCase();
+  const entities = [\`sensor.device_\${deviceLower}_pv_power\`, \`sensor.device_\${deviceLower}_load_power\`, \`sensor.device_\${deviceLower}_grid_power\`, \`sensor.device_\${deviceLower}_battery_power\`, \`sensor.device_\${deviceLower}_ac_output_power\`];
+  const startDate = new Date(date);
+  startDate.setDate(startDate.getDate() - 1);
+  const startTime = \`\${startDate.toISOString().split('T')[0]}T17:00:00\`;
+  const endTime = \`\${date}T16:59:59\`;
+  
+  const data = await fetchHA(\`/api/history/period/\${startTime}?filter_entity_id=\${entities.join(',')}&end_time=\${endTime}\`, env);
+  if (!data || data.length === 0) return { success: true, peaks: null, message: 'No power data', dataPoints: 0, version: '3.0', source: 'history_api' };
+  
+  const peaks = { pv: { value: 0, timeStr: '--:--' }, load: { value: 0, timeStr: '--:--' }, grid: { value: 0, timeStr: '--:--' }, charge: { value: 0, timeStr: '--:--' }, discharge: { value: 0, timeStr: '--:--' } };
+  let totalDataPoints = 0;
+  const entityNames = ['pv', 'load', 'grid', 'battery', 'backup'];
+  const formatVNTime = (isoTime) => { const vnTime = toVietnamTime(isoTime); return \`\${vnTime.getUTCHours().toString().padStart(2, '0')}:\${vnTime.getUTCMinutes().toString().padStart(2, '0')}\`; };
+  
+  data.forEach((entityData, index) => {
+    if (!entityData || entityData.length === 0) return;
+    const entityName = entityNames[index];
+    entityData.forEach(item => {
+      const vnDateStr = getVietnamDateString(item.last_changed);
+      if (vnDateStr !== date) return;
+      const value = parseFloat(item.state);
+      if (isNaN(value)) return;
+      totalDataPoints++;
+      if (entityName === 'pv' && value > peaks.pv.value) peaks.pv = { value, timeStr: formatVNTime(item.last_changed) };
+      else if (entityName === 'load' && value > peaks.load.value) peaks.load = { value, timeStr: formatVNTime(item.last_changed) };
+      else if (entityName === 'grid' && value > peaks.grid.value) peaks.grid = { value, timeStr: formatVNTime(item.last_changed) };
+      else if (entityName === 'battery') {
+        if (value > 0 && value > peaks.charge.value) peaks.charge = { value, timeStr: formatVNTime(item.last_changed) };
+        if (value < 0 && Math.abs(value) > peaks.discharge.value) peaks.discharge = { value: Math.abs(value), timeStr: formatVNTime(item.last_changed) };
+      }
+    });
+  });
+  
+  return { success: true, deviceId, date, dataPoints: totalDataPoints, peaks: { pv: { max: Math.round(peaks.pv.value), time: peaks.pv.timeStr }, load: { max: Math.round(peaks.load.value), time: peaks.load.timeStr }, grid: { max: Math.round(peaks.grid.value), time: peaks.grid.timeStr }, charge: { max: Math.round(peaks.charge.value), time: peaks.charge.timeStr }, discharge: { max: Math.round(peaks.discharge.value), time: peaks.discharge.timeStr } }, version: '3.0', source: 'history_api' };
+}
+
+async function getSOCHistory(deviceId, date, env) {
+  const entityId = \`sensor.device_\${deviceId.toLowerCase()}_battery_soc\`;
+  const today = getVietnamToday();
+  
+  if (date === today) {
+    const now = new Date();
+    const allData = [];
+    const seenTimestamps = new Set();
+    
+    const startDate = new Date(date);
+    startDate.setDate(startDate.getDate() - 1);
+    const fullDayStart = \`\${startDate.toISOString().split('T')[0]}T17:00:00\`;
+    const fullDayEnd = \`\${date}T16:59:59\`;
+    
+    try {
+      const data1 = await fetchHA(\`/api/history/period/\${fullDayStart}?filter_entity_id=\${entityId}&end_time=\${fullDayEnd}\`, env);
+      if (data1 && data1[0]) { for (const item of data1[0]) { if (!seenTimestamps.has(item.last_changed)) { seenTimestamps.add(item.last_changed); allData.push(item); } } }
+    } catch (e) {}
+    
+    const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+    const recentStart = sixHoursAgo.toISOString().replace(/\\.\\d{3}Z$/, '');
+    try {
+      const data2 = await fetchHA(\`/api/history/period/\${recentStart}?filter_entity_id=\${entityId}\`, env);
+      if (data2 && data2[0]) { for (const item of data2[0]) { if (!seenTimestamps.has(item.last_changed)) { seenTimestamps.add(item.last_changed); allData.push(item); } } }
+    } catch (e) {}
+    
+    allData.sort((a, b) => new Date(a.last_changed) - new Date(b.last_changed));
+    
+    const rawTimeline = allData.filter(item => getVietnamDateString(item.last_changed) === date).map(item => ({ time: item.last_changed, value: parseFloat(item.state) || 0 })).filter(item => !isNaN(item.value));
+    
+    const timeline = [];
+    let lastValidValue = null;
+    for (const item of rawTimeline) {
+      if (item.value === 0 && lastValidValue !== null) {
+        timeline.push({ time: item.time, value: lastValidValue });
+      } else if (item.value > 0) {
+        lastValidValue = item.value;
+        timeline.push(item);
+      }
+    }
+    
+    return { success: true, deviceId, date, timeline, count: timeline.length, version: '3.0', source: 'history_api_multirange' };
+  }
+  
+  const startDate = new Date(date);
+  startDate.setDate(startDate.getDate() - 1);
+  const startTime = \`\${startDate.toISOString().split('T')[0]}T17:00:00\`;
+  const endTime = \`\${date}T16:59:59\`;
+  
+  const data = await fetchHA(\`/api/history/period/\${startTime}?filter_entity_id=\${entityId}&end_time=\${endTime}\`, env);
+  if (!data || !data[0] || data[0].length === 0) return { success: true, timeline: [], count: 0, message: 'No SOC data', version: '3.0', source: 'history_api' };
+  
+  const rawTimeline = data[0].filter(item => getVietnamDateString(item.last_changed) === date).map(item => ({ time: item.last_changed, value: parseFloat(item.state) || 0 })).filter(item => !isNaN(item.value));
+  
+  const timeline = [];
+  let lastValidValue = null;
+  for (const item of rawTimeline) {
+    if (item.value === 0 && lastValidValue !== null) {
+      timeline.push({ time: item.time, value: lastValidValue });
+    } else if (item.value > 0) {
+      lastValidValue = item.value;
+      timeline.push(item);
+    }
+  }
+  
+  return { success: true, deviceId, date, timeline, count: timeline.length, version: '3.0', source: 'history_api' };
+}
+
+async function getTemperatureHistory(deviceId, date, env) {
+  const entityId = \`sensor.device_\${deviceId.toLowerCase()}_device_temperature\`;
+  const today = getVietnamToday();
+  
+  if (date === today) {
+    const now = new Date();
+    const allData = [];
+    const seenTimestamps = new Set();
+    
+    const startDate = new Date(date);
+    startDate.setDate(startDate.getDate() - 1);
+    const fullDayStart = \`\${startDate.toISOString().split('T')[0]}T17:00:00\`;
+    const fullDayEnd = \`\${date}T16:59:59\`;
+    
+    try {
+      const data1 = await fetchHA(\`/api/history/period/\${fullDayStart}?filter_entity_id=\${entityId}&end_time=\${fullDayEnd}\`, env);
+      if (data1 && data1[0]) { for (const item of data1[0]) { if (!seenTimestamps.has(item.last_changed)) { seenTimestamps.add(item.last_changed); allData.push(item); } } }
+    } catch (e) {}
+    
+    const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+    const recentStart = sixHoursAgo.toISOString().replace(/\\.\\d{3}Z$/, '');
+    try {
+      const data2 = await fetchHA(\`/api/history/period/\${recentStart}?filter_entity_id=\${entityId}\`, env);
+      if (data2 && data2[0]) { for (const item of data2[0]) { if (!seenTimestamps.has(item.last_changed)) { seenTimestamps.add(item.last_changed); allData.push(item); } } }
+    } catch (e) {}
+    
+    allData.sort((a, b) => new Date(a.last_changed) - new Date(b.last_changed));
+    
+    const series = allData.filter(item => getVietnamDateString(item.last_changed) === date).map(item => ({ time: item.last_changed, value: parseFloat(item.state) || 0 })).filter(item => !isNaN(item.value) && item.value > 0);
+    const values = series.map(s => s.value);
+    const min = values.length > 0 ? Math.min(...values) : null;
+    const max = values.length > 0 ? Math.max(...values) : null;
+    const avg = values.length > 0 ? parseFloat((values.reduce((a, b) => a + b, 0) / values.length).toFixed(1)) : null;
+    
+    return { success: true, deviceId, date, timeline: series, data: series, count: series.length, min, max, avg, version: '3.0', source: 'history_api_multirange' };
+  }
+  
+  const startDate = new Date(date);
+  startDate.setDate(startDate.getDate() - 1);
+  const startTime = \`\${startDate.toISOString().split('T')[0]}T17:00:00\`;
+  const endTime = \`\${date}T16:59:59\`;
+  
+  const data = await fetchHA(\`/api/history/period/\${startTime}?filter_entity_id=\${entityId}&end_time=\${endTime}\`, env);
+  if (!data || !data[0] || data[0].length === 0) return { success: true, timeline: [], data: [], count: 0, min: null, max: null, avg: null, version: '3.0', source: 'history_api' };
+  
+  const series = data[0].filter(item => getVietnamDateString(item.last_changed) === date).map(item => ({ time: item.last_changed, value: parseFloat(item.state) || 0 })).filter(item => !isNaN(item.value) && item.value > 0);
+  const values = series.map(s => s.value);
+  const min = values.length > 0 ? Math.min(...values) : null;
+  const max = values.length > 0 ? Math.max(...values) : null;
+  const avg = values.length > 0 ? parseFloat((values.reduce((a, b) => a + b, 0) / values.length).toFixed(1)) : null;
+  
+  return { success: true, deviceId, date, timeline: series, data: series, count: series.length, min, max, avg, version: '3.0', source: 'history_api' };
+}
+
+async function getDailyEnergy(deviceId, env) {
+  const deviceLower = deviceId.toLowerCase();
+  const today = getVietnamToday();
+  const entities = [\`sensor.device_\${deviceLower}_pv_today\`, \`sensor.device_\${deviceLower}_grid_in_today\`, \`sensor.device_\${deviceLower}_load_today\`, \`sensor.device_\${deviceLower}_charge_today\`, \`sensor.device_\${deviceLower}_discharge_today\`, \`sensor.device_\${deviceLower}_total_load_today\`, \`sensor.device_\${deviceLower}_essential_today\`];
+  const results = {};
+  
+  for (const entityId of entities) {
+    try {
+      const state = await fetchHA(\`/api/states/\${entityId}\`, env);
+      if (state && state.state && state.state !== 'unavailable' && state.state !== 'unknown') {
+        const value = parseFloat(state.state);
+        if (!isNaN(value)) {
+          let key = '';
+          if (entityId.includes('_pv_today')) key = 'pv_day';
+          else if (entityId.includes('_grid_in_today')) key = 'grid_day';
+          else if (entityId.includes('_load_today') && !entityId.includes('total')) key = 'load_day';
+          else if (entityId.includes('_charge_today')) key = 'charge_day';
+          else if (entityId.includes('_discharge_today')) key = 'discharge_day';
+          else if (entityId.includes('_total_load_today')) key = 'total_load_day';
+          else if (entityId.includes('_essential_today')) key = 'essential_day';
+          if (key) results[key] = value;
+        }
+      }
+    } catch (e) {}
+  }
+  
+  const summary = { pv_day: results.pv_day || 0, grid_day: results.grid_day || 0, load_day: results.load_day || 0, charge_day: results.charge_day || 0, discharge_day: results.discharge_day || 0, total_load_day: results.total_load_day || results.load_day || 0, essential_day: results.essential_day || 0 };
+  return { success: true, deviceId, date: today, summary, raw: results, version: '3.0' };
+}
+
+function calculateTieredPrice(kWh, vatRate = 0.08) {
+  if (kWh <= 0) return 0;
+  let totalCost = 0, remaining = kWh;
+  const tiers = [{ limit: 50, price: 1984 }, { limit: 50, price: 2050 }, { limit: 100, price: 2380 }, { limit: 100, price: 2998 }, { limit: 100, price: 3350 }, { limit: Infinity, price: 3460 }];
+  for (const tier of tiers) { if (remaining <= 0) break; const amount = Math.min(remaining, tier.limit); totalCost += amount * tier.price; remaining -= amount; }
+  return totalCost * (1 + vatRate);
+}
+
+async function getYearlyEnergyData(deviceId, env) {
+  const deviceLower = deviceId.toLowerCase();
+  try {
+    const pvYearSensor = await fetchHA(\`/api/states/sensor.device_\${deviceLower}_pv_year\`, env);
+    if (!pvYearSensor || !pvYearSensor.attributes) return { year: 0, months: [] };
+    const attrs = pvYearSensor.attributes;
+    const year = attrs.year || new Date().getFullYear();
+    const monthlyTotalLoad = attrs.monthly_total_load || [];
+    const monthlyGrid = attrs.monthly_grid || [];
+    const monthlyEssential = attrs.monthly_essential || [];
+    const monthlyData = [];
+    for (let i = 0; i < 12; i++) {
+      const totalLoad = monthlyTotalLoad[i] || 0;
+      const grid = monthlyGrid[i] || 0;
+      const essential = monthlyEssential[i] || 0;
+      if (totalLoad > 0 || grid > 0) {
+        const monthNumber = i + 1;
+        monthlyData.push({ month: \`\${year}-\${monthNumber.toString().padStart(2, '0')}\`, monthNumber, totalLoad: Math.round(totalLoad * 10) / 10, grid: Math.round(grid * 10) / 10, essential: Math.round(essential * 10) / 10 });
+      }
+    }
+    return { year, months: monthlyData };
+  } catch (e) { return { year: 0, months: [] }; }
+}
+
+async function getYearlyStatistics(deviceId, year, env) {
+  const deviceLower = deviceId.toLowerCase();
+  const deviceUpper = deviceId.toUpperCase();
+  try {
+    const pvYearSensor = await fetchHA(\`/api/states/sensor.device_\${deviceLower}_pv_year\`, env);
+    if (!pvYearSensor || !pvYearSensor.attributes) return { success: false, deviceId: deviceUpper, year, message: 'No data' };
+    const attrs = pvYearSensor.attributes;
+    const sensorYear = attrs.year || new Date().getFullYear();
+    const monthlyPv = attrs.monthly_pv || [], monthlyLoad = attrs.monthly_load || [], monthlyTotalLoad = attrs.monthly_total_load || [];
+    const monthlyGrid = attrs.monthly_grid || [], monthlyCharge = attrs.monthly_charge || [], monthlyDischarge = attrs.monthly_discharge || [];
+    const monthlyEssential = attrs.monthly_essential || [], monthlySavedKwh = attrs.monthly_saved_kwh || [], monthlySavingsVnd = attrs.monthly_savings_vnd || [];
+    const months = [];
+    let totalPv = 0, totalLoad = 0, totalGrid = 0, totalEssential = 0, totalCharge = 0, totalDischarge = 0;
+    for (let i = 0; i < 12; i++) {
+      const pv = monthlyPv[i] || 0, load = monthlyLoad[i] || 0, totalLoadMonth = monthlyTotalLoad[i] || 0;
+      const grid = monthlyGrid[i] || 0, charge = monthlyCharge[i] || 0, discharge = monthlyDischarge[i] || 0;
+      const essential = monthlyEssential[i] || 0, savedKwh = monthlySavedKwh[i] || 0, savingsVnd = monthlySavingsVnd[i] || 0;
+      if (pv > 0 || load > 0 || totalLoadMonth > 0 || grid > 0) {
+        const monthNumber = i + 1;
+        months.push({ month: \`\${sensorYear}-\${monthNumber.toString().padStart(2, '0')}\`, monthNumber, pv: Math.round(pv * 10) / 10, load: Math.round(load * 10) / 10, totalLoad: Math.round(totalLoadMonth * 10) / 10, grid: Math.round(grid * 10) / 10, battery: Math.round((charge - discharge) * 10) / 10, charge: Math.round(charge * 10) / 10, discharge: Math.round(discharge * 10) / 10, essential: Math.round(essential * 10) / 10, savedKwh: Math.round(savedKwh * 10) / 10, savingsVnd: Math.round(savingsVnd) });
+        totalPv += pv; totalLoad += load; totalGrid += grid; totalEssential += essential; totalCharge += charge; totalDischarge += discharge;
+      }
+    }
+    return { success: true, deviceId: deviceUpper, year: sensorYear, source: 'ha_sensors', totalMonths: months.length, totals: { pv: Math.round(totalPv * 10) / 10, load: Math.round(totalLoad * 10) / 10, grid: Math.round(totalGrid * 10) / 10, essential: Math.round(totalEssential * 10) / 10, battery: Math.round((totalCharge - totalDischarge) * 10) / 10, charge: Math.round(totalCharge * 10) / 10, discharge: Math.round(totalDischarge * 10) / 10 }, months, timestamp: new Date().toISOString(), version: '3.0' };
+  } catch (e) { return { success: false, deviceId: deviceUpper, year, error: e.message }; }
+}
+
+async function getSolarDashboard(deviceId, env) {
+  const deviceUpper = deviceId.toUpperCase();
+  const yearlyData = await getYearlyEnergyData(deviceId, env);
+  if (!yearlyData.months || yearlyData.months.length === 0) return { success: false, hasData: false, deviceId: deviceUpper, message: 'No data' };
+  const vatRate = 0.08;
+  let totalSavings = 0, totalLoad = 0, totalSolarProduced = 0, totalGrid = 0, totalCostWithoutSolar = 0, monthsWithData = 0;
+  for (const month of yearlyData.months) {
+    const totalLoadMonth = month.totalLoad || 0, grid = month.grid || 0;
+    if (totalLoadMonth <= 0 && grid <= 0) continue;
+    monthsWithData++;
+    const solarProduced = Math.max(0, totalLoadMonth - grid);
+    const gridCost = calculateTieredPrice(grid, vatRate);
+    const costWithoutSolar = calculateTieredPrice(totalLoadMonth, vatRate);
+    totalSavings += costWithoutSolar - gridCost;
+    totalLoad += totalLoadMonth; totalSolarProduced += solarProduced; totalGrid += grid; totalCostWithoutSolar += costWithoutSolar;
+  }
+  const avgSavings = monthsWithData > 0 ? totalSavings / monthsWithData : 0;
+  const formatVND = (v) => \`\${Math.round(v).toLocaleString('vi-VN')} VND\`;
+  const formatKWh = (v) => \`\${v.toFixed(1)} kWh\`;
+  return { success: true, hasData: true, deviceId: deviceUpper, display: { totalSavings: formatVND(totalSavings), totalLoad: formatKWh(totalLoad), totalSolarProduced: formatKWh(totalSolarProduced), totalGrid: formatKWh(totalGrid), costWithoutSolar: formatVND(totalCostWithoutSolar), avgSavings: formatVND(avgSavings) }, raw: { totalSavings: Math.round(totalSavings), totalLoad: Math.round(totalLoad * 10) / 10, totalSolarProduced: Math.round(totalSolarProduced * 10) / 10, totalGrid: Math.round(totalGrid * 10) / 10, costWithoutSolar: Math.round(totalCostWithoutSolar), avgSavings: Math.round(avgSavings) }, monthsWithData, year: yearlyData.year, source: 'home_assistant', syncedAt: new Date().toISOString(), version: '3.0' };
+}
+
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    const path = url.pathname;
+    const origin = request.headers.get('Origin') || '*';
+    
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(origin) });
+    
+    const haUrl = env.HA_URL || env.PI_URL;
+    const haToken = env.HA_TOKEN || env.PI_TOKEN;
+    
+    try {
+      if (path === '/' || path === '') {
+        return jsonResponse({ status: 'ok', version: '3.0', service: 'temperature-soc-power-proxy', features: ['Power History: sensor series_5min_w (288 points/day)', 'SOC: Zero values replaced with previous valid value', 'Multi-range History API for restart safety', 'Full 24h data NOT affected by HA restart'], tunnel: haUrl || 'NOT CONFIGURED', configured: !!(haUrl && haToken), timezone: 'UTC+7 (Vietnam)', endpoints: ['/api/ha/statistics/{deviceId}/year?year={YYYY}', '/api/solar/dashboard/{deviceId}', '/api/realtime/soc-history/{deviceId}?date={date}', '/api/realtime/power-history/{deviceId}?date={date}', '/api/realtime/power-peak/{deviceId}?date={date}', '/api/realtime/daily-energy/{deviceId}', '/api/cloud/temperature/{deviceId}/{date}'], envVars: { HA_URL: haUrl ? 'SET' : 'MISSING', HA_TOKEN: haToken ? 'SET' : 'MISSING' } }, origin);
+      }
+      
+      if (!haUrl || !haToken) return jsonResponse({ success: false, error: 'Worker not configured', message: 'Set HA_URL and HA_TOKEN in Cloudflare Dashboard' }, origin, 503);
+      
+      const dashboardMatch = path.match(/^\\/api\\/solar\\/dashboard\\/([^\\/]+)$/);
+      if (dashboardMatch) return jsonResponse(await getSolarDashboard(dashboardMatch[1], env), origin);
+      
+      const yearlyStatsMatch = path.match(/^\\/api\\/ha\\/statistics\\/([^\\/]+)\\/year$/);
+      if (yearlyStatsMatch) { const deviceId = yearlyStatsMatch[1]; const year = parseInt(url.searchParams.get('year')) || new Date().getFullYear(); return jsonResponse(await getYearlyStatistics(deviceId, year, env), origin); }
+      
+      const peakMatch = path.match(/^\\/api\\/realtime\\/power-peak\\/([^\\/]+)$/);
+      if (peakMatch) { const date = url.searchParams.get('date') || getVietnamToday(); return jsonResponse(await getPowerPeak(peakMatch[1], date, env), origin); }
+      
+      const dailyMatch = path.match(/^\\/api\\/realtime\\/daily-energy\\/([^\\/]+)$/);
+      if (dailyMatch) return jsonResponse(await getDailyEnergy(dailyMatch[1], env), origin);
+      
+      const socMatch = path.match(/^\\/api\\/realtime\\/soc-history\\/([^\\/]+)$/);
+      if (socMatch) { const date = url.searchParams.get('date') || getVietnamToday(); return jsonResponse(await getSOCHistory(socMatch[1], date, env), origin); }
+      
+      const powerMatch = path.match(/^\\/api\\/realtime\\/power-history\\/([^\\/]+)$/);
+      if (powerMatch) { const date = url.searchParams.get('date') || getVietnamToday(); return jsonResponse(await getPowerHistory(powerMatch[1], date, env), origin); }
+      
+      const tempMatch = path.match(/^\\/api\\/cloud\\/temperature\\/([^\\/]+)\\/(\\d{4}-\\d{2}-\\d{2})$/);
+      if (tempMatch) return jsonResponse(await getTemperatureHistory(tempMatch[1], tempMatch[2], env), origin);
+      
+      return jsonResponse({ error: 'Not Found', path }, origin, 404);
+    } catch (error) {
+      return jsonResponse({ success: false, error: error.message, version: '3.0' }, origin, 500);
+    }
+  }
+};`;
+
+document.getElementById('code').textContent = CODE;
+
+function copyCode() {
+    navigator.clipboard.writeText(CODE).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        btn.textContent = 'COPIED!';
+        btn.classList.add('copied');
+        document.getElementById('toast').classList.add('show');
+        setTimeout(() => {
+            document.getElementById('toast').classList.remove('show');
+            btn.textContent = 'COPY FULL CODE';
+            btn.classList.remove('copied');
+        }, 2000);
+    });
+}
+</script>
+</body>
+</html>

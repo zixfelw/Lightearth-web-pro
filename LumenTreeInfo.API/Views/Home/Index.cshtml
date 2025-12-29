@@ -1885,65 +1885,134 @@
     </div>
 </div>
 
-<!-- Summary Stats Cards - 3 Columns on both Mobile and PC -->
+<!-- DỮ LIỆU TRONG NGÀY + SOC - Combined Section -->
 <div id="summaryStats" class="hidden mb-4">
-    <div class="grid grid-cols-3 gap-1.5 sm:gap-3">
-        <!-- Card 1: Sản Lượng PV + Tiêu Thụ -->
-        <div id="pv-load-card" class="cursor-pointer bg-gradient-to-br from-teal-500 to-teal-600 dark:from-slate-700 dark:to-slate-900 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-lg hover:scale-[1.02] transition-all">
-            <div class="flex items-center gap-1 sm:gap-2 mb-1.5 sm:mb-2">
-                <div class="w-6 h-6 sm:w-8 sm:h-8 bg-white/20 rounded-md sm:rounded-lg flex items-center justify-center">
-                    <i data-lucide="sun" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white"></i>
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg overflow-hidden border-l-4 border-teal-500">
+        <!-- Section Header -->
+        <div class="p-3 sm:p-4 bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/30 dark:to-cyan-900/30 border-b border-teal-200 dark:border-teal-700">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <div class="w-9 h-9 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-lg flex items-center justify-center shadow-lg">
+                        <i data-lucide="calendar-days" class="w-4 h-4 text-white"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-bold text-slate-800 dark:text-white">Dữ Liệu Trong Ngày</h2>
+                        <p class="text-[10px] text-teal-600 dark:text-teal-400 font-medium">Năng lượng • Pin • Nguồn điện • SOC</p>
+                    </div>
                 </div>
-                <div class="text-white/90 text-xs sm:text-sm font-bold">Năng Lượng</div>
-            </div>
-            <div class="space-y-1.5 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-3">
-                <div class="bg-white/10 rounded-md sm:rounded-lg p-2 sm:p-2 text-center">
-                    <div class="text-white/70 text-[10px] sm:text-xs font-medium">Sản Lượng PV</div>
-                    <div id="pv-total" class="text-sm sm:text-lg font-black text-white">--</div>
-                </div>
-                <div class="bg-white/10 rounded-md sm:rounded-lg p-2 sm:p-2 text-center">
-                    <div class="text-white/70 text-[10px] sm:text-xs font-medium">Tiêu Thụ</div>
-                    <div id="load-total" class="text-sm sm:text-lg font-black text-white">--</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Card 2: Nạp Pin + Xả Pin -->
-        <div id="bat-card" class="cursor-pointer bg-gradient-to-br from-emerald-500 to-emerald-600 dark:from-slate-700 dark:to-slate-900 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-lg hover:scale-[1.02] transition-all">
-            <div class="flex items-center gap-1 sm:gap-2 mb-1.5 sm:mb-2">
-                <div class="w-6 h-6 sm:w-8 sm:h-8 bg-white/20 rounded-md sm:rounded-lg flex items-center justify-center">
-                    <i data-lucide="battery-charging" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white"></i>
-                </div>
-                <div class="text-white/90 text-xs sm:text-sm font-bold">Pin Lưu Trữ</div>
-            </div>
-            <div class="space-y-1.5 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-3">
-                <div class="bg-white/10 rounded-md sm:rounded-lg p-2 sm:p-2 text-center">
-                    <div class="text-white/70 text-[10px] sm:text-xs font-medium">Nạp Pin</div>
-                    <div id="bat-charge" class="text-sm sm:text-lg font-black text-emerald-300">--</div>
-                </div>
-                <div class="bg-white/10 rounded-md sm:rounded-lg p-2 sm:p-2 text-center">
-                    <div class="text-white/70 text-[10px] sm:text-xs font-medium">Xả Pin</div>
-                    <div id="bat-discharge" class="text-sm sm:text-lg font-black text-rose-300">--</div>
+                <div class="flex items-center gap-2">
+                    <span id="soc-last-update" class="text-[9px] text-slate-400 dark:text-slate-500"></span>
+                    <span class="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Live
+                    </span>
                 </div>
             </div>
         </div>
         
-        <!-- Card 3: Điện EVN + Điện Dự Phòng -->
-        <div id="grid-essential-card" class="cursor-pointer bg-gradient-to-br from-indigo-500 to-indigo-600 dark:from-slate-700 dark:to-slate-900 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-lg hover:scale-[1.02] transition-all">
-            <div class="flex items-center gap-1 sm:gap-2 mb-1.5 sm:mb-2">
-                <div class="w-6 h-6 sm:w-8 sm:h-8 bg-white/20 rounded-md sm:rounded-lg flex items-center justify-center">
-                    <i data-lucide="zap" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white"></i>
+        <!-- Content Area -->
+        <div class="p-3 sm:p-4 space-y-4">
+            <!-- 3 Data Cards Row -->
+            <div class="grid grid-cols-3 gap-1.5 sm:gap-3">
+                <!-- Card 1: Sản Lượng PV + Tiêu Thụ -->
+                <div id="pv-load-card" class="cursor-pointer bg-gradient-to-br from-teal-500 to-teal-600 dark:from-slate-700 dark:to-slate-900 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-lg hover:scale-[1.02] transition-all">
+                    <div class="flex items-center gap-1 sm:gap-2 mb-1.5 sm:mb-2">
+                        <div class="w-6 h-6 sm:w-8 sm:h-8 bg-white/20 rounded-md sm:rounded-lg flex items-center justify-center">
+                            <i data-lucide="sun" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white"></i>
+                        </div>
+                        <div class="text-white/90 text-xs sm:text-sm font-bold">Năng Lượng</div>
+                    </div>
+                    <div class="space-y-1.5 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-3">
+                        <div class="bg-white/10 rounded-md sm:rounded-lg p-2 sm:p-2 text-center">
+                            <div class="text-white/70 text-[10px] sm:text-xs font-medium">Sản Lượng PV</div>
+                            <div id="pv-total" class="text-sm sm:text-lg font-black text-white">--</div>
+                        </div>
+                        <div class="bg-white/10 rounded-md sm:rounded-lg p-2 sm:p-2 text-center">
+                            <div class="text-white/70 text-[10px] sm:text-xs font-medium">Tiêu Thụ</div>
+                            <div id="load-total" class="text-sm sm:text-lg font-black text-white">--</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="text-white/90 text-xs sm:text-sm font-bold">Nguồn Điện</div>
+                
+                <!-- Card 2: Nạp Pin + Xả Pin -->
+                <div id="bat-card" class="cursor-pointer bg-gradient-to-br from-emerald-500 to-emerald-600 dark:from-slate-700 dark:to-slate-900 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-lg hover:scale-[1.02] transition-all">
+                    <div class="flex items-center gap-1 sm:gap-2 mb-1.5 sm:mb-2">
+                        <div class="w-6 h-6 sm:w-8 sm:h-8 bg-white/20 rounded-md sm:rounded-lg flex items-center justify-center">
+                            <i data-lucide="battery-charging" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white"></i>
+                        </div>
+                        <div class="text-white/90 text-xs sm:text-sm font-bold">Pin Lưu Trữ</div>
+                    </div>
+                    <div class="space-y-1.5 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-3">
+                        <div class="bg-white/10 rounded-md sm:rounded-lg p-2 sm:p-2 text-center">
+                            <div class="text-white/70 text-[10px] sm:text-xs font-medium">Nạp Pin</div>
+                            <div id="bat-charge" class="text-sm sm:text-lg font-black text-emerald-300">--</div>
+                        </div>
+                        <div class="bg-white/10 rounded-md sm:rounded-lg p-2 sm:p-2 text-center">
+                            <div class="text-white/70 text-[10px] sm:text-xs font-medium">Xả Pin</div>
+                            <div id="bat-discharge" class="text-sm sm:text-lg font-black text-rose-300">--</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Card 3: Điện EVN + Điện Dự Phòng -->
+                <div id="grid-essential-card" class="cursor-pointer bg-gradient-to-br from-indigo-500 to-indigo-600 dark:from-slate-700 dark:to-slate-900 rounded-xl sm:rounded-2xl p-2.5 sm:p-4 shadow-lg hover:scale-[1.02] transition-all">
+                    <div class="flex items-center gap-1 sm:gap-2 mb-1.5 sm:mb-2">
+                        <div class="w-6 h-6 sm:w-8 sm:h-8 bg-white/20 rounded-md sm:rounded-lg flex items-center justify-center">
+                            <i data-lucide="zap" class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white"></i>
+                        </div>
+                        <div class="text-white/90 text-xs sm:text-sm font-bold">Nguồn Điện</div>
+                    </div>
+                    <div class="space-y-1.5 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-3">
+                        <div class="bg-white/10 rounded-md sm:rounded-lg p-2 sm:p-2 text-center">
+                            <div class="text-white/70 text-[10px] sm:text-xs font-medium">Xài Điện EVN</div>
+                            <div id="grid-total" class="text-sm sm:text-lg font-black text-amber-300">--</div>
+                        </div>
+                        <div class="bg-white/10 rounded-md sm:rounded-lg p-2 sm:p-2 text-center">
+                            <div class="text-white/70 text-[10px] sm:text-xs font-medium">Điện Dự Phòng</div>
+                            <div id="essential-total" class="text-sm sm:text-lg font-black text-cyan-300">--</div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="space-y-1.5 sm:space-y-0 sm:grid sm:grid-cols-2 sm:gap-3">
-                <div class="bg-white/10 rounded-md sm:rounded-lg p-2 sm:p-2 text-center">
-                    <div class="text-white/70 text-[10px] sm:text-xs font-medium">Xài Điện EVN</div>
-                    <div id="grid-total" class="text-sm sm:text-lg font-black text-amber-300">--</div>
+            
+            <!-- SOC Section - Inside Same Container -->
+            <div class="pt-3 border-t border-slate-200 dark:border-slate-700">
+                <!-- SOC Header -->
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm sm:text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                        <i data-lucide="battery-full" class="w-5 h-5 text-teal-500"></i>
+                        Phần Trăm Pin (SOC)
+                    </h3>
+                    <span class="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        Auto-reload mỗi 5 phút
+                    </span>
                 </div>
-                <div class="bg-white/10 rounded-md sm:rounded-lg p-2 sm:p-2 text-center">
-                    <div class="text-white/70 text-[10px] sm:text-xs font-medium">Điện Dự Phòng</div>
-                    <div id="essential-total" class="text-sm sm:text-lg font-black text-cyan-300">--</div>
+                
+                <!-- Big SOC Display + Stats Row -->
+                <div class="flex items-center mb-4 gap-4">
+                    <!-- Big SOC Value -->
+                    <div class="flex items-center gap-3">
+                        <div class="text-4xl sm:text-5xl font-black text-teal-600 dark:text-teal-400" id="soc-big-value">--%</div>
+                        <div class="flex flex-col gap-1">
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400">
+                                MAX: <span id="soc-max">--%</span>
+                            </span>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400">
+                                MIN: <span id="soc-min">--%</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Chart Container with External Tooltip -->
+                <div class="chart-container relative" style="height: 200px;">
+                    <canvas id="socChart"></canvas>
+                    <!-- External HTML Tooltip (zoom-proof) - Simplified: only time and SOC -->
+                    <div id="soc-tooltip" class="hidden absolute z-50 bg-slate-900/95 text-white text-xs rounded-lg shadow-xl p-2.5 pointer-events-none backdrop-blur-sm border border-slate-700">
+                        <div id="soc-tooltip-time" class="text-slate-300 text-xs font-medium"></div>
+                        <div id="soc-tooltip-soc" class="text-xl font-black text-teal-400"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1952,53 +2021,6 @@
 
 <!-- Charts Section -->
 <div id="chart-section" class="hidden space-y-4">
-    <!-- Battery SOC Chart V5.0 - DATA FROM soc.applike098.workers.dev -->
-    <div id="soc-section" class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-4 sm:p-5 border-l-4 border-teal-500">
-        <!-- Header -->
-        <div class="flex items-center justify-between mb-3">
-            <h2 class="text-sm sm:text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
-                <i data-lucide="battery-full" class="w-5 h-5 text-teal-500"></i>
-                Phần Trăm Pin (SOC)
-            </h2>
-            <div class="flex items-center gap-2">
-                <span id="soc-last-update" class="text-[9px] text-slate-400 dark:text-slate-500"></span>
-                <span class="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Auto-reload
-                </span>
-            </div>
-        </div>
-        
-        <!-- Big SOC Display + Stats Row -->
-        <div class="flex items-center mb-4 gap-4">
-            <!-- Big SOC Value -->
-            <div class="flex items-center gap-3">
-                <div class="text-4xl sm:text-5xl font-black text-teal-600 dark:text-teal-400" id="soc-big-value">--%</div>
-                <div class="flex flex-col gap-1">
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400">
-                        MAX: <span id="soc-max">--%</span>
-                    </span>
-                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400">
-                        MIN: <span id="soc-min">--%</span>
-                    </span>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Chart Container with External Tooltip -->
-        <div class="chart-container relative" style="height: 200px;">
-            <canvas id="socChart"></canvas>
-            <!-- External HTML Tooltip (zoom-proof) - Simplified: only time and SOC -->
-            <div id="soc-tooltip" class="hidden absolute z-50 bg-slate-900/95 text-white text-xs rounded-lg shadow-xl p-2.5 pointer-events-none backdrop-blur-sm border border-slate-700">
-                <div id="soc-tooltip-time" class="text-slate-300 text-xs font-medium"></div>
-                <div id="soc-tooltip-soc" class="text-xl font-black text-teal-400"></div>
-            </div>
-        </div>
-        
-        <p class="text-xs text-slate-500 dark:text-slate-400 mt-3 text-center font-medium">
-            Auto-reload mỗi 5 phút
-        </p>
-    </div>
 
     <!-- Combined Energy Chart - ENHANCED V2.0 -->
     <div id="energy-chart-section" class="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-4 sm:p-5 border-l-4 border-indigo-500">
