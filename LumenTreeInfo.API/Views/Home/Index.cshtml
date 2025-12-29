@@ -84,22 +84,6 @@
             animation: glow 4s ease-in-out infinite;
         }
         
-        /* Blink animation for last update time - 2s interval */
-        @@keyframes blink-update {
-            0%, 100% {
-                opacity: 1;
-                color: #94a3b8; /* slate-400 */
-            }
-            50% {
-                opacity: 0.4;
-                color: #10b981; /* emerald-500 */
-            }
-        }
-        
-        .animate-blink-update {
-            animation: blink-update 2s ease-in-out infinite;
-        }
-        
         /* Scrollbar styling */
         ::-webkit-scrollbar {
             width: 6px;
@@ -1172,7 +1156,7 @@
                 <span id="temp-max-value" class="text-xs font-bold text-red-600 dark:text-red-400">--</span>
             </div>
         </div>
-        <div id="lastUpdate" class="ml-auto flex items-center gap-1 text-slate-400 animate-blink-update">
+        <div id="lastUpdate" class="ml-auto flex items-center gap-1 text-slate-400">
             <i data-lucide="refresh-cw" class="w-3 h-3"></i>
             <span class="text-[10px]" id="lastUpdateTime">--</span>
         </div>
