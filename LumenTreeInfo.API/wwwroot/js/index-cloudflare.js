@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript (CLOUDFLARE ONLY VERSION)
- * Version: 13287-cf - 100% Cloudflare Workers, NO Railway needed!
+ * Version: 13288-cf - 100% Cloudflare Workers, NO Railway needed!
  * 
  * Features:
  * - Real-time data via SignalR
@@ -3987,6 +3987,10 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     
+    // Expose autoSync3DHomeView IMMEDIATELY after definition
+    window.autoSync3DHomeView = autoSync3DHomeView;
+    console.log('✅ window.autoSync3DHomeView exposed');
+    
     // Auto-sync data to Basic view elements
     function autoSyncBasicView() {
         // Get current values from Pro view (original IDs)
@@ -4099,11 +4103,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
     
-    // Expose autoSyncBasicView globally for use in updateRealTimeDisplay
+    // Expose autoSyncBasicView IMMEDIATELY after definition
     window.autoSyncBasicView = autoSyncBasicView;
-    
-    // Expose autoSync3DHomeView globally for use in updateRealTimeDisplay
-    window.autoSync3DHomeView = autoSync3DHomeView;
+    console.log('✅ window.autoSyncBasicView exposed');
     
     // ========================================
     // LOAD HEAT EFFECT - Visual feedback for power consumption
@@ -4725,7 +4727,7 @@ document.addEventListener('DOMContentLoaded', function () {
         'Hòa Bình': { lat: 20.8171, lon: 105.3376, region: 'Miền Bắc' },
     };
     
-    let currentSolarCity = 'TPHCM';
+    let currentSolarCity = 'TP. Hồ Chí Minh';
     let solarForecastData = null;
     
     // Get solar radiation level info
