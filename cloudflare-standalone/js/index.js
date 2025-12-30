@@ -1,6 +1,6 @@
 /**
  * Solar Monitor - Frontend JavaScript (CLOUDFLARE ONLY VERSION)
- * Version: 13286-cf - 100% Cloudflare Workers, NO Railway needed!
+ * Version: 13287-cf - 100% Cloudflare Workers, NO Railway needed!
  * 
  * Features:
  * - Real-time data via SignalR
@@ -64,6 +64,8 @@ let socCache = {
 let socChartInstance = null;
 let socData = [];
 let lastCellsFetch = 0;
+let socAutoReloadInterval = null;
+const CELLS_FETCH_INTERVAL = 5000; // Min 5s between fetches
 
 // Get current API (round-robin with health check)
 function getNextHealthyApi() {
@@ -2288,8 +2290,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // API: Railway SOC History (LightEarth Cloud data)
     // ========================================
     
-    // SOC Chart variables - socChartInstance and socData are now at top level
-    let socAutoReloadInterval = null;
+    // SOC Chart variables - socChartInstance, socData, socAutoReloadInterval are now at top level
     
     // SOC data cache - 5 minute TTL to reduce API calls
     const SOC_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -2961,8 +2962,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Fetch battery cells specifically from lightearth-proxy (which always has cells data)
     // This is needed because applike098 API doesn't return cells data
     const LIGHTEARTH_PROXY_API = 'https://lightearth-proxy.minhlongt358.workers.dev';
-    // lastCellsFetch is now at top level to avoid TDZ
-    const CELLS_FETCH_INTERVAL = 5000; // Min 5s between fetches
+    // lastCellsFetch and CELLS_FETCH_INTERVAL are now at top level to avoid TDZ
     
     async function fetchBatteryCellsFromProxy(deviceId) {
         // Throttle fetches to prevent spam
